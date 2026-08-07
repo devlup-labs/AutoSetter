@@ -1,0 +1,39 @@
+{
+  "name": "Next Round",
+  "source": "CF 158A",
+  "multitest": false,
+  "body": {
+    "variables": [
+      {
+        "kind": "int",
+        "name": "n",
+        "domain": { "lo": 1, "hi": 50 },
+        "source": "n and k (1 <= k <= n <= 50)"
+      },
+      {
+        "kind": "int",
+        "name": "k",
+        "domain": { "lo": 1, "hi": "n" },
+        "source": "n and k (1 <= k <= n <= 50)"
+      },
+      {
+        "kind": "array",
+        "name": "a",
+        "length": "n",
+        "elem": { "lo": 0, "hi": 100 },
+        "source": "The second line contains n space-separated integers a_1 ... a_n (0 <= a_i <= 100)"
+      }
+    ],
+    "lines": [
+      { "tokens": ["n", "k"] },
+      { "tokens": ["a"] }
+    ]
+  },
+  "global_constraints": [],
+  "output": {
+    "unique_answer": true,
+    "case_insensitive": false,
+    "float_eps": null,
+    "tokens_per_test": 1
+  }
+}
