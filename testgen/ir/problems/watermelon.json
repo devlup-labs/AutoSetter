@@ -1,0 +1,25 @@
+{
+  "name": "Watermelon",
+  "source": "CF 4A",
+  "multitest": false,
+  "body": {
+    "variables": [
+      {
+        "kind": "int",
+        "name": "w",
+        "domain": { "lo": 1, "hi": 100 },
+        "source": "The first line contains integer w (1 <= w <= 100)"
+      }
+    ],
+    "lines": [
+      { "tokens": ["w"] }
+    ]
+  },
+  "global_constraints": [],
+  "output": {
+    "unique_answer": true,
+    "case_insensitive": false,
+    "float_eps": null,
+    "tokens_per_test": 1
+  }
+}
