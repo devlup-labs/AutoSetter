@@ -15,21 +15,9 @@ languages gets rejected before it ever reaches a contestant.
 
 from __future__ import annotations
 
-from testgen.ir.schema import Bound, IntVar, Problem
+from testgen.ir.schema import ArrayVar, Bound, IntVar, Problem, StringVar, Variable
 
-HEADER = """// Generated from the constraint IR. Do not edit by hand.
-// Problem: {name}{source}
-#include "testlib.h"
-
-int main(int argc, char* argv[]) {{
-    registerValidation(argc, argv);
-"""
-
-FOOTER = """
-    inf.readEof();
-    return 0;
-}
-"""
+INDENT = "    "
 
 
 def _bound(bound: Bound) -> str:
@@ -59,6 +47,9 @@ def _referenced_names(problem: Problem) -> set[str]:
             note(var.domain.hi)
         else:
             note(var.length)
+            if isinstance(var, ArrayVar):
+                note(var.elem.lo)
+                note(var.elem.hi)
 
     for constraint in problem.global_constraints:
         names.add(constraint.var)
@@ -67,13 +58,55 @@ def _referenced_names(problem: Problem) -> set[str]:
     return names
 
 
-def _read_int(var: IntVar, store: bool, indent: str = "    ") -> str:
-    lo = _bound(var.domain.lo)
-    hi = _bound(var.domain.hi)
-    call = f'inf.readInt({lo}, {hi}, "{var.name}")'
-    if store:
-        return f"{indent}int {var.name} = {call};"
-    return f"{indent}{call};"
+def _emit_token(var: Variable, stored: bool, depth: int) -> list[str]:
+    """Emit the read for one variable, without any surrounding whitespace."""
+    pad = INDENT * depth
+
+    if isinstance(var, IntVar):
+        call = f'inf.readInt({_bound(var.domain.lo)}, ' \
+               f'{_bound(var.domain.hi)}, "{var.name}")'
+        if stored:
+            return [f"{pad}int {var.name} = {call};"]
+        return [f"{pad}{call};"]
+
+    if isinstance(var, StringVar):
+        # testlib takes a pattern, so the alphabet and the length are checked
+        # together in one call.
+        pattern = f'format("[{var.alphabet}]{{%d}}", {_bound(var.length)})'
+        return [f'{pad}inf.readToken({pattern}, "{var.name}");']
+
+    if isinstance(var, ArrayVar):
+        # Elements are separated by single spaces, with no trailing space
+        # before the newline, so the separator goes between elements only.
+        loop = f"i_{var.name}"
+        length = _bound(var.length)
+        return [
+            f"{pad}for (int {loop} = 0; {loop} < {length}; {loop}++) {{",
+            f"{pad}{INDENT}inf.readInt({_bound(var.elem.lo)}, "
+            f'{_bound(var.elem.hi)}, format("{var.name}[%d]", {loop}));',
+            f"{pad}{INDENT}if ({loop} + 1 < {length}) inf.readSpace();",
+            f"{pad}}}",
+        ]
+
+    raise NotImplementedError(f"cannot read variable of kind {var.kind!r}")
+
+
+def _emit_lines(problem: Problem, stored: set[str], depth: int) -> list[str]:
+    """Emit every line of the repeated body."""
+    out: list[str] = []
+    pad = INDENT * depth
+
+    for line in problem.body.lines:
+        for position, token in enumerate(line.tokens):
+            var = problem.body.variable(token)
+            if var is None:
+                raise ValueError(f"input format names unknown variable {token!r}")
+            out.extend(_emit_token(var, token in stored, depth))
+            if position + 1 < len(line.tokens):
+                out.append(f"{pad}inf.readSpace();")
+        out.append(f"{pad}inf.readEoln();")
+
+    return out
 
 
 def emit_validator(problem: Problem) -> str:
@@ -83,23 +116,27 @@ def emit_validator(problem: Problem) -> str:
 
     stored = _referenced_names(problem)
     source = f" ({problem.source})" if problem.source else ""
-    parts = [HEADER.format(name=problem.name, source=source)]
 
-    for line in problem.body.lines:
-        for position, token in enumerate(line.tokens):
-            var = problem.body.variable(token)
-            if not isinstance(var, IntVar):
-                raise NotImplementedError(
-                    f"{token!r} is not a plain integer; "
-                    "arrays and strings are not supported yet"
-                )
-            parts.append(_read_int(var, store=var.name in stored))
-            if position + 1 < len(line.tokens):
-                parts.append("    inf.readSpace();")
-        parts.append("    inf.readEoln();")
+    out = [
+        "// Generated from the constraint IR. Do not edit by hand.",
+        f"// Problem: {problem.name}{source}",
+        '#include "testlib.h"',
+        "",
+        "int main(int argc, char* argv[]) {",
+        f"{INDENT}registerValidation(argc, argv);",
+        "",
+    ]
 
-    parts.append(FOOTER)
-    return "\n".join(parts)
+    out.extend(_emit_lines(problem, stored, depth=1))
+
+    out += [
+        "",
+        f"{INDENT}inf.readEof();",
+        f"{INDENT}return 0;",
+        "}",
+        "",
+    ]
+    return "\n".join(out)
 
 
 def main() -> None:
