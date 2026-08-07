@@ -41,6 +41,17 @@ class IntVar(BaseModel):
     )
 
 
+# How the values of an array relate to their neighbours, when the statement
+# guarantees an order. "non_increasing" allows equal neighbours, "decreasing"
+# does not, and getting that wrong makes a validator reject legal tests.
+Monotonicity = Literal[
+    "increasing",
+    "non_decreasing",
+    "decreasing",
+    "non_increasing",
+]
+
+
 class ArrayVar(BaseModel):
     """A sequence of integers whose length is given by another variable."""
 
@@ -48,6 +59,14 @@ class ArrayVar(BaseModel):
     name: str
     length: Bound
     elem: IntDomain
+    monotone: Monotonicity | None = Field(
+        default=None,
+        description="Set when the statement guarantees an order, e.g. 'in non-increasing order'.",
+    )
+    distinct: bool = Field(
+        default=False,
+        description="Set when the statement says the values are pairwise different.",
+    )
     source: str | None = None
 
 

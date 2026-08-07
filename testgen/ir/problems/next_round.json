@@ -21,7 +21,8 @@
         "name": "a",
         "length": "n",
         "elem": { "lo": 0, "hi": 100 },
-        "source": "The second line contains n space-separated integers a_1 ... a_n (0 <= a_i <= 100)"
+        "monotone": "non_increasing",
+        "source": "The second line contains n space-separated integers a_1 ... a_n (0 <= a_i <= 100), these are the scores in the non-increasing order"
       }
     ],
     "lines": [

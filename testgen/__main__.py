@@ -16,15 +16,12 @@ ground truth you get for free without labelling anything.
 from __future__ import annotations
 
 import argparse
-import subprocess
 import sys
 from pathlib import Path
 
+from testgen.build import accepts, build_validator
 from testgen.emit.validator import emit_validator
 from testgen.ir.problems import PROBLEM_DIR, load, load_all
-
-BUILD_DIR = Path(__file__).parent.parent / "build"
-TESTLIB_DIR = Path(__file__).parent
 
 TEMPLATE = """{
   "name": "%(name)s",
@@ -83,30 +80,13 @@ def cmd_emit(args: argparse.Namespace) -> int:
 
 
 def cmd_build(args: argparse.Namespace) -> int:
-    binary = build_validator(args.problem)
+    binary = build_validator(load(args.problem), args.problem)
     print(f"built {binary}")
     return 0
 
 
-def build_validator(problem: str) -> Path:
-    """Emit and compile the validator, returning the path to the binary."""
-    BUILD_DIR.mkdir(exist_ok=True)
-    source = BUILD_DIR / f"{problem}_validator.cpp"
-    source.write_text(emit_validator(load(problem)))
-
-    binary = BUILD_DIR / f"{problem}_validator"
-    result = subprocess.run(
-        ["g++", "-O2", "-o", str(binary), str(source), "-I", str(TESTLIB_DIR)],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        raise SystemExit(f"{problem} did not compile:\n{result.stderr}")
-    return binary
-
-
 def cmd_check(args: argparse.Namespace) -> int:
-    binary = build_validator(args.problem)
+    binary = build_validator(load(args.problem), args.problem)
     failures = 0
 
     for name in args.files:
@@ -116,16 +96,12 @@ def cmd_check(args: argparse.Namespace) -> int:
             failures += 1
             continue
 
-        result = subprocess.run(
-            [str(binary)], input=path.read_text(), capture_output=True, text=True
-        )
-        if result.returncode == 0:
-            print(f"  valid    {path}")
+        ok, reason = accepts(binary, path.read_text())
+        if ok:
+            print(f"  valid    {path.name}")
         else:
             failures += 1
-            message = (result.stderr or result.stdout).strip().splitlines()
-            reason = message[0] if message else "rejected"
-            print(f"  INVALID  {path}: {reason}")
+            print(f"  INVALID  {path.name}: {reason}")
 
     print()
     print(f"{len(args.files) - failures}/{len(args.files)} accepted")

@@ -6,21 +6,23 @@ so every case here is compiled with g++ and run against real files.
 
 Each problem lists inputs that must be accepted and inputs that must be
 rejected. The rejected ones are deliberate mutations of a valid file: a value
-pushed past its bound, a token removed, whitespace made wrong. If a mutation is
-accepted, some constraint never made it out of the IR.
+pushed past its bound, a token removed, whitespace made wrong, an order broken.
+If a mutation is accepted, some constraint never made it out of the IR.
+
+The cases at the bottom are not real problems. They exist to reach the parts of
+the emitter that none of the reference problems happen to use, so that those
+paths are still compiled and run rather than only being generated.
 """
 
 from __future__ import annotations
 
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
-from testgen.emit.validator import emit_validator
+from testgen.build import accepts, build_validator
 from testgen.ir.problems import load
-
-TESTLIB_DIR = Path(__file__).parent
+from testgen.ir.schema import Problem
 
 # (input text, what makes it wrong)
 CASES: dict[str, dict[str, list]] = {
@@ -50,6 +52,20 @@ CASES: dict[str, dict[str, list]] = {
             ("6\n6\n4\n", "the values split across lines"),
         ],
     },
+    "next_round": {
+        "accept": [
+            "8 5\n10 9 8 7 7 7 5 5\n",
+            "4 2\n0 0 0 0\n",
+            "1 1\n100\n",
+        ],
+        "reject": [
+            ("3 5\n1 2 3\n", "k above n, which is its upper bound"),
+            ("3 2\n1 2 3\n", "an increasing sequence where non-increasing is required"),
+            ("3 2\n3 2 1 0\n", "more values than n promises"),
+            ("3 2\n3 2 101\n", "an element above its upper bound"),
+            ("51 2\n" + " ".join(["1"] * 51) + "\n", "n above its upper bound"),
+        ],
+    },
     "max_of_array": {
         "accept": [
             "1\n1\n5\n",
@@ -73,27 +89,86 @@ CASES: dict[str, dict[str, list]] = {
     },
 }
 
+# Emitter paths that no reference problem reaches.
+SYNTHETIC: dict[str, dict] = {
+    "distinct_values": {
+        "ir": {
+            "name": "Distinct values",
+            "multitest": False,
+            "body": {
+                "variables": [
+                    {"kind": "int", "name": "n", "domain": {"lo": 1, "hi": 100}},
+                    {
+                        "kind": "array",
+                        "name": "a",
+                        "length": "n",
+                        "elem": {"lo": 1, "hi": 100},
+                        "distinct": True,
+                    },
+                ],
+                "lines": [{"tokens": ["n"]}, {"tokens": ["a"]}],
+            },
+            "output": {"tokens_per_test": 1},
+        },
+        "accept": ["3\n1 2 3\n", "1\n7\n", "3\n9 4 1\n"],
+        "reject": [
+            ("3\n1 2 1\n", "a repeated value where the values must be distinct"),
+            ("2\n5 5\n", "both values the same"),
+        ],
+    },
+    "binary_string": {
+        "ir": {
+            "name": "Binary string",
+            "multitest": False,
+            "body": {
+                "variables": [
+                    {"kind": "int", "name": "n", "domain": {"lo": 1, "hi": 100}},
+                    {
+                        "kind": "string",
+                        "name": "s",
+                        "length": "n",
+                        "alphabet": "01",
+                    },
+                ],
+                "lines": [{"tokens": ["n"]}, {"tokens": ["s"]}],
+            },
+            "output": {"tokens_per_test": 1},
+        },
+        "accept": ["3\n010\n", "1\n0\n", "5\n11111\n"],
+        "reject": [
+            ("3\n012\n", "a character outside the alphabet"),
+            ("3\n01\n", "a string shorter than n"),
+            ("3\n0101\n", "a string longer than n"),
+        ],
+    },
+}
 
-def compile_validator(problem_name: str, workdir: Path) -> Path:
-    source = workdir / f"{problem_name}_validator.cpp"
-    source.write_text(emit_validator(load(problem_name)))
 
-    binary = workdir / f"{problem_name}_validator"
-    result = subprocess.run(
-        ["g++", "-O2", "-o", str(binary), str(source), "-I", str(TESTLIB_DIR)],
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(f"{problem_name} did not compile:\n{result.stderr}")
-    return binary
+def _show(text: str, limit: int = 30) -> str:
+    shown = text if len(text) <= limit else text[:limit] + "..."
+    return repr(shown)
 
 
-def accepts(binary: Path, text: str) -> bool:
-    result = subprocess.run(
-        [str(binary)], input=text, capture_output=True, text=True
-    )
-    return result.returncode == 0
+def _check(binary: Path, cases: dict) -> int:
+    failures = 0
+
+    for text in cases["accept"]:
+        ok, reason = accepts(binary, text)
+        if ok:
+            print(f"  ok      accepted {_show(text)}")
+        else:
+            failures += 1
+            print(f"  FAILED  rejected a valid input {_show(text)}: {reason}")
+
+    for text, description in cases["reject"]:
+        ok, _ = accepts(binary, text)
+        if ok:
+            failures += 1
+            print(f"  FAILED  accepted {description}")
+        else:
+            print(f"  ok      rejected {description}")
+
+    return failures
 
 
 def run() -> int:
@@ -102,23 +177,16 @@ def run() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         workdir = Path(tmp)
 
-        for problem_name, cases in CASES.items():
-            binary = compile_validator(problem_name, workdir)
-            print(f"\n{problem_name}  (compiled)")
+        for name, cases in CASES.items():
+            binary = build_validator(load(name), name, workdir)
+            print(f"\n{name}  (compiled)")
+            failures += _check(binary, cases)
 
-            for text in cases["accept"]:
-                if accepts(binary, text):
-                    print(f"  ok      accepted {_show(text)}")
-                else:
-                    failures += 1
-                    print(f"  FAILED  rejected a valid input {_show(text)}")
-
-            for text, reason in cases["reject"]:
-                if accepts(binary, text):
-                    failures += 1
-                    print(f"  FAILED  accepted {reason}")
-                else:
-                    print(f"  ok      rejected {reason}")
+        for name, cases in SYNTHETIC.items():
+            problem = Problem.model_validate(cases["ir"])
+            binary = build_validator(problem, name, workdir)
+            print(f"\n{name}  (compiled, synthetic)")
+            failures += _check(binary, cases)
 
     print()
     if failures:
@@ -126,11 +194,6 @@ def run() -> int:
     else:
         print("all checks passed")
     return 1 if failures else 0
-
-
-def _show(text: str, limit: int = 30) -> str:
-    shown = text if len(text) <= limit else text[:limit] + "..."
-    return repr(shown)
 
 
 if __name__ == "__main__":

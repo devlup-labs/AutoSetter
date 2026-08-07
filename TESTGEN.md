@@ -66,9 +66,15 @@ most validators get wrong.
 
 ```
 testgen/
+  __main__.py       command line entry point
+  build.py          emit and compile a validator
+  selftest.py       accept and reject checks for every emitter path
+  testlib.h         vendored, so the emitted C++ compiles out of the box
+  emit/
+    validator.py    IR -> testlib validator
   ir/
-    schema.py         constraint IR definitions
-    problems/         hand-written IR for the reference problems
+    schema.py       constraint IR definitions
+    problems/       hand-written IR for the reference problems
 ```
 
 ## Setup
@@ -78,3 +84,50 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
+
+## Adding a problem
+
+```
+python -m testgen new next_round
+```
+
+That writes a blank IR to `testgen/ir/problems/next_round.json`. Fill it in from
+the statement, quoting the sentence each constraint came from in its `source`
+field so the extraction step has something to be checked against later. Then:
+
+```
+python -m testgen emit next_round              # read the validator it produces
+python -m testgen check next_round samples/*   # compile it and run it on files
+```
+
+Point `check` at the samples that shipped with the problem. A correct validator
+has to accept every one of them, which is a ground truth that costs nothing to
+obtain. Then feed it deliberately broken files and confirm each is refused.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `list` | show every problem that has an IR |
+| `new <problem>` | scaffold a blank IR to fill in |
+| `emit <problem>` | print the validator source |
+| `build <problem>` | compile the validator into `build/` |
+| `check <problem> <files...>` | compile, then run it against real input files |
+| `selftest` | compile every validator and run the accept and reject suite |
+
+## What the IR can express
+
+| | Example |
+|---|---|
+| scalar range | `1 <= w <= 100` |
+| dependent range | `1 <= k <= n`, written as `"hi": "n"` |
+| array with element range | `n` integers, each `0 <= a_i <= 100` |
+| array order | `"monotone": "non_increasing"` |
+| distinct values | `"distinct": true` |
+| string over an alphabet | `"alphabet": "01"` with a length |
+| sum across test cases | `"kind": "sum_over_tests"` |
+
+Anything not in this table is not checked, and the emitter is deliberately not
+clever about it: a variable kind it does not understand raises rather than
+quietly emitting a validator that skips the constraint. A validator that misses
+a rule is worse than no validator, because it looks like it passed.

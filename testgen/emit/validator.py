@@ -76,19 +76,76 @@ def _emit_token(var: Variable, stored: bool, depth: int) -> list[str]:
         return [f'{pad}inf.readToken({pattern}, "{var.name}");']
 
     if isinstance(var, ArrayVar):
-        # Elements are separated by single spaces, with no trailing space
-        # before the newline, so the separator goes between elements only.
-        loop = f"i_{var.name}"
-        length = _bound(var.length)
-        return [
-            f"{pad}for (int {loop} = 0; {loop} < {length}; {loop}++) {{",
-            f"{pad}{INDENT}inf.readInt({_bound(var.elem.lo)}, "
-            f'{_bound(var.elem.hi)}, format("{var.name}[%d]", {loop}));',
-            f"{pad}{INDENT}if ({loop} + 1 < {length}) inf.readSpace();",
+        return _emit_array(var, pad)
+
+    raise NotImplementedError(f"cannot read variable of kind {var.kind!r}")
+
+
+# How each guarantee reads as a comparison between neighbouring elements.
+# The operator is the one that must HOLD between a[j-1] and a[j], so an
+# increasing array asserts a[j-1] < a[j]. Writing the test the other way round
+# is easy to do and passes every sorted-looking input, which is why the self
+# test feeds it a sequence going the wrong way.
+NEIGHBOUR_TEST = {
+    "increasing": ("<", "increasing"),
+    "non_decreasing": ("<=", "non-decreasing"),
+    "decreasing": (">", "decreasing"),
+    "non_increasing": (">=", "non-increasing"),
+}
+
+
+def _emit_array(var: ArrayVar, pad: str) -> list[str]:
+    """Emit the read for an array, plus any order or distinctness checks.
+
+    The elements are kept in a vector only when something needs to look back at
+    them. Problems without an order guarantee read straight through, so the
+    common case stays as simple as it was.
+    """
+    loop = f"i_{var.name}"
+    length = _bound(var.length)
+    read = (
+        f"inf.readInt({_bound(var.elem.lo)}, {_bound(var.elem.hi)}, "
+        f'format("{var.name}[%d]", {loop}))'
+    )
+    keep = var.monotone is not None or var.distinct
+
+    out: list[str] = []
+    if keep:
+        out.append(f"{pad}std::vector<int> {var.name};")
+
+    # Elements are separated by single spaces, with no trailing space before
+    # the newline, so the separator goes between elements only.
+    out += [
+        f"{pad}for (int {loop} = 0; {loop} < {length}; {loop}++) {{",
+        f"{pad}{INDENT}{var.name}.push_back({read});" if keep
+        else f"{pad}{INDENT}{read};",
+        f"{pad}{INDENT}if ({loop} + 1 < {length}) inf.readSpace();",
+        f"{pad}}}",
+    ]
+
+    if var.monotone is not None:
+        op, described = NEIGHBOUR_TEST[var.monotone]
+        out += [
+            f"{pad}for (size_t j = 1; j < {var.name}.size(); j++)",
+            f"{pad}{INDENT}ensuref({var.name}[j - 1] {op} {var.name}[j],",
+            f'{pad}{INDENT * 2}"{var.name} must be {described}, but '
+            f'{var.name}[%d] = %d and {var.name}[%d] = %d",',
+            f"{pad}{INDENT * 2}int(j) - 1, {var.name}[j - 1], "
+            f"int(j), {var.name}[j]);",
+        ]
+
+    if var.distinct:
+        out += [
+            f"{pad}{{",
+            f"{pad}{INDENT}std::vector<int> seen = {var.name};",
+            f"{pad}{INDENT}std::sort(seen.begin(), seen.end());",
+            f"{pad}{INDENT}ensuref(",
+            f"{pad}{INDENT * 2}std::unique(seen.begin(), seen.end()) == seen.end(),",
+            f'{pad}{INDENT * 2}"the values of {var.name} must be pairwise distinct");',
             f"{pad}}}",
         ]
 
-    raise NotImplementedError(f"cannot read variable of kind {var.kind!r}")
+    return out
 
 
 def _emit_lines(problem: Problem, stored: set[str], depth: int) -> list[str]:
