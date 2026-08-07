@@ -1,0 +1,47 @@
+{
+  "name": "Maximum of an array",
+  "source": "standard multitest Div2-A shape",
+  "multitest": true,
+  "test_count": {
+    "kind": "int",
+    "name": "t",
+    "domain": { "lo": 1, "hi": 10000 },
+    "source": "The first line contains t (1 <= t <= 10^4)"
+  },
+  "body": {
+    "variables": [
+      {
+        "kind": "int",
+        "name": "n",
+        "domain": { "lo": 1, "hi": 200000 },
+        "source": "The first line of each test case contains n (1 <= n <= 2*10^5)"
+      },
+      {
+        "kind": "array",
+        "name": "a",
+        "length": "n",
+        "elem": { "lo": 1, "hi": 1000000000 },
+        "source": "The second line contains n integers a_1 ... a_n (1 <= a_i <= 10^9)"
+      }
+    ],
+    "lines": [
+      { "tokens": ["n"] },
+      { "tokens": ["a"] }
+    ]
+  },
+  "global_constraints": [
+    {
+      "kind": "sum_over_tests",
+      "var": "n",
+      "op": "<=",
+      "value": 200000,
+      "source": "It is guaranteed that the sum of n over all test cases does not exceed 2*10^5"
+    }
+  ],
+  "output": {
+    "unique_answer": true,
+    "case_insensitive": false,
+    "float_eps": null,
+    "tokens_per_test": 1
+  }
+}

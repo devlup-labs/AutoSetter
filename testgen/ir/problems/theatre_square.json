@@ -1,0 +1,37 @@
+{
+  "name": "Theatre Square",
+  "source": "CF 1A",
+  "multitest": false,
+  "body": {
+    "variables": [
+      {
+        "kind": "int",
+        "name": "n",
+        "domain": { "lo": 1, "hi": 1000000000 },
+        "source": "n, m and a (1 <= n, m, a <= 10^9)"
+      },
+      {
+        "kind": "int",
+        "name": "m",
+        "domain": { "lo": 1, "hi": 1000000000 },
+        "source": "n, m and a (1 <= n, m, a <= 10^9)"
+      },
+      {
+        "kind": "int",
+        "name": "a",
+        "domain": { "lo": 1, "hi": 1000000000 },
+        "source": "n, m and a (1 <= n, m, a <= 10^9)"
+      }
+    ],
+    "lines": [
+      { "tokens": ["n", "m", "a"] }
+    ]
+  },
+  "global_constraints": [],
+  "output": {
+    "unique_answer": true,
+    "case_insensitive": false,
+    "float_eps": null,
+    "tokens_per_test": 1
+  }
+}
