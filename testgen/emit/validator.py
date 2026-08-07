@@ -109,11 +109,12 @@ def _emit_lines(problem: Problem, stored: set[str], depth: int) -> list[str]:
     return out
 
 
+def _accumulator(var: str) -> str:
+    return f"sum_{var}"
+
+
 def emit_validator(problem: Problem) -> str:
     """Return the C++ source of a validator for this problem."""
-    if problem.multitest:
-        raise NotImplementedError("multitest problems are not supported yet")
-
     stored = _referenced_names(problem)
     source = f" ({problem.source})" if problem.source else ""
 
@@ -127,7 +128,46 @@ def emit_validator(problem: Problem) -> str:
         "",
     ]
 
-    out.extend(_emit_lines(problem, stored, depth=1))
+    if not problem.multitest:
+        out.extend(_emit_lines(problem, stored, depth=1))
+    else:
+        count = problem.test_count
+        out += [
+            f"{INDENT}int {count.name} = inf.readInt("
+            f'{_bound(count.domain.lo)}, {_bound(count.domain.hi)}, "{count.name}");',
+            f"{INDENT}inf.readEoln();",
+        ]
+
+        # A global constraint is a property of the whole file, not of any one
+        # test case, so it is accumulated here and checked once the loop ends.
+        # The total can reach t * max, which overflows a 32 bit int, and an
+        # overflowed total can wrap negative and pass the check.
+        if problem.global_constraints:
+            out.append("")
+            for constraint in problem.global_constraints:
+                out.append(
+                    f"{INDENT}long long {_accumulator(constraint.var)} = 0;"
+                )
+
+        out += [
+            "",
+            f"{INDENT}for (int tc = 0; tc < {count.name}; tc++) {{",
+        ]
+        out.extend(_emit_lines(problem, stored, depth=2))
+        for constraint in problem.global_constraints:
+            out.append(
+                f"{INDENT * 2}{_accumulator(constraint.var)} += {constraint.var};"
+            )
+        out.append(f"{INDENT}}}")
+
+        for constraint in problem.global_constraints:
+            total = _accumulator(constraint.var)
+            out += [
+                "",
+                f"{INDENT}ensuref({total} {constraint.op} {constraint.value},",
+                f'{INDENT * 2}"sum of {constraint.var} is %lld, '
+                f'which breaks the limit of {constraint.value}", {total});',
+            ]
 
     out += [
         "",
