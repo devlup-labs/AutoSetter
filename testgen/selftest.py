@@ -66,6 +66,19 @@ CASES: dict[str, dict[str, list]] = {
             ("51 2\n" + " ".join(["1"] * 51) + "\n", "n above its upper bound"),
         ],
     },
+    "three_sum": {
+        "accept": [
+            "8 20\n2 7 4 0 9 5 1 3\n",
+            "3 0\n-100000 0 100000\n",
+            "3 -300000\n-100000 -100000 -100000\n",
+        ],
+        "reject": [
+            ("2 20\n2 7\n", "n below 3, so no triplet could exist"),
+            ("8 20\n2 7 4 0 9 5 1\n", "fewer values than n promises"),
+            ("8 20\n2 7 4 0 9 5 1 999999\n", "an element above its upper bound"),
+            ("8 400000\n2 7 4 0 9 5 1 3\n", "a target above its upper bound"),
+        ],
+    },
     "max_of_array": {
         "accept": [
             "1\n1\n5\n",

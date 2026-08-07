@@ -1,0 +1,39 @@
+{
+  "name": "3 Sum",
+  "source": "OA problem, ported. Bounds and input format chosen here, not read from the statement.",
+  "multitest": false,
+  "body": {
+    "variables": [
+      {
+        "kind": "int",
+        "name": "n",
+        "domain": { "lo": 3, "hi": 3000 },
+        "source": "CHOSEN. At least 3 so a triplet can exist. 3000 admits the O(n^2) two pointer solution and excludes O(n^3), which would be 2.7*10^10."
+      },
+      {
+        "kind": "int",
+        "name": "s",
+        "domain": { "lo": -300000, "hi": 300000 },
+        "source": "CHOSEN. A triplet of the extreme element values sums to at most 3*10^5, so any target outside this range is trivially unreachable."
+      },
+      {
+        "kind": "array",
+        "name": "a",
+        "length": "n",
+        "elem": { "lo": -100000, "hi": 100000 },
+        "source": "CHOSEN. Matches the usual bound on this problem, and keeps every partial sum inside int."
+      }
+    ],
+    "lines": [
+      { "tokens": ["n", "s"] },
+      { "tokens": ["a"] }
+    ]
+  },
+  "global_constraints": [],
+  "output": {
+    "unique_answer": false,
+    "case_insensitive": true,
+    "float_eps": null,
+    "tokens_per_test": null
+  }
+}
