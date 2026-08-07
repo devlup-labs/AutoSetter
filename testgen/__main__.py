@@ -16,6 +16,7 @@ ground truth you get for free without labelling anything.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -234,7 +235,14 @@ def main() -> int:
     )
 
     args = parser.parse_args()
-    return args.func(args)
+    try:
+        return args.func(args)
+    except BrokenPipeError:
+        # Whatever was reading us closed early, which is what happens with
+        # `| head`. Point stdout at nowhere so the interpreter does not try to
+        # flush it again on the way out and report the same thing twice.
+        os.dup2(os.open(os.devnull, os.O_WRONLY), sys.stdout.fileno())
+        return 0
 
 
 if __name__ == "__main__":
