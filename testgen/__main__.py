@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 from testgen.build import accepts, build_validator
+from testgen.emit.io_contract import emit_io_contract
 from testgen.emit.validator import emit_validator
 from testgen.ir.problems import PROBLEM_DIR, load, load_all
 
@@ -79,6 +80,11 @@ def cmd_emit(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_contract(args: argparse.Namespace) -> int:
+    print(emit_io_contract(load(args.problem)))
+    return 0
+
+
 def cmd_build(args: argparse.Namespace) -> int:
     binary = build_validator(load(args.problem), args.problem)
     print(f"built {binary}")
@@ -130,6 +136,12 @@ def main() -> int:
     emit = sub.add_parser("emit", help="print the validator source")
     emit.add_argument("problem")
     emit.set_defaults(func=cmd_emit)
+
+    contract = sub.add_parser(
+        "contract", help="print the input format description for a prompt"
+    )
+    contract.add_argument("problem")
+    contract.set_defaults(func=cmd_contract)
 
     build = sub.add_parser("build", help="compile the validator")
     build.add_argument("problem")
