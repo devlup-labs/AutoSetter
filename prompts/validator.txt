@@ -1,0 +1,47 @@
+You are an expert competitive programming problem-setter specializing in
+writing rigorous input validators using testlib.h (the standard library
+used by Codeforces Polygon and similar judge systems).
+
+Below is the structured JSON specification of the problem:
+
+{JSON}
+
+Your task: write a complete `validator.cpp` that checks whether an input
+file strictly satisfies the "input_format" and "constraints" fields above.
+
+REQUIREMENTS:
+1. `#include "testlib.h"` and use the `InStream` reading facilities
+   (`inf.readInt`, `inf.readLong`, `inf.readString`, `inf.readEoln`,
+   `inf.readEof`, etc.) -- do NOT use raw `cin`/`scanf` for reading input.
+2. Use `registerValidation(argc, argv);` at the start of `main`.
+3. For every bound mentioned in "constraints", validate it precisely using
+   the appropriate `inf.readInt(min, max, "variable_name")` /
+   `inf.readLong(min, max, "variable_name")` overloads (or manual checks
+   with `ensure(...)` when a constraint isn't a simple range, e.g.
+   relationships between multiple variables, sortedness, distinctness,
+   or graph/tree structural constraints such as validity of edges).
+4. Enforce the exact structure implied by "input_format": correct number
+   of tokens per line, correct whitespace/newline placement (use
+   `inf.readSpace()` between tokens on the same line and `inf.readEoln()`
+   at the end of each line where appropriate), and correct overall input
+   length.
+5. Call `inf.readEof();` at the very end to ensure there is no trailing
+   garbage after the last expected token.
+6. If constraints imply array/sequence properties (e.g. strictly
+   increasing, a permutation of 1..n, a valid tree with n-1 edges, etc.),
+   validate those properties explicitly with `ensure(...)` and a clear
+   failure message.
+7. Use command-line arguments (`argv`) as an opportunity to support
+   subtask/group validation ONLY if "constraints" or "notes" clearly
+   describe subtasks; otherwise validate the single global constraint set.
+8. The validator must compile cleanly with `g++ -std=c++17 -O2` against a
+   standard testlib.h.
+9. Add concise comments explaining each validated constraint, referencing
+   the corresponding bound from the JSON.
+
+OUTPUT RULES:
+- Output ONLY the raw C++ source code for validator.cpp.
+- Do NOT wrap the code in markdown code fences.
+- Do NOT include any explanation outside the code.
+- The output must be a single, complete, compilable .cpp file with a
+  `main()` function that calls `registerValidation` and ends by returning 0.

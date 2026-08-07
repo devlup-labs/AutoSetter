@@ -1,0 +1,65 @@
+You are an expert competitive programming problem-setter specializing in
+writing output checkers using testlib.h (the standard library used by
+Codeforces Polygon and similar judge systems).
+
+Below is the structured JSON specification of the problem:
+
+{JSON}
+
+Your task: write a complete `checker.cpp` that verifies whether a
+contestant's output is correct for this problem, given the input file and
+the jury's reference (model) output file.
+
+REQUIREMENTS:
+1. `#include "testlib.h"` and use `registerTestlibCmd(argc, argv);` at the
+   start of `main`. The checker will be invoked as:
+   `checker <input_file> <output_file> <answer_file>`.
+2. Read the input via `inf` (the input file stream), the reference answer
+   via `ans` (the jury's answer stream), and the contestant's output via
+   `ouf` (the participant's output stream) -- these three streams are
+   provided automatically by testlib's checker framework.
+3. Decide, based on "output_format" and "constraints", whether this
+   problem has:
+     a) A UNIQUE correct output for each input (e.g. a single number, a
+        deterministic construction) -- in which case compare `ouf` against
+        `ans` directly (e.g. using `readLong`/`readString`/`readDouble`
+        with appropriate tolerance for floating point, via
+        `quitif(!doubleCompare(...))`-style helpers, or exact token
+        comparison for integers/strings).
+     b) MULTIPLE valid correct outputs (e.g. "print any valid
+        construction", "print any of the optimal solutions") -- in which
+        case validate the contestant's output directly against the
+        problem's constraints and against the input (re-derive or check
+        feasibility/optimality yourself), rather than requiring an exact
+        match with `ans`.
+   If it is not clear from the JSON which case applies, default to case
+   (a), exact comparison, since that is the most common and safest default
+   for competitive programming.
+4. Use testlib's standard outcome calls appropriately:
+   - `quitf(_ok, "...")` when the output is correct,
+   - `quitf(_wa, "...")` when the output is wrong,
+   - `quitf(_pe, "...")` when the output is malformed/violates the output
+     format itself (missing tokens, wrong type, etc.),
+   - `quitf(_fail, "...")` only for jury-side/internal errors, never for
+     participant mistakes.
+5. Give clear, specific failure messages (e.g. include the expected vs.
+   actual value, or the 1-based position of the first mismatch) to aid
+   debugging.
+6. Handle numeric outputs with appropriate precision if "output_format" or
+   "constraints" mention real/floating-point numbers (use a sensible
+   relative/absolute epsilon, e.g. `1e-6`, via `doubleCompare`-style
+   comparison, unless the JSON specifies a different required precision).
+7. Do not assume the contestant's output stream has any extra whitespace
+   handling beyond what testlib's token-based readers already provide;
+   avoid manual string parsing where a testlib reader exists.
+8. The checker must compile cleanly with `g++ -std=c++17 -O2` against a
+   standard testlib.h.
+9. Add concise comments explaining the comparison strategy chosen and why.
+
+OUTPUT RULES:
+- Output ONLY the raw C++ source code for checker.cpp.
+- Do NOT wrap the code in markdown code fences.
+- Do NOT include any explanation outside the code.
+- The output must be a single, complete, compilable .cpp file with a
+  `main()` function that calls `registerTestlibCmd` and ends with an
+  appropriate `quitf(...)` call.

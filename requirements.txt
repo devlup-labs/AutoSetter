@@ -1,0 +1,10 @@
+# AutoSetup dependencies
+#
+# ollama       - official Ollama Python client (used for both vision and
+#                text chat calls against the local Ollama server)
+# Pillow       - image loading/validation/normalization for png/jpg/jpeg
+# PyMuPDF      - offline PDF -> image rasterization (imported as `fitz`)
+
+ollama>=0.4.0
+Pillow>=10.0.0
+PyMuPDF>=1.24.0

@@ -1,0 +1,17 @@
+{
+    "title": "3 Sum Problem",
+    "story": "Given an array of integers and a sum, we have to check if there exists any triplets in the array which is equal to that sum.",
+    "input_format": "Input = [2, 7, 4, 0, 9, 5, 1, 3] & Sum = 20",
+    "output_format": "Output = true [7, 4, 9]",
+    "constraints": "",
+    "samples": [
+        {
+            "input": "[2, 7, 4, 0, 9, 5, 1, 3] & Sum = 20",
+            "output": "true [7, 4, 9]",
+            "explanation": ""
+        }
+    ],
+    "time_limit": "1 second",
+    "memory_limit": "256 megabytes",
+    "notes": "The time limit and memory limit are inferred from the problem statement."
+}
