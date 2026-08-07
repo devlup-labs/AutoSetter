@@ -19,10 +19,12 @@ import argparse
 import sys
 from pathlib import Path
 
-from testgen.build import accepts, build_validator
+from testgen.build import accepts, build_generator, build_validator, generate
+from testgen.emit.generator import emit_generator
 from testgen.emit.io_contract import emit_io_contract
 from testgen.emit.validator import emit_validator
 from testgen.ir.problems import PROBLEM_DIR, load, load_all
+from testgen.plan import describe, plan_tests
 
 TEMPLATE = """{
   "name": "%(name)s",
@@ -85,6 +87,43 @@ def cmd_contract(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_plan(args: argparse.Namespace) -> int:
+    print(describe(load(args.problem)))
+    return 0
+
+
+def cmd_gen(args: argparse.Namespace) -> int:
+    problem = load(args.problem)
+    binary = build_generator(problem, args.problem)
+    print(generate(binary, [args.mode, str(args.seed)]), end="")
+    return 0
+
+
+def cmd_gentests(args: argparse.Namespace) -> int:
+    """Produce every planned test and confirm the validator accepts it."""
+    problem = load(args.problem)
+    generator = build_generator(problem, args.problem)
+    validator = build_validator(problem, args.problem)
+    outdir = Path(args.outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    failures = 0
+
+    for test in plan_tests(problem):
+        produced = generate(generator, test.args)
+        ok, reason = accepts(validator, produced)
+        path = outdir / f"{test.name}.txt"
+        path.write_text(produced)
+        if ok:
+            print(f"  ok       {test.name:<18} -> {path}")
+        else:
+            failures += 1
+            print(f"  INVALID  {test.name:<18} {reason}")
+
+    print()
+    print(f"{len(plan_tests(problem)) - failures} test(s) written to {outdir}")
+    return 1 if failures else 0
+
+
 def cmd_build(args: argparse.Namespace) -> int:
     binary = build_validator(load(args.problem), args.problem)
     print(f"built {binary}")
@@ -142,6 +181,23 @@ def main() -> int:
     )
     contract.add_argument("problem")
     contract.set_defaults(func=cmd_contract)
+
+    plan = sub.add_parser("plan", help="show which tests the constraints call for")
+    plan.add_argument("problem")
+    plan.set_defaults(func=cmd_plan)
+
+    gen = sub.add_parser("gen", help="run the generator once and print the test")
+    gen.add_argument("problem")
+    gen.add_argument("mode", nargs="?", default="random")
+    gen.add_argument("seed", nargs="?", type=int, default=1)
+    gen.set_defaults(func=cmd_gen)
+
+    gentests = sub.add_parser(
+        "gentests", help="write every planned test, checking each with the validator"
+    )
+    gentests.add_argument("problem")
+    gentests.add_argument("--outdir", default="build/tests")
+    gentests.set_defaults(func=cmd_gentests)
 
     build = sub.add_parser("build", help="compile the validator")
     build.add_argument("problem")

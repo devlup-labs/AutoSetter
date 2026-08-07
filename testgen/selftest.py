@@ -20,9 +20,10 @@ import sys
 import tempfile
 from pathlib import Path
 
-from testgen.build import accepts, build_validator
+from testgen.build import accepts, build_generator, build_validator, generate
 from testgen.ir.problems import load
 from testgen.ir.schema import Problem
+from testgen.plan import plan_tests
 
 # (input text, what makes it wrong)
 CASES: dict[str, dict[str, list]] = {
@@ -184,6 +185,31 @@ def _check(binary: Path, cases: dict) -> int:
     return failures
 
 
+def _check_generator(name: str, workdir: Path) -> int:
+    """Every test the generator produces must satisfy the validator.
+
+    This is the check worth having. The generator and the validator are built
+    from the same constraints but in opposite directions, one finding an input
+    and the other judging one, so if either has misread the IR they disagree
+    here. Neither could catch that on its own.
+    """
+    problem = load(name)
+    generator = build_generator(problem, name, workdir)
+    validator = build_validator(problem, name, workdir)
+    failures = 0
+
+    for test in plan_tests(problem):
+        produced = generate(generator, test.args)
+        ok, reason = accepts(validator, produced)
+        if ok:
+            print(f"  ok      {test.name:<18} passes its own validator")
+        else:
+            failures += 1
+            print(f"  FAILED  {test.name:<18} rejected by its own validator: {reason}")
+
+    return failures
+
+
 def run() -> int:
     failures = 0
 
@@ -192,14 +218,18 @@ def run() -> int:
 
         for name, cases in CASES.items():
             binary = build_validator(load(name), name, workdir)
-            print(f"\n{name}  (compiled)")
+            print(f"\n{name}  (validator)")
             failures += _check(binary, cases)
 
         for name, cases in SYNTHETIC.items():
             problem = Problem.model_validate(cases["ir"])
             binary = build_validator(problem, name, workdir)
-            print(f"\n{name}  (compiled, synthetic)")
+            print(f"\n{name}  (validator, synthetic)")
             failures += _check(binary, cases)
+
+        for name in CASES:
+            print(f"\n{name}  (generator against validator)")
+            failures += _check_generator(name, workdir)
 
     print()
     if failures:

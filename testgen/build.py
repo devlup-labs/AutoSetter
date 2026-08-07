@@ -9,6 +9,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from testgen.emit.generator import emit_generator
 from testgen.emit.validator import emit_validator
 from testgen.ir.schema import Problem
 
@@ -20,17 +21,13 @@ class CompileError(RuntimeError):
     """Raised when the emitted C++ does not compile."""
 
 
-def build_validator(
-    problem: Problem, name: str, outdir: Path | None = None
-) -> Path:
-    """Emit, compile and return the path to the validator binary."""
-    outdir = outdir or DEFAULT_BUILD_DIR
+def _compile(source_text: str, name: str, outdir: Path) -> Path:
     outdir.mkdir(parents=True, exist_ok=True)
 
-    source = outdir / f"{name}_validator.cpp"
-    source.write_text(emit_validator(problem))
+    source = outdir / f"{name}.cpp"
+    source.write_text(source_text)
 
-    binary = outdir / f"{name}_validator"
+    binary = outdir / name
     result = subprocess.run(
         ["g++", "-O2", "-o", str(binary), str(source), "-I", str(TESTLIB_DIR)],
         capture_output=True,
@@ -39,6 +36,36 @@ def build_validator(
     if result.returncode != 0:
         raise CompileError(f"{name} did not compile:\n{result.stderr}")
     return binary
+
+
+def build_validator(
+    problem: Problem, name: str, outdir: Path | None = None
+) -> Path:
+    """Emit, compile and return the path to the validator binary."""
+    return _compile(
+        emit_validator(problem), f"{name}_validator", outdir or DEFAULT_BUILD_DIR
+    )
+
+
+def build_generator(
+    problem: Problem, name: str, outdir: Path | None = None
+) -> Path:
+    """Emit, compile and return the path to the generator binary."""
+    return _compile(
+        emit_generator(problem), f"{name}_generator", outdir or DEFAULT_BUILD_DIR
+    )
+
+
+def generate(binary: Path, args: list[str]) -> str:
+    """Run the generator with these arguments and return the test it wrote."""
+    result = subprocess.run(
+        [str(binary), *args], capture_output=True, text=True
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"generator failed for args {args}: {result.stderr.strip()}"
+        )
+    return result.stdout
 
 
 def accepts(binary: Path, text: str) -> tuple[bool, str]:
