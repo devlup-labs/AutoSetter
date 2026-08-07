@@ -1,0 +1,39 @@
+{
+  "name": "The Best Card",
+  "source": "Codeforces, problem A",
+  "multitest": true,
+  "test_count": {
+    "kind": "int",
+    "name": "t",
+    "domain": { "lo": 1, "hi": 10000 },
+    "source": "The first line contains an integer t (1 <= t <= 10^4) - the number of test cases"
+  },
+  "body": {
+    "variables": [
+      {
+        "kind": "int",
+        "name": "n",
+        "domain": { "lo": 2, "hi": 200000 },
+        "source": "The only line of each test case contains an integer n (2 <= n <= 2 * 10^5) - the number of cards in the game"
+      }
+    ],
+    "lines": [
+      { "tokens": ["n"] }
+    ]
+  },
+  "global_constraints": [
+    {
+      "kind": "sum_over_tests",
+      "var": "n",
+      "op": "<=",
+      "value": 3000000,
+      "source": "the sum of n over all test cases does not exceed 3 * 10^6"
+    }
+  ],
+  "output": {
+    "unique_answer": true,
+    "case_insensitive": true,
+    "float_eps": null,
+    "tokens_per_test": 1
+  }
+}

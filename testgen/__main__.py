@@ -28,6 +28,14 @@ from testgen.emit.validator import emit_validator
 from testgen.ir.problems import PROBLEM_DIR, load, load_all
 from testgen.plan import describe, plan_tests
 
+def banner(command: str, subject: str = "") -> None:
+    """Print a heading so back to back commands stay readable in a terminal."""
+    title = f"{command}  {subject}".strip()
+    print()
+    print(f"=== {title} " + "=" * max(0, 68 - len(title)))
+    print()
+
+
 TEMPLATE = """{
   "name": "%(name)s",
   "source": "TODO where the problem came from, e.g. CF 158A",
@@ -57,13 +65,19 @@ TEMPLATE = """{
 
 
 def cmd_list(args: argparse.Namespace) -> int:
-    for stem, problem in load_all().items():
+    banner("problems")
+    rows = load_all()
+    width = max(len(s) for s in rows)
+    print(f"  {'FILE':<{width}}  {'NAME':<24}  SHAPE       CONTENTS")
+    print(f"  {'-' * width}  {'-' * 24}  {'-' * 10}  {'-' * 26}")
+    for stem, problem in rows.items():
         shape = "multitest" if problem.multitest else "single"
-        globals_ = len(problem.global_constraints)
+        extra = len(problem.global_constraints)
         print(
-            f"{stem:18} {problem.name:30} {shape:10} "
-            f"{len(problem.body.variables)} vars, {globals_} global"
+            f"  {stem:<{width}}  {problem.name:<24}  {shape:<10}  "
+            f"{len(problem.body.variables)} vars, {extra} global"
         )
+    print()
     return 0
 
 
@@ -80,16 +94,19 @@ def cmd_new(args: argparse.Namespace) -> int:
 
 
 def cmd_emit(args: argparse.Namespace) -> int:
+    banner("validator", args.problem)
     print(emit_validator(load(args.problem)), end="")
     return 0
 
 
 def cmd_contract(args: argparse.Namespace) -> int:
+    banner("input format contract", args.problem)
     print(emit_io_contract(load(args.problem)))
     return 0
 
 
 def cmd_plan(args: argparse.Namespace) -> int:
+    banner("test plan", args.problem)
     print(describe(load(args.problem)))
     return 0
 
@@ -108,6 +125,7 @@ def cmd_gentests(args: argparse.Namespace) -> int:
     validator = build_validator(problem, args.problem)
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
+    banner("generated tests", args.problem)
     failures = 0
 
     for test in plan_tests(problem):
@@ -128,8 +146,10 @@ def cmd_gentests(args: argparse.Namespace) -> int:
 
 def cmd_checker(args: argparse.Namespace) -> int:
     problem = load(args.problem)
+    banner("checker" if not args.decide else "checker decision", args.problem)
     if args.decide:
         print(describe_checker(problem))
+        print()
         return 0
     try:
         print(emit_checker(problem), end="")
@@ -147,6 +167,7 @@ def cmd_build(args: argparse.Namespace) -> int:
 
 def cmd_check(args: argparse.Namespace) -> int:
     binary = build_validator(load(args.problem), args.problem)
+    banner("validating files", args.problem)
     failures = 0
 
     for name in args.files:

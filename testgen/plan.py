@@ -26,12 +26,18 @@ from testgen.ir.schema import ArrayVar, Problem, StringVar
 
 @dataclass(frozen=True)
 class PlannedTest:
-    """One test, as the arguments to hand the generator plus its reason."""
+    """One test, as the arguments to hand the generator plus its reason.
+
+    `purpose` says what the test is in a few words, so a plan reads as a table.
+    `catches` says which mistake it would expose, which is the part that
+    justifies the test existing at all.
+    """
 
     name: str
     mode: str
     seed: int
     purpose: str
+    catches: str
 
     @property
     def args(self) -> list[str]:
@@ -41,57 +47,38 @@ class PlannedTest:
 def plan_tests(problem: Problem) -> list[PlannedTest]:
     """Return the tests this problem's constraints call for."""
     tests: list[PlannedTest] = [
-        PlannedTest(
-            "min",
-            "min",
-            1,
-            "every value at its lower bound; catches empty loops and off-by-one",
-        ),
-        PlannedTest(
-            "max",
-            "max",
-            1,
-            "every value at its upper bound; the bound is only real if a test reaches it",
-        ),
+        PlannedTest("min", "min", 1,
+            "every value at its lower bound",
+            "empty loops and off-by-one"),
+        PlannedTest("max", "max", 1,
+            "every value at its upper bound",
+            "a bound nothing ever reaches"),
     ]
 
     has_array = any(isinstance(v, ArrayVar) for v in problem.body.variables)
     has_string = any(isinstance(v, StringVar) for v in problem.body.variables)
 
     if has_array:
-        tests.append(
-            PlannedTest(
-                "flat",
-                "flat",
-                1,
-                "every element the same value; breaks code that assumes variety",
-            )
-        )
+        tests.append(PlannedTest("flat", "flat", 1,
+            "every element the same value",
+            "code that assumes variety"))
         ordered = any(
             isinstance(v, ArrayVar) and v.monotone for v in problem.body.variables
         )
         if not ordered:
             tests += [
-                PlannedTest(
-                    "sorted", "sorted", 1, "already in ascending order; a common lucky case"
-                ),
-                PlannedTest(
-                    "reversed",
-                    "reversed",
-                    1,
-                    "descending order; the worst case for anything insertion-like",
-                ),
+                PlannedTest("sorted", "sorted", 1,
+                    "already in ascending order",
+                    "a lucky best case"),
+                PlannedTest("reversed", "reversed", 1,
+                    "descending order",
+                    "the worst case for anything insertion-like"),
             ]
 
     if has_string:
-        tests.append(
-            PlannedTest(
-                "one_letter",
-                "flat",
-                1,
-                "the whole string is one repeated character",
-            )
-        )
+        tests.append(PlannedTest("one_letter", "flat", 1,
+            "one repeated character",
+            "code that assumes both letters appear"))
 
     # A sum across test cases can be spent in several shapes, and they break
     # different things: one huge case stresses the algorithm, ten thousand tiny
@@ -99,29 +86,20 @@ def plan_tests(problem: Problem) -> list[PlannedTest]:
     # largest test, so all of them are needed.
     if problem.global_constraints:
         tests += [
-            PlannedTest(
-                "budget_one_big",
-                "budget_one_big",
-                1,
-                "the whole budget in a single test case; stresses the algorithm itself",
-            ),
-            PlannedTest(
-                "budget_many_small",
-                "budget_many_small",
-                1,
-                "the budget split into as many tiny test cases as allowed; "
-                "stresses per test case work, such as clearing a global array",
-            ),
-            PlannedTest(
-                "budget_skewed",
-                "budget_skewed",
-                1,
-                "one large test case and the rest minimal; both pressures at once",
-            ),
+            PlannedTest("budget_one_big", "budget_one_big", 1,
+                "the whole budget in one test case",
+                "a slow algorithm"),
+            PlannedTest("budget_many_small", "budget_many_small", 1,
+                "the budget across as many cases as allowed",
+                "per test case work, such as clearing a global array"),
+            PlannedTest("budget_skewed", "budget_skewed", 1,
+                "one large case, the rest minimal",
+                "both pressures at once"),
         ]
 
     tests += [
-        PlannedTest(f"random_{seed}", "random", seed, "uniform random")
+        PlannedTest(f"random_{seed}", "random", seed,
+            "uniform random", "whatever the shaped tests missed")
         for seed in (1, 2, 3)
     ]
 
@@ -131,8 +109,22 @@ def plan_tests(problem: Problem) -> list[PlannedTest]:
 def describe(problem: Problem) -> str:
     """A readable table of the plan, for looking at before generating."""
     rows = plan_tests(problem)
-    width = max(len(t.name) for t in rows)
-    out = [f"{len(rows)} tests for {problem.name}", ""]
+    name_w = max(len(t.name) for t in rows)
+    args_w = max(len(" ".join(t.args)) for t in rows)
+    what_w = max(len(t.purpose) for t in rows)
+
+    out = [
+        "",
+        f"  {problem.name} - {len(rows)} tests",
+        "",
+        f"  {'TEST':<{name_w}}  {'ARGS':<{args_w}}  "
+        f"{'WHAT IT IS':<{what_w}}  WHAT IT CATCHES",
+        f"  {'-' * name_w}  {'-' * args_w}  {'-' * what_w}  {'-' * 40}",
+    ]
     for test in rows:
-        out.append(f"  {test.name:<{width}}  {' '.join(test.args):<22}  {test.purpose}")
+        out.append(
+            f"  {test.name:<{name_w}}  {' '.join(test.args):<{args_w}}  "
+            f"{test.purpose:<{what_w}}  {test.catches}"
+        )
+    out.append("")
     return "\n".join(out)
