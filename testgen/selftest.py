@@ -20,7 +20,15 @@ import sys
 import tempfile
 from pathlib import Path
 
-from testgen.build import accepts, build_generator, build_validator, generate
+from testgen.build import (
+    accepts,
+    build_checker,
+    build_generator,
+    build_validator,
+    generate,
+    judge,
+)
+from testgen.emit.checker import CheckerNeedsHuman, emit_checker
 from testgen.ir.problems import load
 from testgen.ir.schema import Problem
 from testgen.plan import plan_tests
@@ -210,6 +218,59 @@ def _check_generator(name: str, workdir: Path) -> int:
     return failures
 
 
+# Checker behaviour, as (contestant output, jury answer, expected verdict, why).
+CHECKER_IR = {
+    "name": "Yes or no in any case",
+    "multitest": False,
+    "body": {
+        "variables": [{"kind": "int", "name": "w", "domain": {"lo": 1, "hi": 100}}],
+        "lines": [{"tokens": ["w"]}],
+    },
+    "output": {
+        "unique_answer": True,
+        "case_insensitive": True,
+        "tokens_per_test": 1,
+    },
+}
+
+CHECKER_CASES = [
+    ("YES", "YES", "ok", "an identical answer"),
+    ("yes", "YES", "ok", "all lowercase, which is the reason this checker exists"),
+    ("yEs", "YES", "ok", "mixed case"),
+    ("NO", "YES", "wa", "a wrong answer"),
+    ("MAYBE", "YES", "wa", "a token that is not an answer at all"),
+    ("", "YES", "pe", "an empty output"),
+    ("YES extra", "YES", "pe", "an extra token after the answer"),
+]
+
+
+def _check_checker(workdir: Path) -> int:
+    """The generated checker has to give the right verdict, not just compile."""
+    problem = Problem.model_validate(CHECKER_IR)
+    binary = build_checker(problem, "case_insensitive", workdir)
+    failures = 0
+
+    for output, answer, expected, description in CHECKER_CASES:
+        verdict, _ = judge(binary, "8\n", output + "\n", answer + "\n", workdir)
+        if verdict == expected:
+            print(f"  ok      {expected:<4} for {description}")
+        else:
+            failures += 1
+            print(f"  FAILED  expected {expected} but got {verdict} for {description}")
+
+    # A problem whose answer is not unique cannot have its checker derived, and
+    # emitting one anyway would reject correct submissions.
+    try:
+        emit_checker(load("three_sum"))
+    except CheckerNeedsHuman:
+        print("  ok      refused to generate a checker where several answers are correct")
+    else:
+        failures += 1
+        print("  FAILED  generated a checker for a problem with several correct answers")
+
+    return failures
+
+
 def run() -> int:
     failures = 0
 
@@ -230,6 +291,9 @@ def run() -> int:
         for name in CASES:
             print(f"\n{name}  (generator against validator)")
             failures += _check_generator(name, workdir)
+
+        print("\ncase_insensitive  (checker verdicts)")
+        failures += _check_checker(workdir)
 
     print()
     if failures:

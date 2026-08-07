@@ -20,6 +20,7 @@ import sys
 from pathlib import Path
 
 from testgen.build import accepts, build_generator, build_validator, generate
+from testgen.emit.checker import CheckerNeedsHuman, describe as describe_checker, emit_checker
 from testgen.emit.generator import emit_generator
 from testgen.emit.io_contract import emit_io_contract
 from testgen.emit.validator import emit_validator
@@ -124,6 +125,19 @@ def cmd_gentests(args: argparse.Namespace) -> int:
     return 1 if failures else 0
 
 
+def cmd_checker(args: argparse.Namespace) -> int:
+    problem = load(args.problem)
+    if args.decide:
+        print(describe_checker(problem))
+        return 0
+    try:
+        print(emit_checker(problem), end="")
+    except (CheckerNeedsHuman, ValueError) as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    return 0
+
+
 def cmd_build(args: argparse.Namespace) -> int:
     binary = build_validator(load(args.problem), args.problem)
     print(f"built {binary}")
@@ -198,6 +212,13 @@ def main() -> int:
     gentests.add_argument("problem")
     gentests.add_argument("--outdir", default="build/tests")
     gentests.set_defaults(func=cmd_gentests)
+
+    checker = sub.add_parser("checker", help="emit or choose the checker")
+    checker.add_argument("problem")
+    checker.add_argument(
+        "--decide", action="store_true", help="say which checker is needed and why"
+    )
+    checker.set_defaults(func=cmd_checker)
 
     build = sub.add_parser("build", help="compile the validator")
     build.add_argument("problem")

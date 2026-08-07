@@ -9,6 +9,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+from testgen.emit.checker import emit_checker
 from testgen.emit.generator import emit_generator
 from testgen.emit.validator import emit_validator
 from testgen.ir.schema import Problem
@@ -54,6 +55,49 @@ def build_generator(
     return _compile(
         emit_generator(problem), f"{name}_generator", outdir or DEFAULT_BUILD_DIR
     )
+
+
+def build_checker(
+    problem: Problem, name: str, outdir: Path | None = None
+) -> Path:
+    """Emit, compile and return the path to the checker binary.
+
+    Raises for problems that should use a stock checker, or that need one
+    written by hand.
+    """
+    return _compile(
+        emit_checker(problem), f"{name}_checker", outdir or DEFAULT_BUILD_DIR
+    )
+
+
+def judge(
+    binary: Path, test_input: str, output: str, answer: str, outdir: Path
+) -> tuple[str, str]:
+    """Run the checker on one submission, returning its verdict and message.
+
+    testlib checkers take three file paths rather than reading stdin, so the
+    three streams are written out first.
+    """
+    paths = {}
+    for label, text in (("in", test_input), ("out", output), ("ans", answer)):
+        path = outdir / f"judge.{label}"
+        path.write_text(text)
+        paths[label] = str(path)
+
+    result = subprocess.run(
+        [str(binary), paths["in"], paths["out"], paths["ans"]],
+        capture_output=True,
+        text=True,
+    )
+    message = (result.stderr or result.stdout).strip().splitlines()
+    first = message[0] if message else ""
+
+    # testlib reports the verdict through its exit code: 0 accepted,
+    # 1 wrong answer, 2 presentation error, 3 a fault in the problem itself.
+    verdict = {0: "ok", 1: "wa", 2: "pe", 3: "fail"}.get(
+        result.returncode, f"exit{result.returncode}"
+    )
+    return verdict, first
 
 
 def generate(binary: Path, args: list[str]) -> str:
