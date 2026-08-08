@@ -105,6 +105,13 @@ def cmd_contract(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_adapt(args: argparse.Namespace) -> int:
+    from testgen.adapt import report
+
+    banner("adapting extracted problem", Path(args.file).name)
+    return report(Path(args.file))
+
+
 def cmd_plan(args: argparse.Namespace) -> int:
     banner("test plan", args.problem)
     print(describe(load(args.problem)))
@@ -217,6 +224,12 @@ def main() -> int:
     )
     contract.add_argument("problem")
     contract.set_defaults(func=cmd_contract)
+
+    adapt = sub.add_parser(
+        "adapt", help="turn an extracted problem.json into a draft IR"
+    )
+    adapt.add_argument("file", help="the problem.json the extraction step wrote")
+    adapt.set_defaults(func=cmd_adapt)
 
     plan = sub.add_parser("plan", help="show which tests the constraints call for")
     plan.add_argument("problem")
