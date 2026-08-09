@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Anti-Gravity IDE — Lightning-Fast Code Execution</title>
+  <meta name="description" content="High-performance code execution sandbox with pre-warmed container pools, RAM-disk compilation, and NsJail micro-sandboxing." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+</head>
+<body>
+
+<div class="app-container">
+
+  <!-- ═══ Header ═══ -->
+  <header class="header" id="header">
+    <div class="header-brand">
+      <div class="header-logo">⚡</div>
+      <div>
+        <div class="header-title">Anti-Gravity IDE</div>
+        <div class="header-subtitle">High-Performance Sandbox</div>
+      </div>
+    </div>
+    <div class="header-status">
+      <div class="pool-indicator" id="pool-indicator">
+        <span class="pool-dot" id="pool-dot"></span>
+        <span id="pool-text">Connecting...</span>
+      </div>
+      <button class="run-btn" id="run-btn" onclick="handleRun()">
+        <span class="run-icon" id="run-icon">▶</span>
+        <span id="run-label">Run</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══ Main Editor Area ═══ -->
+  <main class="main-content">
+
+    <!-- Left Panel: Code Editor -->
+    <section class="panel panel-left" id="editor-panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="panel-title-icon">📝</span>
+          Editor
+        </div>
+        <div class="panel-actions">
+          <select class="language-select" id="language-select">
+            <option value="cpp" selected>C++ 20</option>
+          </select>
+        </div>
+      </div>
+      <div class="editor-wrapper">
+        <div class="line-numbers" id="line-numbers">1</div>
+        <textarea
+          class="code-editor"
+          id="code-editor"
+          spellcheck="false"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          placeholder="// Write your C++ code here...
+#include <iostream>
+
+int main() {
+    std::cout << &quot;Hello, Anti-Gravity!&quot; << std::endl;
+    return 0;
+}"
+        ></textarea>
+      </div>
+
+      <!-- Stdin Section -->
+      <div class="stdin-section">
+        <div class="stdin-header" onclick="toggleStdin()">
+          <div class="stdin-toggle">
+            <span class="stdin-toggle-icon" id="stdin-icon">▶</span>
+            Custom Input (stdin)
+          </div>
+        </div>
+        <textarea
+          class="stdin-input"
+          id="stdin-input"
+          placeholder="Enter input for your program..."
+          spellcheck="false"
+        ></textarea>
+      </div>
+    </section>
+
+    <!-- Right Panel: Output -->
+    <section class="panel panel-right" id="output-panel" style="position: relative;">
+      <div class="panel-header">
+        <div class="panel-title">
+          <span class="panel-title-icon">📤</span>
+          Output
+        </div>
+        <div class="panel-actions">
+          <span class="status-badge" id="status-badge" style="display: none;"></span>
+        </div>
+      </div>
+
+      <div class="output-area">
+        <div class="output-tabs" id="output-tabs">
+          <button class="output-tab active" data-tab="stdout" onclick="switchTab('stdout')">Stdout</button>
+          <button class="output-tab" data-tab="stderr" onclick="switchTab('stderr')">Stderr</button>
+        </div>
+        <div class="output-content empty" id="output-content">
+          Hit <strong style="color: var(--accent-primary);">▶ Run</strong> or press <strong style="color: var(--accent-primary);">Ctrl+Enter</strong> to execute
+        </div>
+      </div>
+
+      <!-- Timing Bar -->
+      <div class="timing-bar" id="timing-bar" style="display: none;">
+        <div class="timing-item">
+          <span class="timing-label">Compile:</span>
+          <span class="timing-value" id="timing-compile">—</span>
+        </div>
+        <div class="timing-divider"></div>
+        <div class="timing-item">
+          <span class="timing-label">Execute:</span>
+          <span class="timing-value" id="timing-execute">—</span>
+        </div>
+        <div class="timing-divider"></div>
+        <div class="timing-item">
+          <span class="timing-label">Total:</span>
+          <span class="timing-value" id="timing-total">—</span>
+        </div>
+      </div>
+
+      <!-- Loading Overlay -->
+      <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner">
+          <div class="spinner-ring"></div>
+          <div class="spinner-text">Executing...</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ═══ Footer Status Bar ═══ -->
+  <footer class="footer-bar" id="footer-bar">
+    <div class="footer-left">
+      <div class="footer-item">
+        <span>⚡</span>
+        <span>Anti-Gravity IDE v1.0</span>
+      </div>
+      <div class="footer-item" id="footer-pool">
+        Workers: <span id="footer-pool-count">—</span>
+      </div>
+    </div>
+    <div class="footer-right">
+      <div class="footer-item" id="footer-arch">
+        <span>🐳</span>
+        <span>Docker + NsJail + tmpfs</span>
+      </div>
+      <div class="footer-item">
+        <span>🔧</span>
+        <span>g++ -O3 -std=c++20</span>
+      </div>
+    </div>
+  </footer>
+
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// Anti-Gravity IDE — Client-Side Logic
+// ════════════════════════════════════════════════════════════
+
+const API_BASE = '';
+
+// ─── State ──────────────────────────────────────────────
+let currentTab = 'stdout';
+let lastResult = null;
+let isRunning = false;
+
+// ─── DOM Elements ───────────────────────────────────────
+const codeEditor = document.getElementById('code-editor');
+const lineNumbers = document.getElementById('line-numbers');
+const stdinInput = document.getElementById('stdin-input');
+const stdinIcon = document.getElementById('stdin-icon');
+const outputContent = document.getElementById('output-content');
+const runBtn = document.getElementById('run-btn');
+const runIcon = document.getElementById('run-icon');
+const runLabel = document.getElementById('run-label');
+const statusBadge = document.getElementById('status-badge');
+const timingBar = document.getElementById('timing-bar');
+const loadingOverlay = document.getElementById('loading-overlay');
+const poolDot = document.getElementById('pool-dot');
+const poolText = document.getElementById('pool-text');
+
+// ─── Line Numbers ───────────────────────────────────────
+function updateLineNumbers() {
+  const lines = codeEditor.value.split('\n');
+  const count = lines.length || 1;
+  let nums = '';
+  for (let i = 1; i <= count; i++) {
+    nums += i + '\n';
+  }
+  lineNumbers.textContent = nums;
+}
+
+codeEditor.addEventListener('input', updateLineNumbers);
+codeEditor.addEventListener('scroll', () => {
+  lineNumbers.scrollTop = codeEditor.scrollTop;
+});
+
+// Tab key support
+codeEditor.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = codeEditor.selectionStart;
+    const end = codeEditor.selectionEnd;
+    codeEditor.value = codeEditor.value.substring(0, start) + '    ' + codeEditor.value.substring(end);
+    codeEditor.selectionStart = codeEditor.selectionEnd = start + 4;
+    updateLineNumbers();
+  }
+  // Ctrl+Enter to run
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    handleRun();
+  }
+});
+
+// ─── Stdin Toggle ───────────────────────────────────────
+function toggleStdin() {
+  const input = stdinInput;
+  const icon = stdinIcon;
+  const isVisible = input.classList.contains('visible');
+  
+  if (isVisible) {
+    input.classList.remove('visible');
+    icon.classList.remove('open');
+  } else {
+    input.classList.add('visible');
+    icon.classList.add('open');
+    input.focus();
+  }
+}
+
+// ─── Output Tabs ────────────────────────────────────────
+function switchTab(tab) {
+  currentTab = tab;
+  
+  document.querySelectorAll('.output-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === tab);
+  });
+
+  renderOutput();
+}
+
+function renderOutput() {
+  if (!lastResult) return;
+
+  const content = currentTab === 'stdout' ? lastResult.stdout : lastResult.stderr;
+
+  if (!content || !content.trim()) {
+    outputContent.className = 'output-content empty';
+    outputContent.innerHTML = `No ${currentTab} output`;
+  } else {
+    outputContent.className = 'output-content fade-in';
+    if (lastResult.status === 'compile_error' || lastResult.status === 'runtime_error') {
+      outputContent.classList.add('error');
+    } else if (lastResult.status === 'success' && currentTab === 'stdout') {
+      outputContent.classList.add('success');
+    }
+    outputContent.textContent = content;
+  }
+}
+
+// ─── Execute Code ───────────────────────────────────────
+async function handleRun() {
+  if (isRunning) return;
+
+  const code = codeEditor.value.trim();
+  if (!code) {
+    showError('Please write some code first.');
+    return;
+  }
+
+  setRunning(true);
+
+  try {
+    const response = await fetch(`${API_BASE}/api/execute`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code: codeEditor.value,
+        language: document.getElementById('language-select').value,
+        stdin: stdinInput.value,
+        timeLimit: 2,
+      }),
+    });
+
+    lastResult = await response.json();
+
+    // Update status badge
+    updateStatusBadge(lastResult.status);
+
+    // Update timing
+    updateTiming(lastResult);
+
+    // Show stdout by default, stderr on error
+    if (lastResult.status === 'compile_error' || lastResult.status === 'runtime_error') {
+      switchTab('stderr');
+    } else {
+      switchTab('stdout');
+    }
+
+    renderOutput();
+  } catch (err) {
+    showError(`Connection failed: ${err.message}`);
+  } finally {
+    setRunning(false);
+  }
+}
+
+function setRunning(running) {
+  isRunning = running;
+  runBtn.classList.toggle('running', running);
+  runIcon.textContent = running ? '⟳' : '▶';
+  runLabel.textContent = running ? 'Running...' : 'Run';
+  loadingOverlay.classList.toggle('active', running);
+}
+
+function updateStatusBadge(status) {
+  statusBadge.style.display = 'inline-block';
+  statusBadge.className = 'status-badge';
+
+  const labels = {
+    success: 'Accepted',
+    compile_error: 'Compile Error',
+    runtime_error: 'Runtime Error',
+    timeout: 'Time Limit Exceeded',
+    error: 'Error',
+  };
+
+  const classes = {
+    success: 'success',
+    compile_error: 'error',
+    runtime_error: 'error',
+    timeout: 'timeout',
+    error: 'error',
+  };
+
+  statusBadge.textContent = labels[status] || status;
+  statusBadge.classList.add(classes[status] || 'error');
+}
+
+function updateTiming(result) {
+  timingBar.style.display = 'flex';
+
+  const compileEl = document.getElementById('timing-compile');
+  const execEl = document.getElementById('timing-execute');
+  const totalEl = document.getElementById('timing-total');
+
+  compileEl.textContent = `${result.compileTimeMs}ms`;
+  execEl.textContent = `${result.executeTimeMs}ms`;
+  totalEl.textContent = `${result.totalTimeMs}ms`;
+
+  // Color coding based on speed
+  execEl.className = 'timing-value';
+  if (result.executeTimeMs <= 10) execEl.classList.add('fast');
+  else if (result.executeTimeMs > 100) execEl.classList.add('slow');
+
+  totalEl.className = 'timing-value';
+  if (result.totalTimeMs <= 100) totalEl.classList.add('fast');
+  else if (result.totalTimeMs > 500) totalEl.classList.add('slow');
+}
+
+function showError(msg) {
+  lastResult = {
+    status: 'error',
+    stdout: '',
+    stderr: msg,
+  };
+  updateStatusBadge('error');
+  switchTab('stderr');
+  renderOutput();
+}
+
+// ─── Pool Status Polling ────────────────────────────────
+async function pollPoolStatus() {
+  try {
+    const res = await fetch(`${API_BASE}/api/pool/status`);
+    const data = await res.json();
+    
+    poolText.textContent = `${data.idle} idle / ${data.total} workers`;
+    document.getElementById('footer-pool-count').textContent = `${data.idle}/${data.total}`;
+
+    if (data.idle === 0) {
+      poolDot.className = 'pool-dot warning';
+    } else if (data.total === 0) {
+      poolDot.className = 'pool-dot error';
+    } else {
+      poolDot.className = 'pool-dot';
+    }
+  } catch {
+    poolText.textContent = 'Disconnected';
+    poolDot.className = 'pool-dot error';
+  }
+}
+
+// Poll every 3 seconds
+setInterval(pollPoolStatus, 3000);
+pollPoolStatus();
+
+// ─── Initial Setup ──────────────────────────────────────
+// Set default code
+codeEditor.value = `#include <iostream>
+#include <vector>
+#include <unordered_map>
+using namespace std;
+
+// Two Sum — O(n) solution
+vector<int> twoSum(vector<int>& nums, int target) {
+    unordered_map<int, int> seen;
+    for (int i = 0; i < nums.size(); i++) {
+        int complement = target - nums[i];
+        if (seen.count(complement)) {
+            return {seen[complement], i};
+        }
+        seen[nums[i]] = i;
+    }
+    return {};
+}
+
+int main() {
+    vector<int> nums = {2, 7, 11, 15};
+    int target = 9;
+
+    vector<int> result = twoSum(nums, target);
+    cout << "Input: nums = [2,7,11,15], target = 9" << endl;
+    cout << "Output: [" << result[0] << "," << result[1] << "]" << endl;
+
+    return 0;
+}`;
+
+updateLineNumbers();
+</script>
+
+</body>
+</html>

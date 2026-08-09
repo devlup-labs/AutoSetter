@@ -8,3 +8,9 @@ package/
 sandbox/best_card
 sandbox/input.txt
 sandbox/server/node_modules/
+
+# ignore compiled executables in example build folder
+example/02_build/solution
+example/02_build/generator
+example/02_build/validator
+example/02_build/checker
