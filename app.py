@@ -79,7 +79,7 @@ PROBLEM_JSON_PATH = OUT_DIR / "problem.json"
 # text model   = generates statement.md / solution.cpp / validator.cpp /
 #                generator.cpp / checker.cpp from that JSON
 DEFAULT_VISION_MODEL = "qwen2.5vl:3b"
-DEFAULT_TEXT_MODEL = "qwen2.5-coder:1.5b"
+DEFAULT_TEXT_MODEL = "qwen2.5-coder:7b"
 DEFAULT_OLLAMA_HOST = "http://localhost:11434"
 
 
