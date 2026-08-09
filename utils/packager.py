@@ -213,6 +213,7 @@ class Packager:
                     "all_passed": report.get("all_passed", False),
                     "validator_trusted": report.get("validator_trusted", False),
                     "checker_trusted": report.get("checker_trusted", False),
+                    "modes_respected": report.get("modes_respected", False),
                     "diagnosis": report.get("diagnosis", ""),
                 }
             except Exception:

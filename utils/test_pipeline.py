@@ -48,7 +48,13 @@ from .sandbox_client import (
     SandboxLocalClient,
     SandboxError,
     ExecutionResult,
-    ensure_testlib,
+)
+from .test_plan import (
+    TestShape,
+    default_plan,
+    looks_multitest,
+    seed_invariant_modes,
+    shaped_count,
 )
 
 
@@ -70,11 +76,25 @@ def _looks_like_int(token: str) -> bool:
     return bool(token) and (token.lstrip("-+").isdigit())
 
 
+def _leading_count(text: str) -> Optional[int]:
+    """The first integer in a test file — `t`, on a multitest problem.
+
+    Returns None when the file does not start with a bare integer, in which
+    case this is not the multitest shape assumed here and nothing can be
+    concluded from it.
+    """
+    first = text.strip().split("\n", 1)[0].strip()
+    return int(first) if first.isdigit() else None
+
+
 @dataclass
 class TestCase:
     """One generated test case with its validation and execution results."""
     index: int
     seed: str
+    mode: str = "random"
+    name: str = ""
+    purpose: str = ""
     input_data: str = ""
     expected_output: str = ""
     generator_ok: bool = False
@@ -152,6 +172,8 @@ class TestReport:
     all_passed: bool = False
     validator_trusted: bool = False
     checker_trusted: bool = False
+    modes_respected: bool = False
+    mode_evidence: str = ""
     diagnosis: str = ""
     duration_ms: int = 0
 
@@ -176,6 +198,8 @@ class TestReport:
             "all_passed": self.all_passed,
             "validator_trusted": self.validator_trusted,
             "checker_trusted": self.checker_trusted,
+            "modes_respected": self.modes_respected,
+            "mode_evidence": self.mode_evidence,
             "diagnosis": self.diagnosis,
             "duration_ms": self.duration_ms,
             "samples": [
@@ -200,6 +224,9 @@ class TestReport:
             "test_cases": [
                 {
                     "index": tc.index,
+                    "name": tc.name,
+                    "mode": tc.mode,
+                    "purpose": tc.purpose,
                     "seed": tc.seed,
                     "generator_ok": tc.generator_ok,
                     "validator_ok": tc.validator_ok,
@@ -255,6 +282,9 @@ class TestPipeline:
         time_limit: int = 5,
         progress_callback=None,
         samples: Optional[List[Dict[str, Any]]] = None,
+        plan: Optional[List[TestShape]] = None,
+        problem: Optional[Dict[str, Any]] = None,
+        multitest: Optional[bool] = None,
     ) -> None:
         self.generated_dir = Path(generated_dir)
         self.tests_dir = Path(tests_dir)
@@ -262,9 +292,27 @@ class TestPipeline:
         self.num_tests = num_tests
         self.time_limit = time_limit
         self._log = progress_callback or (lambda msg: None)
+
         # The "samples" list straight out of problem.json. Each entry is a dict
         # with "input" and "output" keys.
-        self.samples = samples or []
+        self.samples = samples if samples is not None else (
+            (problem or {}).get("samples") or []
+        )
+
+        # Whether one file holds several test cases decides both which shapes
+        # are worth asking for and which checks can be run on them. A caller
+        # may state it outright; otherwise it is read off the statement.
+        self.multitest = (
+            multitest if multitest is not None else looks_multitest(problem)
+        )
+
+        # Shapes, not seeds. `num_tests` now controls how many uniformly
+        # random tests come after the shaped ones, since the shaped tests are
+        # fixed by what the constraints say rather than by a count.
+        self.plan = plan if plan is not None else default_plan(
+            random_tests=max(1, num_tests - shaped_count(self.multitest)),
+            multitest=self.multitest,
+        )
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -313,15 +361,30 @@ class TestPipeline:
                 self._log(f"  ❌ Validator rejects {len(bad)} official sample(s) — "
                           "the validator or the extracted constraints are wrong")
 
+        # Step 2b: does the generator honour its mode argument at all?
+        # Asked before the tests are generated, because if the answer is no,
+        # every "shaped" test below is really just another random one.
+        report.modes_respected, report.mode_evidence = self._check_modes()
+        if report.modes_respected:
+            self._log("  ✅ Generator honours its mode argument")
+        else:
+            self._log(f"  ❌ {report.mode_evidence}")
+
         # Step 3-6: Generate, validate, solve, and check each test
-        self._log(f"Running {self.num_tests} test cases...")
-        for i in range(1, self.num_tests + 1):
-            seed = str(i)
-            tc = TestCase(index=i, seed=seed)
+        plan = self.plan
+        self._log(f"Running {len(plan)} test cases...")
+        for i, shape in enumerate(plan, start=1):
+            tc = TestCase(
+                index=i,
+                seed=str(shape.seed),
+                mode=shape.mode,
+                name=shape.name,
+                purpose=shape.purpose,
+            )
 
             try:
-                # 3. Generate a test input
-                tc.input_data = self._generate_test(seed)
+                # 3. Generate a test input of this shape
+                tc.input_data = self._generate_test(shape.args)
                 tc.generator_ok = True
 
                 # 4. Validate the input (if validator compiled)
@@ -333,7 +396,7 @@ class TestPipeline:
                 if not tc.validator_ok:
                     tc.error = self._blame_for_rejected_input(report)
                     report.test_cases.append(tc)
-                    self._log(f"  Test {i}/{self.num_tests}: ❌ {tc.error}")
+                    self._log(f"  {tc.name:<10} ❌ {tc.error}")
                     continue
 
                 # 5. Run the solution to produce expected output
@@ -362,7 +425,7 @@ class TestPipeline:
 
             if not tc.error:
                 status = "✅" if tc.usable else "❌"
-                self._log(f"  Test {i}/{self.num_tests}: {status}")
+                self._log(f"  {tc.name:<10} {status}  {tc.purpose}")
 
         # Step 6b: prove the checker can say no.
         if report.compilation.checker:
@@ -391,11 +454,16 @@ class TestPipeline:
         # has to mean "this problem is fit to ship", not merely "the tests we
         # kept happened to pass". A trustworthy validator and a checker that
         # can say no are part of that.
+        # A test set that never reaches the problem's stated bounds is not fit
+        # to ship, however many of its tests pass: a solution too slow for the
+        # maximum sails through, and the bound may as well not have been
+        # written. So mode coverage counts, alongside validity.
         report.all_passed = (
             report.failed_tests == 0
             and report.total_tests > 0
             and report.validator_trusted
             and report.checker_trusted
+            and report.modes_respected
         )
         report.diagnosis = self._diagnose(report)
         report.duration_ms = int((time.monotonic() - start) * 1000)
@@ -602,6 +670,12 @@ class TestPipeline:
                 "The checker accepts outputs that are definitely wrong "
                 f"({', '.join(accepted)}), so it would accept wrong submissions."
             )
+        if not report.modes_respected:
+            return (
+                "The generator ignores its mode argument, so no test deliberately "
+                "reaches the problem's stated bounds. Regenerate it against the "
+                "mode contract in prompts/generator.txt."
+            )
         if report.failed_tests:
             return (
                 f"{report.failed_tests} of {report.total_tests} generated tests are "
@@ -609,19 +683,106 @@ class TestPipeline:
             )
         return ""
 
-    def _generate_test(self, seed: str) -> str:
-        """Run the generator with the given seed and return the output."""
+    def _generate_test(self, args: List[str]) -> str:
+        """Run the generator with these arguments and return what it wrote."""
         generator_bin = self.generated_dir / "generator"
         result = self.sandbox.run_binary(
             generator_bin,
-            args=[seed],
+            args=args,
             timeout=self.time_limit,
         )
         if result.status != "success":
             raise SandboxError(
-                f"Generator failed (seed={seed}): {result.stderr}"
+                f"Generator failed (args={' '.join(args)}): {result.stderr}"
             )
         return result.stdout
+
+    def _check_modes(self) -> tuple[bool, str]:
+        """Does the generator actually respond to its mode argument?
+
+        Nothing else in the pipeline can tell. Without a machine-readable
+        description of the input there is no way to look at a file and decide
+        whether it is "the largest legal input" — but there is a way to find
+        out whether the generator even tried.
+
+        `min` describes exactly one input: every value at its smallest legal
+        value. Ask for it twice with two different seeds. A generator that
+        understands the mode returns identical bytes both times, because the
+        constraints fixed the answer and the seed had nothing left to vary.
+        A generator that ignored the argument and produced a random test
+        returns two different files, and that difference is the proof.
+
+        This matters because a generator that ignores its mode turns the whole
+        plan back into what it replaced: a pile of tests from the middle of the
+        input space, none of which ever reach a stated bound.
+        """
+        for mode in seed_invariant_modes():
+            try:
+                first = self._generate_test([mode, "1"])
+                second = self._generate_test([mode, "999"])
+            except SandboxError as exc:
+                return False, f"Generator failed on mode '{mode}': {exc}"
+
+            if first != second:
+                return False, (
+                    f"Generator ignores its mode argument: '{mode}' produced "
+                    "different output for two different seeds, but that mode "
+                    "describes exactly one input. The shaped tests are really "
+                    "just more random ones, so no test reaches a stated bound."
+                )
+
+            if not first.strip():
+                return False, f"Generator produced an empty file for mode '{mode}'"
+
+        evidence = "min and max are seed-independent, as the mode contract requires"
+
+        if self.multitest:
+            ok, budget_evidence = self._check_budget_shapes()
+            if not ok:
+                return False, budget_evidence
+            evidence += f"; {budget_evidence}"
+
+        return True, evidence
+
+    def _check_budget_shapes(self) -> tuple[bool, str]:
+        """Do the budget modes actually spend the budget differently?
+
+        These cannot be checked the way `min` and `max` are. `one_big` fixes
+        the *shape* — a single test case — but the values inside it are still
+        random, so two seeds legitimately produce different files. Seed
+        invariance would fail a perfectly good generator.
+
+        What is checkable is the thing that distinguishes them: the number of
+        test cases. `one_big` puts the whole budget in one, `many_small`
+        spreads it over as many as allowed. If those two come back with the
+        same count, the generator is treating both as ordinary random tests and
+        the distinction the modes exist for was never made.
+        """
+        try:
+            one_big = self._generate_test(["one_big", "1"])
+            many_small = self._generate_test(["many_small", "1"])
+        except SandboxError as exc:
+            return False, f"Generator failed on a budget mode: {exc}"
+
+        big_count = _leading_count(one_big)
+        small_count = _leading_count(many_small)
+
+        if big_count is None or small_count is None:
+            return True, "budget modes not checked (no leading test-case count found)"
+
+        if big_count >= small_count:
+            return False, (
+                f"Generator ignores the budget modes: 'one_big' produced "
+                f"{big_count} test case(s) and 'many_small' produced "
+                f"{small_count}. A capped total has no single largest test, so "
+                "these two must spend the same budget in different shapes — one "
+                "stresses the algorithm, the other stresses per-test-case work."
+            )
+
+        return True, (
+            f"budget modes differ as required (one_big: {big_count} case(s), "
+            f"many_small: {small_count})"
+        )
 
     def _validate_input(self, input_data: str) -> bool:
         """Run the validator on the given input.  Returns True if valid."""

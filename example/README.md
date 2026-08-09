@@ -98,11 +98,15 @@ graph TD
   - `rejected/` — inputs that did not survive, each with a `.why` file.
 
 > [!NOTE]
-> During validation in this example, test cases **7, 9, and 10** were flagged as invalid: the generated `target` fell outside $[-10^9, 10^9]$ because the generator added two large values without checking bounds.
+> **This run passed 10/10 tests and is still not fit to release.** That is the most useful thing in this folder, so it is worth reading carefully.
 >
-> The report attributes that failure rather than merely recording it. Because the validator accepts the problem's official sample, it is the trustworthy party, so the report names **the generator** as the file at fault. The three bad inputs are kept in `rejected/` with their reason and are *not* packaged — an input with no answer file is not a test, and shipping one produces a package Polygon cannot use.
+> An earlier run of the same generator had three tests rejected: `target` fell outside $[-10^9, 10^9]$, because the generator computes `target = nums[i] + nums[j]` from two legal elements and never re-checks the result against `target`'s own bound. For two uniform values in $[-B, B]$, their sum leaves $[-B, B]$ exactly **25%** of the time — so the bug fires on roughly one test in four, and this run's arguments simply never rolled it. **The bug did not go away. "10/10 passed" was never evidence.**
 >
-> The checker is probed with an empty output, a truncated answer, an extra token and a perturbed answer, and rejects all four, so it is recorded as trusted. `manifest.json` still reports `ready_for_release: false`, because three of ten tests were thrown away.
+> What the run does catch is that the generator **ignores its mode argument**. `min` describes exactly one input — every value at its smallest legal value — so asking for it twice with two different seeds must return identical bytes. It returned two different files, which proves the mode was never read, which means none of the shaped tests are shaped and no test deliberately reaches a stated bound. `manifest.json` reports `ready_for_release: false` and the report names the fix.
+>
+> The checker, by contrast, is probed with an empty output, a truncated answer, an extra token and a perturbed answer, and rejects all four, so it is recorded as trusted.
+>
+> When a test *is* rejected, the report attributes it rather than merely recording it: because the validator accepts the problem's official sample, the validator is the trustworthy party and the report names **the generator** as the file at fault. Rejected inputs are kept in `rejected/` with their reason and are never packaged — an input with no answer file is not a test.
 
 ---
 

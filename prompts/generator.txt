@@ -18,15 +18,77 @@ REQUIREMENTS:
    randomness -- never use `rand()`, `srand()`, or `<random>` directly, so
    that the generator is reproducible via testlib's seeding from
    command-line arguments.
-3. Support reading generation parameters from `argv` (e.g. `argv[1]` as a
-   size hint, or named `key=value` args via `opt<T>("key")`), so the same
-   generator binary can be invoked multiple times with different
-   command-line arguments to produce small/medium/large/edge-case tests.
-   If no arguments are given, fall back to sensible defaults that respect
-   the maximum bounds in "constraints".
+3. **MODE CONTRACT — this is mandatory, not optional.**
+   `argv[1]` is a MODE and `argv[2]` is a seed. The generator MUST read the
+   mode and change the shape of the test accordingly. Support exactly these
+   modes, and treat any unrecognized mode as `random`:
+
+     min       every value at its smallest legal value -- the smallest
+               array length, the smallest element, the smallest of every
+               scalar. This describes exactly ONE input, so it must print
+               the SAME bytes regardless of the seed.
+     max       every value at its largest legal value -- the largest array
+               length, the largest element, the largest of every scalar.
+               Also exactly one input, and also seed-independent.
+     edge      smallest and largest legal values mixed in the same test
+               (e.g. an array alternating between the minimum and the
+               maximum element), to expose overflow and sign handling.
+     flat      every element of an array identical.
+     sorted    array contents in non-decreasing order.
+     reversed  array contents in non-increasing order.
+     random    uniformly random within the constraints; varies with the seed.
+
+   PROBLEMS WITH SEVERAL TEST CASES PER FILE (a leading `t`) also support:
+
+     one_big     one test case, as large as the constraints allow.
+     many_small  as many test cases as allowed, each as small as allowed
+                 while still spending the whole budget.
+     skewed      one large test case among otherwise minimal ones.
+
+   These three exist because such problems almost always cap the TOTAL, with
+   a line like "the sum of n over all test cases does not exceed 2*10^5",
+   and a capped total HAS NO SINGLE LARGEST TEST. The same budget can be one
+   enormous case or ten thousand tiny ones, and they break different
+   solutions: one stresses the algorithm, the other stresses whatever the
+   solution does once per test case, such as clearing a global array.
+
+   CRITICAL for these problems: `t` at its maximum together with `n` at its
+   maximum is almost always ILLEGAL. If the constraints say `t <= 10^4`,
+   `n <= 2*10^5` and `sum of n <= 2*10^5`, then t*n would exceed the stated
+   sum ten-thousand-fold and the validator will reject the file. For `max`,
+   produce the heaviest input that satisfies EVERY constraint at once,
+   including the sum -- which usually means few large cases, not many.
+
+   For every mode, verify the running total against its cap before printing,
+   and use a 64-bit accumulator to do it: the total can exceed a 32-bit
+   integer even when every individual value is small.
+
+   If a mode has no meaning for this problem (`flat` where there is no
+   array, or `one_big` where there is only ever one test case), produce a
+   valid random test instead -- never fail, never print nothing.
+
+   `min` and `max` MUST be seed-independent. A caller checks this by running
+   each of them twice with different seeds and requiring identical output;
+   producing something random there means the mode was ignored, and the test
+   set never reaches the problem's stated bounds.
+
 4. Ensure every value your generator emits strictly satisfies every bound
    and structural rule in "constraints" (the output of this generator must
    always pass the corresponding validator.cpp).
+
+4a. **Re-check every value you COMPUTE, not only the values you sample.**
+   Drawing each value from `rnd.next(lo, hi)` is not sufficient. A value
+   derived from other values -- a sum, a product, a count, a total -- has
+   its own bound in "constraints" and can leave that bound even when every
+   input to it was legal.
+
+   For example, if the constraints say `-10^9 <= a_i <= 10^9` and also
+   `-10^9 <= target <= 10^9`, then computing `target = a_i + a_j` from two
+   legal elements produces an out-of-range target one time in four. Choose
+   the derived value first and work backwards, or resample until the derived
+   value is inside its own bound. Every quantity that appears in
+   "constraints" must be checked against its bound immediately before it is
+   printed, however it was arrived at.
 5. Respect the exact whitespace/newline layout implied by "input_format"
    (matching token count per line, correct separators).
 6. Where relevant, include logic (guarded by an optional argv flag, e.g.

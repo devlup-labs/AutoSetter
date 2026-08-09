@@ -1,7 +1,7 @@
 {
   "problem_title": "Two Sum",
   "ready_for_release": false,
-  "packaged_tests": 7,
+  "packaged_tests": 10,
   "excluded_tests": [],
   "files": [
     "files/checker.cpp",
@@ -26,15 +26,22 @@
     "tests/006.in",
     "tests/007.ans",
     "tests/007.in",
+    "tests/008.ans",
+    "tests/008.in",
+    "tests/009.ans",
+    "tests/009.in",
+    "tests/010.ans",
+    "tests/010.in",
     "validation_report.json"
   ],
-  "file_count": 23,
+  "file_count": 29,
   "validation": {
     "total_tests": 10,
-    "passed_tests": 7,
+    "passed_tests": 10,
     "all_passed": false,
     "validator_trusted": true,
     "checker_trusted": true,
-    "diagnosis": "3 of 10 generated tests are unusable and have been left out of the package."
+    "modes_respected": false,
+    "diagnosis": "The generator ignores its mode argument, so no test deliberately reaches the problem's stated bounds. Regenerate it against the mode contract in prompts/generator.txt."
   }
 }

@@ -227,9 +227,11 @@ def generate_from_image(
                 sandbox=sandbox,
                 num_tests=num_tests,
                 progress_callback=_log,
-                # The statement's own samples are the only independent evidence
-                # the pipeline has about whether the validator is right.
-                samples=problem_data.get("samples") or [],
+                # The whole extracted problem: its samples are the only
+                # independent evidence about whether the validator is right,
+                # and its input format says whether one file holds several
+                # test cases, which decides the shapes worth generating.
+                problem=problem_data,
             )
             test_report = pipeline.run()
 
@@ -305,7 +307,11 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         "--num-tests",
         type=int,
         default=10,
-        help="Number of test cases to generate during validation (default: 10).",
+        help=(
+            "Total tests to aim for (default: 10). The shaped tests -- min, max, "
+            "edge and so on -- are fixed by the constraints; this controls how "
+            "many uniformly random tests follow them."
+        ),
     )
     parser.add_argument(
         "--skip-validation",

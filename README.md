@@ -64,7 +64,7 @@ Set `AUTOSETTER_DEBUG=1` to see the raw model replies.
 ## How the pipeline avoids believing itself
 
 The four generated C++ files all come from one model reading one JSON, so they
-can agree with each other and all be wrong together. Three checks exist to stop
+can agree with each other and all be wrong together. Four checks exist to stop
 that:
 
 - **The samples check the validator.** Every problem ships samples, and a
@@ -80,6 +80,13 @@ that:
   a truncated answer and a perturbed answer, and requires a rejection. A checker
   that reads both files and never compares them passes every other test in the
   pipeline and fails this one.
+- **The constraints check the test set.** Tests are asked for by shape --
+  `min`, `max`, `edge`, `flat`, `sorted`, `reversed`, and for problems with
+  several test cases per file, `one_big` / `many_small` / `skewed` -- rather
+  than by ten different seeds, because a bound nobody touches is a bound that
+  does not exist. Whether the generator honours those shapes is checked rather
+  than assumed: `min` describes exactly one input, so asking for it twice with
+  two different seeds must return identical bytes.
 
 ## Tests
 
