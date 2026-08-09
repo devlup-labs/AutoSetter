@@ -36,7 +36,9 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List
+
+from .sandbox_client import VENDORED_TESTLIB
 
 
 class PackagerError(Exception):
@@ -71,6 +73,9 @@ class Packager:
         self.tests_dir = Path(tests_dir)
         self.problem_json_path = Path(problem_json_path)
         self.package_dir = Path(package_dir)
+        # Anything the packager refused to ship, recorded so the manifest can
+        # say what is missing instead of the package quietly being short.
+        self._excluded_tests: List[str] = []
 
     def build(self, progress_callback=None) -> Path:
         """
@@ -121,26 +126,39 @@ class Packager:
                 _log(f"  ⚠️  {name} not found, skipping")
 
         # ---- testlib.h ---------------------------------------------------
-        # Look for testlib.h in the generated directory or its parent
+        # One vendored copy is the source of truth; the package gets it at the
+        # top level and in files/ so the tools compile relative to themselves.
         testlib_src = self.generated_dir / "testlib.h"
         if not testlib_src.exists():
-            testlib_src = self.generated_dir.parent / "testlib.h"
+            testlib_src = VENDORED_TESTLIB
         if testlib_src.exists():
             shutil.copy2(testlib_src, self.package_dir / "testlib.h")
-            # Also put a copy in files/ so validator/generator/checker can
-            # find it relative to themselves
             shutil.copy2(testlib_src, files_dir / "testlib.h")
+        else:
+            _log("  ⚠️  testlib.h not found, skipping")
 
         # ---- tests/ ------------------------------------------------------
+        # Only complete pairs go in. An input whose answer is missing is not a
+        # test: the judge has nothing to compare against, and Polygon rejects
+        # the package. The validation stage already separated the usable tests
+        # from the rejected ones, so a stray file here is a bug worth seeing
+        # rather than something to quietly copy.
         _log("Packaging tests...")
         tests_dest = self.package_dir / "tests"
         tests_dest.mkdir(exist_ok=True)
+        self._excluded_tests = []
 
         if self.tests_dir.exists():
-            # Copy all .in and .ans files
-            for ext in ("*.in", "*.ans"):
-                for f in sorted(self.tests_dir.glob(ext)):
-                    shutil.copy2(f, tests_dest / f.name)
+            for input_path in sorted(self.tests_dir.glob("*.in")):
+                answer_path = input_path.with_suffix(".ans")
+                if not answer_path.exists():
+                    self._excluded_tests.append(
+                        f"{input_path.name}: no matching .ans file"
+                    )
+                    _log(f"  ⚠️  {input_path.name} has no answer file, excluded")
+                    continue
+                shutil.copy2(input_path, tests_dest / input_path.name)
+                shutil.copy2(answer_path, tests_dest / answer_path.name)
 
             # Copy validation report
             report_src = self.tests_dir / "validation_report.json"
@@ -148,6 +166,9 @@ class Packager:
                 shutil.copy2(report_src, self.package_dir / "validation_report.json")
         else:
             _log("  ⚠️  Tests directory not found, skipping")
+
+        if not list(tests_dest.glob("*.in")):
+            _log("  ⚠️  The package contains no tests at all")
 
         # ---- manifest / summary ------------------------------------------
         _log("Creating package manifest...")
@@ -190,12 +211,30 @@ class Packager:
                     "total_tests": report.get("total_tests", 0),
                     "passed_tests": report.get("passed_tests", 0),
                     "all_passed": report.get("all_passed", False),
+                    "validator_trusted": report.get("validator_trusted", False),
+                    "checker_trusted": report.get("checker_trusted", False),
+                    "diagnosis": report.get("diagnosis", ""),
                 }
             except Exception:
                 pass
 
+        packaged_tests = len(list((self.package_dir / "tests").glob("*.in")))
+
+        # The single field a human should look at first. A package that was
+        # assembled is not the same thing as a package that is fit to upload,
+        # and the old manifest had no way of saying so.
+        ready = bool(
+            validation_summary
+            and validation_summary.get("all_passed")
+            and packaged_tests > 0
+            and not self._excluded_tests
+        )
+
         return {
             "problem_title": title,
+            "ready_for_release": ready,
+            "packaged_tests": packaged_tests,
+            "excluded_tests": self._excluded_tests,
             "files": files,
             "file_count": len(files),
             "validation": validation_summary,

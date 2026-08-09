@@ -10,7 +10,51 @@
   "passed_tests": 7,
   "failed_tests": 3,
   "all_passed": false,
-  "duration_ms": 11993,
+  "validator_trusted": true,
+  "checker_trusted": true,
+  "diagnosis": "3 of 10 generated tests are unusable and have been left out of the package.",
+  "duration_ms": 6209,
+  "samples": [
+    {
+      "index": 1,
+      "accepted": true,
+      "message": ""
+    }
+  ],
+  "checker_probes": [
+    {
+      "name": "empty",
+      "what": "an empty output file",
+      "fatal": true,
+      "verdict": "pe",
+      "rejected": true,
+      "message": "wrong output format Unexpected end of file - int32 expected"
+    },
+    {
+      "name": "truncated",
+      "what": "a correct answer with its last token missing",
+      "fatal": true,
+      "verdict": "pe",
+      "rejected": true,
+      "message": "wrong output format Unexpected end of file - int32 expected"
+    },
+    {
+      "name": "trailing_garbage",
+      "what": "a correct answer with an extra token appended",
+      "fatal": false,
+      "verdict": "pe",
+      "rejected": true,
+      "message": "wrong output format Extra information in the output file"
+    },
+    {
+      "name": "perturbed",
+      "what": "a correct answer with every number increased by one",
+      "fatal": true,
+      "verdict": "wa",
+      "rejected": true,
+      "message": "wrong answer Sum of elements at indices 1 and 7 is -1216664990, expected -822471152"
+    }
+  ],
   "test_cases": [
     {
       "index": 1,
@@ -20,6 +64,7 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum -822471152\n",
+      "usable": true,
       "error": ""
     },
     {
@@ -30,6 +75,7 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum 885746633\n",
+      "usable": true,
       "error": ""
     },
     {
@@ -40,6 +86,7 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum 593964416\n",
+      "usable": true,
       "error": ""
     },
     {
@@ -50,6 +97,7 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum 302182199\n",
+      "usable": true,
       "error": ""
     },
     {
@@ -60,6 +108,7 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum -41477519\n",
+      "usable": true,
       "error": ""
     },
     {
@@ -70,6 +119,7 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum -281382235\n",
+      "usable": true,
       "error": ""
     },
     {
@@ -80,7 +130,8 @@
       "solution_ok": false,
       "checker_ok": false,
       "checker_message": "",
-      "error": "Validator rejected the generated input"
+      "usable": false,
+      "error": "Validator rejected the generated input; it accepts the official samples, so the generator is the file at fault"
     },
     {
       "index": 8,
@@ -90,6 +141,7 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum -621856877\n",
+      "usable": true,
       "error": ""
     },
     {
@@ -100,7 +152,8 @@
       "solution_ok": false,
       "checker_ok": false,
       "checker_message": "",
-      "error": "Validator rejected the generated input"
+      "usable": false,
+      "error": "Validator rejected the generated input; it accepts the official samples, so the generator is the file at fault"
     },
     {
       "index": 10,
@@ -110,7 +163,8 @@
       "solution_ok": false,
       "checker_ok": false,
       "checker_message": "",
-      "error": "Validator rejected the generated input"
+      "usable": false,
+      "error": "Validator rejected the generated input; it accepts the official samples, so the generator is the file at fault"
     }
   ]
 }
