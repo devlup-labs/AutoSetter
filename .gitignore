@@ -1,16 +1,35 @@
+# Python
 __pycache__/
 *.pyc
-node_modules/
-generated/
-tests/
-package/
+.venv/
+venv/
+env/
+
+# Editors
+.vscode/
 .DS_Store
-sandbox/best_card
-sandbox/input.txt
+
+# Pipeline run artifacts.
+# Every per-run directory lives under out/, so one anchored rule covers all of
+# them. The leading slash matters: an unanchored `tests/` would also ignore a
+# real test suite in any subdirectory.
+/out/
+/build/
+
+# Node
+node_modules/
 sandbox/server/node_modules/
 
-# ignore compiled executables in example build folder
+# Compiled binaries from the recorded example run
 example/02_build/solution
 example/02_build/generator
 example/02_build/validator
 example/02_build/checker
+sandbox/best_card
+sandbox/input.txt
+
+# testlib.h copied into the recorded example package at package time.
+# The vendored copy in third_party/ is the one under version control.
+example/02_build/testlib.h
+example/04_package/testlib.h
+example/04_package/files/testlib.h
