@@ -2,7 +2,7 @@
 file_generator.py
 ==================
 Step 4-5 of the pipeline: given the validated `problem.json` specification,
-generate each downstream artifact (statement.md, solution.cpp, validator.cpp,
+generate each downstream artifact (statement.tex, solution.cpp, validator.cpp,
 generator.cpp, checker.cpp) by calling Ollama once per artifact, each with
 its own specialized prompt template from `prompts/`.
 
@@ -33,7 +33,7 @@ class ArtifactSpec:
 
     name: str  # human-readable label used in progress messages, e.g. "statement"
     prompt_template: str  # file name in prompts/, e.g. "statement.txt"
-    output_filename: str  # file name in generated/, e.g. "statement.md"
+    output_filename: str  # file name in generated/, e.g. "statement.tex"
     strip_code_fence: bool  # whether to strip ``` fences from the model's reply
 
 
@@ -43,7 +43,7 @@ class ArtifactSpec:
 # tests through brute.cpp and solution.cpp and cross-checks their outputs --
 # the only step able to catch a solution.cpp that is fluent but wrong.
 ARTIFACTS: List[ArtifactSpec] = [
-    ArtifactSpec("statement", "statement.txt", "statement.md", strip_code_fence=True),
+    ArtifactSpec("statement", "statement.txt", "statement.tex", strip_code_fence=True),
     ArtifactSpec("validator", "validator.txt", "validator.cpp", strip_code_fence=True),
     ArtifactSpec("generator", "generator.txt", "generator.cpp", strip_code_fence=True),
     ArtifactSpec("brute", "brute.txt", "brute.cpp", strip_code_fence=True),
@@ -116,7 +116,7 @@ def generate_all_artifacts(
     progress_callback=None,
 ) -> Dict[str, Path]:
     """
-    Generate statement.md, validator.cpp, generator.cpp, solution.cpp and
+    Generate statement.tex, validator.cpp, generator.cpp, solution.cpp and
     checker.cpp from the given problem specification.
 
     Parameters
