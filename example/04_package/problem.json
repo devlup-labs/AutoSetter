@@ -1,0 +1,17 @@
+{
+  "title": "Two Sum",
+  "story": "You are given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.\n\nYou may assume that each input would have exactly one solution, and you may not use the same element twice.\n\nYou can return the answer in any order.",
+  "input_format": "The first line contains two integers: n (the size of the array) and target.\nThe second line contains n space-separated integers nums[i].",
+  "output_format": "Print two space-separated integers representing the 0-based indices of the two numbers.",
+  "constraints": "2 <= n <= 1000\n-10^9 <= nums[i] <= 10^9\n-10^9 <= target <= 10^9\nOnly one valid answer exists.",
+  "samples": [
+    {
+      "input": "4 9\n2 7 11 15",
+      "output": "0 1",
+      "explanation": "Because nums[0] + nums[1] == 9, we return 0 1."
+    }
+  ],
+  "time_limit": "2.0s",
+  "memory_limit": "256MB",
+  "notes": ""
+}

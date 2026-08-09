@@ -1,0 +1,37 @@
+{
+  "problem_title": "Two Sum",
+  "files": [
+    "files/checker.cpp",
+    "files/generator.cpp",
+    "files/testlib.h",
+    "files/validator.cpp",
+    "problem.json",
+    "solutions/solution.cpp",
+    "statement.md",
+    "testlib.h",
+    "tests/001.ans",
+    "tests/001.in",
+    "tests/002.ans",
+    "tests/002.in",
+    "tests/003.ans",
+    "tests/003.in",
+    "tests/004.ans",
+    "tests/004.in",
+    "tests/005.ans",
+    "tests/005.in",
+    "tests/006.ans",
+    "tests/006.in",
+    "tests/007.in",
+    "tests/008.ans",
+    "tests/008.in",
+    "tests/009.in",
+    "tests/010.in",
+    "validation_report.json"
+  ],
+  "file_count": 26,
+  "validation": {
+    "total_tests": 10,
+    "passed_tests": 7,
+    "all_passed": false
+  }
+}

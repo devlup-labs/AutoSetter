@@ -1,0 +1,116 @@
+{
+  "compilation": {
+    "solution": true,
+    "validator": true,
+    "generator": true,
+    "checker": true,
+    "errors": {}
+  },
+  "total_tests": 10,
+  "passed_tests": 7,
+  "failed_tests": 3,
+  "all_passed": false,
+  "duration_ms": 11993,
+  "test_cases": [
+    {
+      "index": 1,
+      "seed": "1",
+      "generator_ok": true,
+      "validator_ok": true,
+      "solution_ok": true,
+      "checker_ok": true,
+      "checker_message": "ok Correct pair found with sum -822471152\n",
+      "error": ""
+    },
+    {
+      "index": 2,
+      "seed": "2",
+      "generator_ok": true,
+      "validator_ok": true,
+      "solution_ok": true,
+      "checker_ok": true,
+      "checker_message": "ok Correct pair found with sum 885746633\n",
+      "error": ""
+    },
+    {
+      "index": 3,
+      "seed": "3",
+      "generator_ok": true,
+      "validator_ok": true,
+      "solution_ok": true,
+      "checker_ok": true,
+      "checker_message": "ok Correct pair found with sum 593964416\n",
+      "error": ""
+    },
+    {
+      "index": 4,
+      "seed": "4",
+      "generator_ok": true,
+      "validator_ok": true,
+      "solution_ok": true,
+      "checker_ok": true,
+      "checker_message": "ok Correct pair found with sum 302182199\n",
+      "error": ""
+    },
+    {
+      "index": 5,
+      "seed": "5",
+      "generator_ok": true,
+      "validator_ok": true,
+      "solution_ok": true,
+      "checker_ok": true,
+      "checker_message": "ok Correct pair found with sum -41477519\n",
+      "error": ""
+    },
+    {
+      "index": 6,
+      "seed": "6",
+      "generator_ok": true,
+      "validator_ok": true,
+      "solution_ok": true,
+      "checker_ok": true,
+      "checker_message": "ok Correct pair found with sum -281382235\n",
+      "error": ""
+    },
+    {
+      "index": 7,
+      "seed": "7",
+      "generator_ok": true,
+      "validator_ok": false,
+      "solution_ok": false,
+      "checker_ok": false,
+      "checker_message": "",
+      "error": "Validator rejected the generated input"
+    },
+    {
+      "index": 8,
+      "seed": "8",
+      "generator_ok": true,
+      "validator_ok": true,
+      "solution_ok": true,
+      "checker_ok": true,
+      "checker_message": "ok Correct pair found with sum -621856877\n",
+      "error": ""
+    },
+    {
+      "index": 9,
+      "seed": "9",
+      "generator_ok": true,
+      "validator_ok": false,
+      "solution_ok": false,
+      "checker_ok": false,
+      "checker_message": "",
+      "error": "Validator rejected the generated input"
+    },
+    {
+      "index": 10,
+      "seed": "10",
+      "generator_ok": true,
+      "validator_ok": false,
+      "solution_ok": false,
+      "checker_ok": false,
+      "checker_message": "",
+      "error": "Validator rejected the generated input"
+    }
+  ]
+}
