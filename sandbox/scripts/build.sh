@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # ============================================================
-# Anti-Gravity IDE — Build Script
-# Builds the mac-nsjail Docker image with NsJail + g++
+# AutoSetter Sandbox — Build Script
+# Builds the autosetter-nsjail Docker image with NsJail + g++
 # ============================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 DOCKER_DIR="$PROJECT_DIR/docker"
-IMAGE_NAME="mac-nsjail"
+IMAGE_NAME="autosetter-nsjail"
 
 echo ""
 echo "  ╔═══════════════════════════════════════════════╗"
-echo "  ║       ⚡ ANTI-GRAVITY IDE — Build ⚡          ║"
+echo "  ║       ⚡ AUTOSETTER SANDBOX — Build ⚡          ║"
 echo "  ╚═══════════════════════════════════════════════╝"
 echo ""
 
