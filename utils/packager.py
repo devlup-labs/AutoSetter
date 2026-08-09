@@ -16,7 +16,8 @@ Package layout
     ├── problem.json          # structured problem specification
     ├── statement.md          # rendered problem statement
     ├── solutions/
-    │   └── solution.cpp      # reference solution
+    │   ├── solution.cpp      # reference (optimal) solution
+    │   └── brute.cpp         # independent brute-force solution, for reviewers
     ├── files/
     │   ├── validator.cpp     # input validator (testlib.h)
     │   ├── generator.cpp     # test generator (testlib.h)
@@ -113,6 +114,16 @@ class Packager:
             shutil.copy2(solution_src, solutions_dir / "solution.cpp")
         else:
             _log("  ⚠️  solution.cpp not found, skipping")
+
+        # brute.cpp ships alongside solution.cpp: it's a second, independent
+        # solution (deliberately unoptimized) kept for human reviewers to
+        # re-run stress tests against, the same reason Polygon lets a
+        # problem carry multiple tagged solutions.
+        brute_src = self.generated_dir / "brute.cpp"
+        if brute_src.exists():
+            shutil.copy2(brute_src, solutions_dir / "brute.cpp")
+        else:
+            _log("  ⚠️  brute.cpp not found, skipping")
 
         # ---- files/ (validator, generator, checker) ----------------------
         _log("Packaging testlib files...")
@@ -213,7 +224,7 @@ class Packager:
                     "all_passed": report.get("all_passed", False),
                     "validator_trusted": report.get("validator_trusted", False),
                     "checker_trusted": report.get("checker_trusted", False),
-                    "modes_respected": report.get("modes_respected", False),
+                    "brute_verified": report.get("brute_verified", False),
                     "diagnosis": report.get("diagnosis", ""),
                 }
             except Exception:

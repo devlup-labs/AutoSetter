@@ -48,13 +48,7 @@ from .sandbox_client import (
     SandboxLocalClient,
     SandboxError,
     ExecutionResult,
-)
-from .test_plan import (
-    TestShape,
-    default_plan,
-    looks_multitest,
-    seed_invariant_modes,
-    shaped_count,
+    ensure_testlib,
 )
 
 
@@ -76,25 +70,11 @@ def _looks_like_int(token: str) -> bool:
     return bool(token) and (token.lstrip("-+").isdigit())
 
 
-def _leading_count(text: str) -> Optional[int]:
-    """The first integer in a test file — `t`, on a multitest problem.
-
-    Returns None when the file does not start with a bare integer, in which
-    case this is not the multitest shape assumed here and nothing can be
-    concluded from it.
-    """
-    first = text.strip().split("\n", 1)[0].strip()
-    return int(first) if first.isdigit() else None
-
-
 @dataclass
 class TestCase:
     """One generated test case with its validation and execution results."""
     index: int
     seed: str
-    mode: str = "random"
-    name: str = ""
-    purpose: str = ""
     input_data: str = ""
     expected_output: str = ""
     generator_ok: bool = False
@@ -103,20 +83,33 @@ class TestCase:
     checker_ok: bool = False
     checker_message: str = ""
     error: str = ""
+    # Brute-force cross-verification. brute_ok records whether brute.cpp ran
+    # to completion at all; matches_brute is the actual verdict and is a
+    # three-state field on purpose: True (agrees), False (a confirmed
+    # mismatch -- solution.cpp is almost certainly wrong), or None
+    # (inconclusive -- brute.cpp wasn't available, or timed out on this
+    # test's size, which is expected for a deliberately slow reference).
+    brute_ok: bool = False
+    brute_output: str = ""
+    brute_error: str = ""
+    matches_brute: Optional[bool] = None
 
     @property
     def usable(self) -> bool:
         """Is this test fit to ship?
 
         Anything less than the whole chain succeeding leaves a test that is
-        incomplete (an input with no answer) or wrong (an input the validator
-        refuses), and shipping either produces a broken package.
+        incomplete (an input with no answer), wrong (an input the validator
+        refuses), or unverified (solution.cpp disagrees with the independent
+        brute-force oracle), and shipping any of those produces a broken
+        package.
         """
         return (
             self.generator_ok
             and self.validator_ok
             and self.solution_ok
             and self.checker_ok
+            and self.matches_brute is not False
             and not self.error
             and bool(self.input_data)
             and bool(self.expected_output)
@@ -156,6 +149,7 @@ class CompilationReport:
     validator: bool = False
     generator: bool = False
     checker: bool = False
+    brute: bool = False
     errors: Dict[str, str] = field(default_factory=dict)
 
 
@@ -172,8 +166,12 @@ class TestReport:
     all_passed: bool = False
     validator_trusted: bool = False
     checker_trusted: bool = False
-    modes_respected: bool = False
-    mode_evidence: str = ""
+    # True only if brute.cpp compiled AND at least one test actually
+    # compared solution.cpp against it AND none of those comparisons
+    # disagreed. Mirrors validator_trusted/checker_trusted: a package isn't
+    # fit to release just because brute.cpp exists, only if it was actually
+    # used to confirm solution.cpp.
+    brute_verified: bool = False
     diagnosis: str = ""
     duration_ms: int = 0
 
@@ -190,6 +188,7 @@ class TestReport:
                 "validator": self.compilation.validator,
                 "generator": self.compilation.generator,
                 "checker": self.compilation.checker,
+                "brute": self.compilation.brute,
                 "errors": self.compilation.errors,
             },
             "total_tests": self.total_tests,
@@ -198,8 +197,7 @@ class TestReport:
             "all_passed": self.all_passed,
             "validator_trusted": self.validator_trusted,
             "checker_trusted": self.checker_trusted,
-            "modes_respected": self.modes_respected,
-            "mode_evidence": self.mode_evidence,
+            "brute_verified": self.brute_verified,
             "diagnosis": self.diagnosis,
             "duration_ms": self.duration_ms,
             "samples": [
@@ -224,15 +222,15 @@ class TestReport:
             "test_cases": [
                 {
                     "index": tc.index,
-                    "name": tc.name,
-                    "mode": tc.mode,
-                    "purpose": tc.purpose,
                     "seed": tc.seed,
                     "generator_ok": tc.generator_ok,
                     "validator_ok": tc.validator_ok,
                     "solution_ok": tc.solution_ok,
                     "checker_ok": tc.checker_ok,
                     "checker_message": tc.checker_message,
+                    "brute_ok": tc.brute_ok,
+                    "matches_brute": tc.matches_brute,
+                    "brute_error": tc.brute_error,
                     "usable": tc.usable,
                     "error": tc.error,
                 }
@@ -266,11 +264,14 @@ class TestPipeline:
     """
 
     # Map of artifact name -> (source filename, needs testlib?)
+    # brute.cpp is plain stdin/stdout C++, like solution.cpp -- it doesn't
+    # touch testlib itself, only the generator/validator/checker do.
     ARTIFACTS = {
         "solution":  ("solution.cpp",  False),
         "validator": ("validator.cpp", True),
         "generator": ("generator.cpp", True),
         "checker":   ("checker.cpp",   True),
+        "brute":     ("brute.cpp",     False),
     }
 
     def __init__(
@@ -280,39 +281,24 @@ class TestPipeline:
         sandbox: SandboxLocalClient,
         num_tests: int = 10,
         time_limit: int = 5,
+        brute_time_limit: int = 15,
         progress_callback=None,
         samples: Optional[List[Dict[str, Any]]] = None,
-        plan: Optional[List[TestShape]] = None,
-        problem: Optional[Dict[str, Any]] = None,
-        multitest: Optional[bool] = None,
     ) -> None:
         self.generated_dir = Path(generated_dir)
         self.tests_dir = Path(tests_dir)
         self.sandbox = sandbox
         self.num_tests = num_tests
         self.time_limit = time_limit
+        # brute.cpp is deliberately unoptimized (O(n^3) etc. is expected), so
+        # it gets a longer timeout than the reference solution. A genuine
+        # timeout here is treated as inconclusive, not as a failure -- see
+        # _run_brute.
+        self.brute_time_limit = brute_time_limit
         self._log = progress_callback or (lambda msg: None)
-
         # The "samples" list straight out of problem.json. Each entry is a dict
         # with "input" and "output" keys.
-        self.samples = samples if samples is not None else (
-            (problem or {}).get("samples") or []
-        )
-
-        # Whether one file holds several test cases decides both which shapes
-        # are worth asking for and which checks can be run on them. A caller
-        # may state it outright; otherwise it is read off the statement.
-        self.multitest = (
-            multitest if multitest is not None else looks_multitest(problem)
-        )
-
-        # Shapes, not seeds. `num_tests` now controls how many uniformly
-        # random tests come after the shaped ones, since the shaped tests are
-        # fixed by what the constraints say rather than by a count.
-        self.plan = plan if plan is not None else default_plan(
-            random_tests=max(1, num_tests - shaped_count(self.multitest)),
-            multitest=self.multitest,
-        )
+        self.samples = samples or []
 
     # ------------------------------------------------------------------
     # Public entry point
@@ -361,30 +347,15 @@ class TestPipeline:
                 self._log(f"  ❌ Validator rejects {len(bad)} official sample(s) — "
                           "the validator or the extracted constraints are wrong")
 
-        # Step 2b: does the generator honour its mode argument at all?
-        # Asked before the tests are generated, because if the answer is no,
-        # every "shaped" test below is really just another random one.
-        report.modes_respected, report.mode_evidence = self._check_modes()
-        if report.modes_respected:
-            self._log("  ✅ Generator honours its mode argument")
-        else:
-            self._log(f"  ❌ {report.mode_evidence}")
-
         # Step 3-6: Generate, validate, solve, and check each test
-        plan = self.plan
-        self._log(f"Running {len(plan)} test cases...")
-        for i, shape in enumerate(plan, start=1):
-            tc = TestCase(
-                index=i,
-                seed=str(shape.seed),
-                mode=shape.mode,
-                name=shape.name,
-                purpose=shape.purpose,
-            )
+        self._log(f"Running {self.num_tests} test cases...")
+        for i in range(1, self.num_tests + 1):
+            seed = str(i)
+            tc = TestCase(index=i, seed=seed)
 
             try:
-                # 3. Generate a test input of this shape
-                tc.input_data = self._generate_test(shape.args)
+                # 3. Generate a test input
+                tc.input_data = self._generate_test(seed)
                 tc.generator_ok = True
 
                 # 4. Validate the input (if validator compiled)
@@ -396,7 +367,7 @@ class TestPipeline:
                 if not tc.validator_ok:
                     tc.error = self._blame_for_rejected_input(report)
                     report.test_cases.append(tc)
-                    self._log(f"  {tc.name:<10} ❌ {tc.error}")
+                    self._log(f"  Test {i}/{self.num_tests}: ❌ {tc.error}")
                     continue
 
                 # 5. Run the solution to produce expected output
@@ -418,18 +389,74 @@ class TestPipeline:
                 else:
                     tc.checker_ok = True  # skip if checker didn't compile
 
+                # 7. Cross-verify solution.cpp against brute.cpp, when
+                # available. Every step above only ever asks solution.cpp to
+                # agree with itself; this is the only one that can catch a
+                # reference solution that runs cleanly and is simply wrong.
+                if report.compilation.brute:
+                    try:
+                        tc.brute_output = self._run_brute(tc.input_data)
+                        tc.brute_ok = True
+
+                        if report.compilation.checker:
+                            cmp_result = self._run_checker(
+                                tc.input_data, tc.expected_output, tc.brute_output
+                            )
+                            tc.matches_brute = cmp_result.exit_code == 0
+                        else:
+                            # No checker to consult: fall back to a
+                            # whitespace-tolerant literal comparison. Cruder
+                            # than testlib's own comparator (no partial-credit
+                            # or multiple-answer awareness), but still catches
+                            # an outright wrong answer.
+                            tc.matches_brute = (
+                                tc.expected_output.split() == tc.brute_output.split()
+                            )
+
+                        if not tc.matches_brute:
+                            tc.error = (
+                                "solution.cpp disagrees with brute.cpp on this "
+                                "input -- solution.cpp is most likely wrong"
+                            )
+                    except SandboxError as exc:
+                        # A brute-force timeout at larger n is expected, not a
+                        # failure of solution.cpp. Leave matches_brute as None
+                        # (inconclusive) instead of penalizing the test.
+                        tc.brute_error = str(exc)
+
             except SandboxError as exc:
                 tc.error = str(exc)
 
             report.test_cases.append(tc)
 
-            if not tc.error:
+            if tc.error:
+                self._log(f"  Test {i}/{self.num_tests}: ❌ {tc.error}")
+            else:
                 status = "✅" if tc.usable else "❌"
-                self._log(f"  {tc.name:<10} {status}  {tc.purpose}")
+                self._log(f"  Test {i}/{self.num_tests}: {status}")
 
         # Step 6b: prove the checker can say no.
+        # Deliberately NOT gated on tc.usable: usable also requires
+        # matches_brute is not False, but probing the checker's own
+        # soundness only needs a valid input and a solution output the
+        # checker already accepted -- it has nothing to do with whether
+        # brute.cpp agreed. A run where solution.cpp disagrees with
+        # brute.cpp on every test must still be able to probe the checker,
+        # or that failure gets masked behind a misleading "no usable test"
+        # / checker_trusted=False default instead of the real diagnosis.
         if report.compilation.checker:
-            reference = next((tc for tc in report.test_cases if tc.usable), None)
+            reference = next(
+                (
+                    tc
+                    for tc in report.test_cases
+                    if tc.validator_ok
+                    and tc.solution_ok
+                    and tc.checker_ok
+                    and bool(tc.input_data)
+                    and bool(tc.expected_output)
+                ),
+                None,
+            )
             if reference is None:
                 self._log("  ⚠️  No usable test to probe the checker with")
             else:
@@ -450,20 +477,28 @@ class TestPipeline:
         report.passed_tests = sum(1 for tc in report.test_cases if tc.usable)
         report.failed_tests = report.total_tests - report.passed_tests
 
+        # brute_verified requires brute.cpp to have actually compiled *and*
+        # actually been used to confirm at least one test, with zero
+        # confirmed disagreements. A run where every brute-force attempt
+        # timed out (matches_brute stays None throughout) is inconclusive,
+        # not verified -- it must not be reported as confirmed correctness.
+        report.brute_verified = bool(
+            report.compilation.brute
+            and any(tc.matches_brute is True for tc in report.test_cases)
+            and not any(tc.matches_brute is False for tc in report.test_cases)
+        )
+
         # `all_passed` is what the packager and the exit code key off, so it
         # has to mean "this problem is fit to ship", not merely "the tests we
-        # kept happened to pass". A trustworthy validator and a checker that
-        # can say no are part of that.
-        # A test set that never reaches the problem's stated bounds is not fit
-        # to ship, however many of its tests pass: a solution too slow for the
-        # maximum sails through, and the bound may as well not have been
-        # written. So mode coverage counts, alongside validity.
+        # kept happened to pass". A trustworthy validator, a checker that can
+        # say no, and a solution independently confirmed against brute.cpp
+        # are all part of that.
         report.all_passed = (
             report.failed_tests == 0
             and report.total_tests > 0
             and report.validator_trusted
             and report.checker_trusted
-            and report.modes_respected
+            and report.brute_verified
         )
         report.diagnosis = self._diagnose(report)
         report.duration_ms = int((time.monotonic() - start) * 1000)
@@ -670,11 +705,24 @@ class TestPipeline:
                 "The checker accepts outputs that are definitely wrong "
                 f"({', '.join(accepted)}), so it would accept wrong submissions."
             )
-        if not report.modes_respected:
+        if not report.compilation.brute:
             return (
-                "The generator ignores its mode argument, so no test deliberately "
-                "reaches the problem's stated bounds. Regenerate it against the "
-                "mode contract in prompts/generator.txt."
+                "brute.cpp does not compile, so solution.cpp's correctness "
+                "could not be cross-verified against an independent implementation."
+            )
+        mismatches = [tc for tc in report.test_cases if tc.matches_brute is False]
+        if mismatches:
+            idxs = ", ".join(str(tc.index) for tc in mismatches[:5])
+            more = "" if len(mismatches) <= 5 else f" (+{len(mismatches) - 5} more)"
+            return (
+                f"solution.cpp disagrees with brute.cpp on {len(mismatches)} "
+                f"test(s) (e.g. #{idxs}{more}) — solution.cpp most likely has a bug."
+            )
+        if not report.brute_verified:
+            return (
+                "brute.cpp compiled but never produced a confirmed comparison "
+                "(every attempt timed out or was skipped), so solution.cpp's "
+                "correctness remains unconfirmed."
             )
         if report.failed_tests:
             return (
@@ -683,106 +731,19 @@ class TestPipeline:
             )
         return ""
 
-    def _generate_test(self, args: List[str]) -> str:
-        """Run the generator with these arguments and return what it wrote."""
+    def _generate_test(self, seed: str) -> str:
+        """Run the generator with the given seed and return the output."""
         generator_bin = self.generated_dir / "generator"
         result = self.sandbox.run_binary(
             generator_bin,
-            args=args,
+            args=[seed],
             timeout=self.time_limit,
         )
         if result.status != "success":
             raise SandboxError(
-                f"Generator failed (args={' '.join(args)}): {result.stderr}"
+                f"Generator failed (seed={seed}): {result.stderr}"
             )
         return result.stdout
-
-    def _check_modes(self) -> tuple[bool, str]:
-        """Does the generator actually respond to its mode argument?
-
-        Nothing else in the pipeline can tell. Without a machine-readable
-        description of the input there is no way to look at a file and decide
-        whether it is "the largest legal input" — but there is a way to find
-        out whether the generator even tried.
-
-        `min` describes exactly one input: every value at its smallest legal
-        value. Ask for it twice with two different seeds. A generator that
-        understands the mode returns identical bytes both times, because the
-        constraints fixed the answer and the seed had nothing left to vary.
-        A generator that ignored the argument and produced a random test
-        returns two different files, and that difference is the proof.
-
-        This matters because a generator that ignores its mode turns the whole
-        plan back into what it replaced: a pile of tests from the middle of the
-        input space, none of which ever reach a stated bound.
-        """
-        for mode in seed_invariant_modes():
-            try:
-                first = self._generate_test([mode, "1"])
-                second = self._generate_test([mode, "999"])
-            except SandboxError as exc:
-                return False, f"Generator failed on mode '{mode}': {exc}"
-
-            if first != second:
-                return False, (
-                    f"Generator ignores its mode argument: '{mode}' produced "
-                    "different output for two different seeds, but that mode "
-                    "describes exactly one input. The shaped tests are really "
-                    "just more random ones, so no test reaches a stated bound."
-                )
-
-            if not first.strip():
-                return False, f"Generator produced an empty file for mode '{mode}'"
-
-        evidence = "min and max are seed-independent, as the mode contract requires"
-
-        if self.multitest:
-            ok, budget_evidence = self._check_budget_shapes()
-            if not ok:
-                return False, budget_evidence
-            evidence += f"; {budget_evidence}"
-
-        return True, evidence
-
-    def _check_budget_shapes(self) -> tuple[bool, str]:
-        """Do the budget modes actually spend the budget differently?
-
-        These cannot be checked the way `min` and `max` are. `one_big` fixes
-        the *shape* — a single test case — but the values inside it are still
-        random, so two seeds legitimately produce different files. Seed
-        invariance would fail a perfectly good generator.
-
-        What is checkable is the thing that distinguishes them: the number of
-        test cases. `one_big` puts the whole budget in one, `many_small`
-        spreads it over as many as allowed. If those two come back with the
-        same count, the generator is treating both as ordinary random tests and
-        the distinction the modes exist for was never made.
-        """
-        try:
-            one_big = self._generate_test(["one_big", "1"])
-            many_small = self._generate_test(["many_small", "1"])
-        except SandboxError as exc:
-            return False, f"Generator failed on a budget mode: {exc}"
-
-        big_count = _leading_count(one_big)
-        small_count = _leading_count(many_small)
-
-        if big_count is None or small_count is None:
-            return True, "budget modes not checked (no leading test-case count found)"
-
-        if big_count >= small_count:
-            return False, (
-                f"Generator ignores the budget modes: 'one_big' produced "
-                f"{big_count} test case(s) and 'many_small' produced "
-                f"{small_count}. A capped total has no single largest test, so "
-                "these two must spend the same budget in different shapes — one "
-                "stresses the algorithm, the other stresses per-test-case work."
-            )
-
-        return True, (
-            f"budget modes differ as required (one_big: {big_count} case(s), "
-            f"many_small: {small_count})"
-        )
 
     def _validate_input(self, input_data: str) -> bool:
         """Run the validator on the given input.  Returns True if valid."""
@@ -806,6 +767,30 @@ class TestPipeline:
             raise SandboxError("Solution exceeded time limit")
         if result.status != "success":
             raise SandboxError(f"Solution runtime error: {result.stderr}")
+        return result.stdout
+
+    def _run_brute(self, input_data: str) -> str:
+        """Run brute.cpp on the given input.  Returns its output.
+
+        brute.cpp is deliberately unoptimized (O(n^3) etc. is expected by
+        design), so it gets its own, longer timeout (self.brute_time_limit)
+        rather than self.time_limit. A timeout here means "inconclusive on
+        this test's size", not "solution.cpp is wrong" -- the caller treats
+        SandboxError from this method as non-fatal to the test.
+        """
+        brute_bin = self.generated_dir / "brute"
+        result = self.sandbox.run_binary(
+            brute_bin,
+            stdin=input_data,
+            timeout=self.brute_time_limit,
+        )
+        if result.status == "timeout":
+            raise SandboxError(
+                f"brute.cpp exceeded {self.brute_time_limit}s "
+                "(inconclusive at this input size, not necessarily wrong)"
+            )
+        if result.status != "success":
+            raise SandboxError(f"brute.cpp runtime error: {result.stderr}")
         return result.stdout
 
     def _run_checker(
@@ -889,6 +874,13 @@ class TestPipeline:
             if tc.expected_output:
                 (rejected_dir / f"{tc.index:03d}.ans").write_text(
                     tc.expected_output, encoding="utf-8"
+                )
+            # On a brute mismatch, keep brute.cpp's output too -- solution.cpp
+            # (.ans) and brute.cpp (.brute) side by side is exactly what's
+            # needed to debug which one is actually wrong.
+            if tc.matches_brute is False and tc.brute_output:
+                (rejected_dir / f"{tc.index:03d}.brute").write_text(
+                    tc.brute_output, encoding="utf-8"
                 )
             (rejected_dir / f"{tc.index:03d}.why").write_text(
                 (tc.error or "did not complete the generate/validate/solve/check chain")

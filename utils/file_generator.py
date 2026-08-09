@@ -37,14 +37,16 @@ class ArtifactSpec:
     strip_code_fence: bool  # whether to strip ``` fences from the model's reply
 
 
-# The five artifacts required by the pipeline, in generation order.
-# Order matches the requested progress-log order: validator, generator,
-# solution, checker (statement is produced first since it's the most
-# directly derived from the raw JSON and useful as a sanity check).
+# The six artifacts required by the pipeline, in generation order.
+# "brute" is generated right after "generator": both exist purely to power
+# the validation stage (utils/test_pipeline.py), which runs the generator's
+# tests through brute.cpp and solution.cpp and cross-checks their outputs --
+# the only step able to catch a solution.cpp that is fluent but wrong.
 ARTIFACTS: List[ArtifactSpec] = [
     ArtifactSpec("statement", "statement.txt", "statement.md", strip_code_fence=True),
     ArtifactSpec("validator", "validator.txt", "validator.cpp", strip_code_fence=True),
     ArtifactSpec("generator", "generator.txt", "generator.cpp", strip_code_fence=True),
+    ArtifactSpec("brute", "brute.txt", "brute.cpp", strip_code_fence=True),
     ArtifactSpec("solution", "solution.txt", "solution.cpp", strip_code_fence=True),
     ArtifactSpec("checker", "checker.txt", "checker.cpp", strip_code_fence=True),
 ]
