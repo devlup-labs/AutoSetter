@@ -16,18 +16,28 @@ validator, generator, and checker) and for compiling files that depend on it.
 from __future__ import annotations
 
 import json
-import os
 import shutil
 import subprocess
-import tempfile
 import urllib.request
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 
-# URL to the canonical testlib.h from the MikeMirzayanov/testlib repo.
+# The canonical vendored copy, checked into the repo so a run needs no network
+# and every stage compiles against the same testlib. Downloading it per run made
+# the pipeline fail offline and, worse, silently pick up whatever upstream had
+# changed that day.
+VENDORED_TESTLIB = Path(__file__).resolve().parent.parent / "third_party" / "testlib.h"
+
+# Only used by refresh_vendored_testlib(), never during a pipeline run.
 TESTLIB_URL = "https://raw.githubusercontent.com/MikeMirzayanov/testlib/master/testlib.h"
+
+# One place for the C++ dialect, so the local compiler and the sandbox server
+# agree. They used to differ (-O2/c++17 here, -O3/c++20 there), which meant code
+# could build in one mode and fail in the other.
+CPP_STANDARD = "c++17"
+CPP_OPTIMIZATION = "-O2"
 
 
 class SandboxError(Exception):
@@ -53,8 +63,11 @@ class ExecutionResult:
 
 def ensure_testlib(dest_dir: str | Path) -> Path:
     """
-    Make sure ``testlib.h`` exists in *dest_dir*.  If it's missing, download
-    it from the official GitHub repo.  Returns the path to ``testlib.h``.
+    Make sure ``testlib.h`` exists in *dest_dir*, copying the vendored copy
+    there if it doesn't.  Returns the path to ``testlib.h``.
+
+    No network access: the copy under ``third_party/`` is the single source of
+    truth, so every run of the pipeline compiles against the same header.
     """
     dest_dir = Path(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
@@ -63,14 +76,37 @@ def ensure_testlib(dest_dir: str | Path) -> Path:
     if testlib_path.exists():
         return testlib_path
 
+    if not VENDORED_TESTLIB.exists():
+        raise SandboxError(
+            f"Vendored testlib.h is missing from {VENDORED_TESTLIB}. "
+            "Restore it from git, or run refresh_vendored_testlib() to fetch a "
+            "fresh copy from upstream."
+        )
+
     try:
-        urllib.request.urlretrieve(TESTLIB_URL, str(testlib_path))
+        shutil.copy2(VENDORED_TESTLIB, testlib_path)
+    except OSError as exc:
+        raise SandboxError(f"Failed to copy testlib.h into {dest_dir}: {exc}") from exc
+
+    return testlib_path
+
+
+def refresh_vendored_testlib() -> Path:
+    """
+    Re-download ``third_party/testlib.h`` from upstream.
+
+    Deliberately separate from ``ensure_testlib``: updating a vendored
+    dependency is something a person decides to do and then reviews in a diff,
+    not something that happens silently in the middle of generating a problem.
+    """
+    VENDORED_TESTLIB.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        urllib.request.urlretrieve(TESTLIB_URL, str(VENDORED_TESTLIB))
     except Exception as exc:
         raise SandboxError(
             f"Failed to download testlib.h from {TESTLIB_URL}: {exc}"
         ) from exc
-
-    return testlib_path
+    return VENDORED_TESTLIB
 
 
 # ---------------------------------------------------------------------------
@@ -155,8 +191,8 @@ class SandboxLocalClient:
         self,
         testlib_dir: str | Path | None = None,
         compiler: str = "g++",
-        cpp_standard: str = "c++17",
-        optimization: str = "-O2",
+        cpp_standard: str = CPP_STANDARD,
+        optimization: str = CPP_OPTIMIZATION,
     ) -> None:
         self.compiler = compiler
         self.cpp_standard = cpp_standard

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# Anti-Gravity IDE — Start Script
+# AutoSetter Sandbox — Start Script
 # Builds image if needed, installs deps, and starts the server
 # ============================================================
 set -euo pipefail
@@ -8,11 +8,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 SERVER_DIR="$PROJECT_DIR/server"
-IMAGE_NAME="mac-nsjail"
+IMAGE_NAME="autosetter-nsjail"
 
 echo ""
 echo "  ╔═══════════════════════════════════════════════╗"
-echo "  ║       ⚡ ANTI-GRAVITY IDE — Start ⚡          ║"
+echo "  ║       ⚡ AUTOSETTER SANDBOX — Start ⚡          ║"
 echo "  ╚═══════════════════════════════════════════════╝"
 echo ""
 
@@ -36,6 +36,6 @@ echo "✅ Dependencies installed."
 echo ""
 
 # Start the server
-echo "🚀 Starting Anti-Gravity IDE server..."
+echo "🚀 Starting AutoSetter Sandbox server..."
 echo ""
 node src/server.js

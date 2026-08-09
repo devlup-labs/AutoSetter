@@ -85,31 +85,41 @@ graph TD
 ### Step 3: Validate (Sandbox & Testing)
 * **Input**: The generated `.cpp` files in `02_build/`.
 * **Process**: The validation engine:
-  1. Downloads `testlib.h` into the compilation directory.
+  1. Copies `testlib.h` from `third_party/` into the compilation directory.
   2. Compiles `solution.cpp`, `generator.cpp`, `validator.cpp`, and `checker.cpp`.
-  3. Runs the generator with 10 random seeds (1-10) to write input files (`001.in`, etc.).
-  4. Runs the validator on each generated input.
-  5. Runs the reference solution to generate jury outputs (`001.ans`, etc.).
-  6. Runs the checker to ensure the outputs match the problem specification.
+  3. Runs the validator on the statement's official samples — a correct validator must accept every one.
+  4. Runs the generator with 10 random seeds (1-10) to write input files.
+  5. Runs the validator on each generated input.
+  6. Runs the reference solution to generate jury outputs.
+  7. Runs the checker on the jury's own answer (it must accept) and on deliberately broken outputs (it must reject).
 * **Output**: Files created in `03_validate/`:
-  - `validation_report.json` — Status report of compilation, run times, and validation results.
-  - Test inputs (`001.in`, etc.) and outputs (`001.ans`, etc.).
+  - `validation_report.json` — compilation status, sample checks, checker probes, per-test results, and a one-line `diagnosis`.
+  - Shippable test inputs (`001.in`) and outputs (`001.ans`), renumbered without gaps.
+  - `rejected/` — inputs that did not survive, each with a `.why` file.
 
 > [!NOTE]
-> During validation in this example, test cases **7, 9, and 10** were flagged as invalid. The validator successfully caught that the generated `target` value fell outside the constraints of $[-10^9, 10^9]$ because the generator added two large values without checking bounds. This demonstrates the power of sandboxed validation in checking generator correctness!
+> During validation in this example, test cases **7, 9, and 10** were flagged as invalid: the generated `target` fell outside $[-10^9, 10^9]$ because the generator added two large values without checking bounds.
+>
+> The report attributes that failure rather than merely recording it. Because the validator accepts the problem's official sample, it is the trustworthy party, so the report names **the generator** as the file at fault. The three bad inputs are kept in `rejected/` with their reason and are *not* packaged — an input with no answer file is not a test, and shipping one produces a package Polygon cannot use.
+>
+> The checker is probed with an empty output, a truncated answer, an extra token and a perturbed answer, and rejects all four, so it is recorded as trusted. `manifest.json` still reports `ready_for_release: false`, because three of ten tests were thrown away.
 
 ---
 
 ### Step 4: Release (Packaging)
 * **Input**: All build and validation artifacts.
 * **Process**: The packager cleanses and arranges the directory structure.
+* **Process**: The packager arranges the directory structure, copying only complete `.in`/`.ans` pairs.
 * **Output**: Files packaged in `04_package/`:
   - `problem.json`, `statement.md`
   - `solutions/solution.cpp`
   - `files/` containing `validator.cpp`, `generator.cpp`, `checker.cpp`, and `testlib.h`
-  - `tests/` containing all inputs (`.in`) and expected outputs (`.ans`)
+  - `tests/` containing the shippable inputs (`.in`) and expected outputs (`.ans`)
   - `validation_report.json`
-  - `manifest.json` — Listing all packaged files and test results.
+  - `manifest.json` — packaged files, excluded tests, and `ready_for_release`.
+
+> [!IMPORTANT]
+> `ready_for_release` is the field to read first. A package that was *assembled* is not the same as a package that is fit to *upload*, and in this example it is `false`.
 
 ---
 

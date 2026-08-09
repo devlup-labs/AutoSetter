@@ -1,5 +1,5 @@
 // ============================================================
-// Anti-Gravity IDE — Express HTTP Server
+// AutoSetter Sandbox — Express HTTP Server
 // Exposes API for code execution and pool management
 // ============================================================
 
@@ -137,7 +137,7 @@ app.get("/api/health", (req, res) => {
 async function start() {
   console.log(`
   ╔═══════════════════════════════════════════════╗
-  ║          ⚡ ANTI-GRAVITY IDE ⚡               ║
+  ║          ⚡ AUTOSETTER SANDBOX ⚡               ║
   ║     High-Performance Code Execution Sandbox   ║
   ╚═══════════════════════════════════════════════╝
   `);
@@ -155,7 +155,7 @@ async function start() {
   } catch (err) {
     console.error("❌ Failed to start:", err.message);
     console.error(
-      "\n💡 Make sure Docker is running and the 'mac-nsjail' image is built."
+      "\n💡 Make sure Docker is running and the 'autosetter-nsjail' image is built."
     );
     console.error("   Run: bash scripts/build.sh\n");
     process.exit(1);

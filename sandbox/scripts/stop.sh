@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # ============================================================
-# Anti-Gravity IDE — Stop Script
+# AutoSetter Sandbox — Stop Script
 # Gracefully stops the server and removes all worker containers
 # ============================================================
 set -euo pipefail
 
-CONTAINER_PREFIX="ag-worker"
+CONTAINER_PREFIX="autosetter-worker"
 
 echo ""
 echo "  ╔═══════════════════════════════════════════════╗"
-echo "  ║       ⚡ ANTI-GRAVITY IDE — Stop ⚡           ║"
+echo "  ║       ⚡ AUTOSETTER SANDBOX — Stop ⚡           ║"
 echo "  ╚═══════════════════════════════════════════════╝"
 echo ""
 
@@ -36,5 +36,5 @@ else
 fi
 
 echo ""
-echo "✅ Anti-Gravity IDE stopped."
+echo "✅ AutoSetter Sandbox stopped."
 echo ""

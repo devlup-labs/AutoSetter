@@ -1,0 +1,8 @@
+# Development dependencies, on top of requirements.txt.
+#
+# pytest - the suite in tests/. Most of it needs nothing else running: the
+#          Ollama call sits behind one class, which the tests stub. The
+#          pipeline tests additionally need g++ on PATH, and skip without it.
+-r requirements.txt
+
+pytest>=8.0.0

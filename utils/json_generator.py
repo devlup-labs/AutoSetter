@@ -31,14 +31,19 @@ predictable structure.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
 from typing import Any, Dict, List
 
+# The raw model reply is genuinely useful when extraction goes wrong, so it is
+# kept -- but behind a logger rather than a print, so a normal run stays quiet.
+# Run with AUTOSETTER_DEBUG=1 (see app.py) to see it.
+logger = logging.getLogger(__name__)
+
 from .image_parser import load_image_as_base64, ImageParsingError
 from .ollama_client import OllamaClient, OllamaCallError
 from .prompt_loader import load_prompt_template, PromptLoadError
-print("HELLO FROM JSON GENERATOR")
 
 # The exact top-level keys required in the final problem specification.
 REQUIRED_TOP_LEVEL_KEYS = {
@@ -77,7 +82,6 @@ def _strip_markdown_code_fences(raw_text: str) -> str:
     match = fence_pattern.match(text)
     if match:
         return match.group(1).strip()
-    print(text)
 
     return text
 
@@ -96,7 +100,6 @@ def _extract_first_json_object(text: str, raw_text: str) -> str:
     """
     start = text.find("{")
     end = text.rfind("}")
-    errorifso=text
     if start == -1 or end == -1 or end < start:
         preview = raw_text.strip()
         if not preview:
@@ -212,10 +215,7 @@ def generate_problem_json(
             model=vision_model,
             temperature=0.1,  # low temperature: this is a structured-extraction task
         )
-        print("\n================ RAW MODEL OUTPUT ================\n") # ADDED NEW
-        print(repr(raw_reply))
-        print("\n==================================================\n")
-        
+        logger.debug("raw model output:\n%s", raw_reply)
     except OllamaCallError as exc:
         raise JSONGenerationError(f"Ollama vision call failed: {exc}") from exc
 

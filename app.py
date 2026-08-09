@@ -33,9 +33,15 @@ Or, programmatically:
 from __future__ import annotations
 
 import argparse
+import json
+import logging
+import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 from utils.ollama_client import OllamaClient, OllamaCallError
 from utils.image_parser import ImageParsingError
@@ -46,7 +52,7 @@ from utils.json_generator import (
 )
 from utils.file_generator import generate_all_artifacts, FileGenerationError
 from utils.sandbox_client import SandboxLocalClient, SandboxError, ensure_testlib
-from utils.test_pipeline import TestPipeline, TestPipelineError
+from utils.test_pipeline import TestPipeline, TestPipelineError, TestReport
 from utils.packager import Packager, PackagerError
 
 # ---------------------------------------------------------------------------
@@ -56,10 +62,17 @@ from utils.packager import Packager, PackagerError
 # ---------------------------------------------------------------------------
 PROJECT_ROOT = Path(__file__).resolve().parent
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
-GENERATED_DIR = PROJECT_ROOT / "generated"
-TESTS_DIR = PROJECT_ROOT / "tests"
-PACKAGE_DIR = PROJECT_ROOT / "package"
-PROBLEM_JSON_PATH = PROJECT_ROOT / "problem.json"
+
+# Everything a run produces lives under out/, which is the only directory the
+# repo ignores. Keeping artifacts out of the repo root means a pipeline run no
+# longer dirties the working tree, and it frees `tests/` for an actual test
+# suite -- the old layout ignored `tests/` at any depth, so a real one could
+# never have been committed.
+OUT_DIR = PROJECT_ROOT / "out"
+GENERATED_DIR = OUT_DIR / "generated"
+TESTS_DIR = OUT_DIR / "tests"
+PACKAGE_DIR = OUT_DIR / "package"
+PROBLEM_JSON_PATH = OUT_DIR / "problem.json"
 
 # Default model names. Overridable via CLI flags or function arguments.
 # vision model = reads the problem image and extracts problem.json
@@ -72,6 +85,36 @@ DEFAULT_OLLAMA_HOST = "http://localhost:11434"
 
 class AutoSetupError(Exception):
     """Top-level error type for any failure in the AutoSetup pipeline."""
+
+
+@dataclass
+class PipelineResult:
+    """What a run produced, and whether it is fit to release.
+
+    The pipeline used to return only the output directory, which meant a run
+    whose tests all failed was indistinguishable from a clean one: same path
+    back, same exit code, same closing message. Carrying the report out is what
+    lets `main` set an exit code that means something.
+    """
+
+    generated_dir: Path
+    package_dir: Path
+    report: Optional["TestReport"] = None
+    validation_error: str = ""
+
+    @property
+    def ready_for_release(self) -> bool:
+        return bool(self.report and self.report.all_passed)
+
+    @property
+    def summary(self) -> str:
+        if self.validation_error:
+            return f"validation could not run: {self.validation_error}"
+        if self.report is None:
+            return "validation was skipped, so nothing about this package is confirmed"
+        if self.report.all_passed:
+            return f"all {self.report.passed_tests} tests passed"
+        return self.report.diagnosis or "validation did not pass"
 
 
 def _log(message: str) -> None:
@@ -90,7 +133,7 @@ def generate_from_image(
     ollama_host: str = DEFAULT_OLLAMA_HOST,
     num_tests: int = 10,
     skip_validation: bool = False,
-) -> Path:
+) -> PipelineResult:
     """
     Run the ENTIRE AutoSetup pipeline for a single problem statement image.
 
@@ -111,8 +154,9 @@ def generate_from_image(
 
     Returns
     -------
-    Path
-        Path to the `generated/` directory containing all output files.
+    PipelineResult
+        The output directories plus the validation report, so the caller can
+        tell a package that is fit to release from one that merely exists.
 
     Raises
     ------
@@ -138,8 +182,7 @@ def generate_from_image(
             client=client,
             vision_model=vision_model,
         )
-        import json
-        print(json.dumps(problem_data, indent=2)) # added extra to verify where it falls 
+        logger.debug("extracted problem.json:\n%s", json.dumps(problem_data, indent=2))
     except (JSONGenerationError, ImageParsingError, OllamaCallError) as exc:
         raise AutoSetupError(f"Failed while generating problem.json: {exc}") from exc
 
@@ -170,6 +213,7 @@ def generate_from_image(
     # This stage is *optional* — if validation fails, the pipeline still
     # produces a package; the validation report will indicate what failed.
     test_report = None
+    validation_error = ""
     if not skip_validation:
         _log("Starting validation pipeline...")
         try:
@@ -183,6 +227,9 @@ def generate_from_image(
                 sandbox=sandbox,
                 num_tests=num_tests,
                 progress_callback=_log,
+                # The statement's own samples are the only independent evidence
+                # the pipeline has about whether the validator is right.
+                samples=problem_data.get("samples") or [],
             )
             test_report = pipeline.run()
 
@@ -194,8 +241,9 @@ def generate_from_image(
                     f"tests passed ({test_report.failed_tests} failed)"
                 )
         except (SandboxError, TestPipelineError) as exc:
+            validation_error = str(exc)
             _log(f"⚠️  Validation stage encountered an error: {exc}")
-            _log("Continuing to packaging stage...")
+            _log("Continuing to packaging stage, but the package is unverified...")
     else:
         _log("Skipping validation (--skip-validation flag).")
 
@@ -213,7 +261,12 @@ def generate_from_image(
         raise AutoSetupError(f"Failed while packaging: {exc}") from exc
 
     _log("Done.")
-    return GENERATED_DIR
+    return PipelineResult(
+        generated_dir=GENERATED_DIR,
+        package_dir=PACKAGE_DIR,
+        report=test_report,
+        validation_error=validation_error,
+    )
 
 
 def _build_arg_parser() -> argparse.ArgumentParser:
@@ -264,12 +317,27 @@ def _build_arg_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Optional[list] = None) -> int:
-    """CLI entry point. Returns a process exit code (0 = success)."""
+    """CLI entry point.
+
+    Exit codes
+    ----------
+    0   the package is fit to release: every test passed, the validator agrees
+        with the problem's own samples, and the checker demonstrably rejects
+        wrong output.
+    1   the pipeline failed outright.
+    2   artifacts were produced but the package is not fit to release. It is
+        still on disk to look at; something in it is wrong.
+    """
     parser = _build_arg_parser()
     args = parser.parse_args(argv)
 
+    logging.basicConfig(
+        level=logging.DEBUG if os.environ.get("AUTOSETTER_DEBUG") else logging.WARNING,
+        format="%(levelname)s %(name)s: %(message)s",
+    )
+
     try:
-        output_dir = generate_from_image(
+        result = generate_from_image(
             image_path=args.image_path,
             vision_model=args.vision_model,
             text_model=args.text_model,
@@ -289,8 +357,23 @@ def main(argv: Optional[list] = None) -> int:
         print(f"Unexpected error: {exc}", file=sys.stderr)
         return 1
 
-    print(f"\nAll files generated successfully in: {output_dir}")
-    return 0
+    print(f"\nArtifacts written to: {result.generated_dir}")
+    print(f"Package assembled at: {result.package_dir}")
+
+    if result.ready_for_release:
+        print(f"Ready for release — {result.summary}")
+        return 0
+
+    # Saying "generated successfully" over a package with unusable tests in it
+    # is how a broken package reaches Polygon.
+    print(f"NOT ready for release — {result.summary}", file=sys.stderr)
+    if result.report is not None and not result.report.validator_trusted:
+        print(
+            "  The validator disagrees with the problem's own samples, so no "
+            "verdict below it means anything yet.",
+            file=sys.stderr,
+        )
+    return 2
 
 
 if __name__ == "__main__":

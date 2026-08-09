@@ -37,10 +37,9 @@ def run_mock():
         problem_data = json.load(f)
     print(f"Found problem specification: '{problem_data.get('title')}'")
     
-    print("\n--- Step 2: Download testlib.h ---")
-    print("Downloading testlib.h into build folder...")
+    print("\n--- Step 2: Provide testlib.h ---")
     testlib_path = ensure_testlib(build_dir)
-    print(f"testlib.h is ready at {testlib_path}")
+    print(f"testlib.h copied from third_party/ to {testlib_path}")
     
     print("\n--- Step 3: Run Validation & Sandbox Execution ---")
     sandbox = SandboxLocalClient(testlib_dir=build_dir)
@@ -56,7 +55,10 @@ def run_mock():
         tests_dir=validate_dir,
         sandbox=sandbox,
         num_tests=10,
-        progress_callback=print
+        progress_callback=print,
+        # The statement's own samples, so the validator can be corroborated
+        # before anything it says about generated tests is believed.
+        samples=problem_data.get("samples") or [],
     )
     
     print("Running test pipeline (compiling artifacts, generating test inputs, validating inputs, solving, and checking outputs)...")
@@ -70,10 +72,18 @@ def run_mock():
         package_dir=package_dir
     )
     packager.build(progress_callback=print)
-    
-    print("\n✨ Mock AutoSetter Pipeline finished successfully! ✨")
+
+    print("\n--- Mock AutoSetter Pipeline finished ---")
     print(f"Validation Report: {validate_dir / 'validation_report.json'}")
     print(f"Package Manifest:  {package_dir / 'manifest.json'}")
 
+    # "Finished" and "worked" are different things, and the old message said
+    # the second one regardless.
+    if report.all_passed:
+        print("\n✨ The package is fit to release. ✨")
+        return 0
+    print(f"\n⚠️  Not fit to release: {report.diagnosis}")
+    return 2
+
 if __name__ == "__main__":
-    run_mock()
+    sys.exit(run_mock())

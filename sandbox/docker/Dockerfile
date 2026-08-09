@@ -1,5 +1,5 @@
 # ============================================================
-# Anti-Gravity IDE — Worker Container Image
+# AutoSetter Sandbox — Worker Container Image
 # Multi-stage build: compile NsJail, then create lean runtime
 # ============================================================
 

@@ -1,5 +1,8 @@
 {
   "problem_title": "Two Sum",
+  "ready_for_release": false,
+  "packaged_tests": 7,
+  "excluded_tests": [],
   "files": [
     "files/checker.cpp",
     "files/generator.cpp",
@@ -21,17 +24,17 @@
     "tests/005.in",
     "tests/006.ans",
     "tests/006.in",
+    "tests/007.ans",
     "tests/007.in",
-    "tests/008.ans",
-    "tests/008.in",
-    "tests/009.in",
-    "tests/010.in",
     "validation_report.json"
   ],
-  "file_count": 26,
+  "file_count": 23,
   "validation": {
     "total_tests": 10,
     "passed_tests": 7,
-    "all_passed": false
+    "all_passed": false,
+    "validator_trusted": true,
+    "checker_trusted": true,
+    "diagnosis": "3 of 10 generated tests are unusable and have been left out of the package."
   }
 }

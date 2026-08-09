@@ -1,7 +1,7 @@
 {
   "name": "antigravity-ide",
   "version": "1.0.0",
-  "description": "Anti-Gravity IDE — High-performance code execution sandbox",
+  "description": "AutoSetter Sandbox — High-performance code execution sandbox",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",

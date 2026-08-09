@@ -1,13 +1,13 @@
 // ============================================================
-// Anti-Gravity IDE — Container Pool Manager
+// AutoSetter — Container Pool Manager
 // Manages a pool of pre-warmed Docker containers with tmpfs
 // ============================================================
 
-const { execSync, exec } = require("child_process");
+const { execSync } = require("child_process");
+const { PRIVILEGED, CONTAINER_LIMITS, NETWORK_MODE } = require("./config");
 
-const DOCKER_IMAGE = "mac-nsjail";
-const CONTAINER_PREFIX = "ag-worker";
-const RAMDISK_SIZE = "50M";
+const DOCKER_IMAGE = process.env.SANDBOX_IMAGE || "autosetter-nsjail";
+const CONTAINER_PREFIX = "autosetter-worker";
 
 class ContainerPool {
   constructor(size = 3) {
@@ -20,8 +20,8 @@ class ContainerPool {
 
   /**
    * Initialize the pool by starting `poolSize` containers.
-   * Each container runs with --privileged (for nsjail namespaces)
-   * and a tmpfs RAM disk for zero-latency I/O.
+   * Each container gets the capabilities nsjail needs (not --privileged),
+   * hard memory/CPU/PID ceilings, no network, and a tmpfs RAM disk.
    */
   async initPool() {
     console.log(`🚀 Initializing container pool (size: ${this.poolSize})...`);
@@ -157,11 +157,32 @@ class ContainerPool {
   async _startContainer() {
     const name = `${CONTAINER_PREFIX}-${this.nextId++}`;
 
+    // --privileged gives a container every capability and the host's devices,
+    // which is close to handing it root. nsjail only needs to create
+    // namespaces: CAP_SYS_ADMIN plus an unconfined seccomp profile covers
+    // that. The escape hatch exists because the exact requirement varies by
+    // kernel — see config.js.
+    const containment = PRIVILEGED
+      ? "--privileged"
+      : "--cap-add=SYS_ADMIN --security-opt seccomp=unconfined " +
+        "--security-opt apparmor=unconfined";
+
+    // Ceilings, so one bad submission cannot take the host with it. None of
+    // these existed before: a fork bomb or a runaway allocation from generated
+    // C++ hit the machine directly.
+    const limits = [
+      `--memory=${CONTAINER_LIMITS.memory}`,
+      `--memory-swap=${CONTAINER_LIMITS.memorySwap}`,
+      `--cpus=${CONTAINER_LIMITS.cpus}`,
+      `--pids-limit=${CONTAINER_LIMITS.pidsLimit}`,
+      `--network=${NETWORK_MODE}`,
+    ].join(" ");
+
     try {
       execSync(
-        `docker run -d --privileged ` +
+        `docker run -d ${containment} ${limits} ` +
           `--name ${name} ` +
-          `--tmpfs /ramdisk:rw,exec,size=${RAMDISK_SIZE} ` +
+          `--tmpfs /ramdisk:rw,exec,size=${CONTAINER_LIMITS.ramdiskSize} ` +
           `${DOCKER_IMAGE} sleep infinity`,
         { timeout: 30000 }
       );
@@ -169,6 +190,12 @@ class ContainerPool {
       console.log(`   ✓ Started ${name}`);
     } catch (err) {
       console.error(`   ✗ Failed to start ${name}: ${err.message}`);
+      if (!PRIVILEGED) {
+        console.error(
+          "     If nsjail cannot create namespaces on this host, set " +
+            "SANDBOX_PRIVILEGED=1 to fall back — and treat that as temporary."
+        );
+      }
       throw err;
     }
   }
