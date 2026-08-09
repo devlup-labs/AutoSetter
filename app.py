@@ -45,6 +45,9 @@ from utils.json_generator import (
     JSONGenerationError,
 )
 from utils.file_generator import generate_all_artifacts, FileGenerationError
+from utils.sandbox_client import SandboxLocalClient, SandboxError, ensure_testlib
+from utils.test_pipeline import TestPipeline, TestPipelineError
+from utils.packager import Packager, PackagerError
 
 # ---------------------------------------------------------------------------
 # Project layout constants. Using pathlib throughout, resolved relative to
@@ -54,6 +57,8 @@ from utils.file_generator import generate_all_artifacts, FileGenerationError
 PROJECT_ROOT = Path(__file__).resolve().parent
 PROMPTS_DIR = PROJECT_ROOT / "prompts"
 GENERATED_DIR = PROJECT_ROOT / "generated"
+TESTS_DIR = PROJECT_ROOT / "tests"
+PACKAGE_DIR = PROJECT_ROOT / "package"
 PROBLEM_JSON_PATH = PROJECT_ROOT / "problem.json"
 
 # Default model names. Overridable via CLI flags or function arguments.
@@ -83,6 +88,8 @@ def generate_from_image(
     vision_model: str = DEFAULT_VISION_MODEL,
     text_model: str = DEFAULT_TEXT_MODEL,
     ollama_host: str = DEFAULT_OLLAMA_HOST,
+    num_tests: int = 10,
+    skip_validation: bool = False,
 ) -> Path:
     """
     Run the ENTIRE AutoSetup pipeline for a single problem statement image.
@@ -159,6 +166,52 @@ def generate_from_image(
     except (FileGenerationError, OllamaCallError) as exc:
         raise AutoSetupError(f"Failed while generating output files: {exc}") from exc
 
+    # ---- Stage 5: validate via sandbox ------------------------------------
+    # This stage is *optional* — if validation fails, the pipeline still
+    # produces a package; the validation report will indicate what failed.
+    test_report = None
+    if not skip_validation:
+        _log("Starting validation pipeline...")
+        try:
+            # Ensure testlib.h is available for compilation
+            ensure_testlib(GENERATED_DIR)
+
+            sandbox = SandboxLocalClient(testlib_dir=GENERATED_DIR)
+            pipeline = TestPipeline(
+                generated_dir=GENERATED_DIR,
+                tests_dir=TESTS_DIR,
+                sandbox=sandbox,
+                num_tests=num_tests,
+                progress_callback=_log,
+            )
+            test_report = pipeline.run()
+
+            if test_report.all_passed:
+                _log(f"✅ All {test_report.passed_tests} tests passed!")
+            else:
+                _log(
+                    f"⚠️  Validation: {test_report.passed_tests}/{test_report.total_tests} "
+                    f"tests passed ({test_report.failed_tests} failed)"
+                )
+        except (SandboxError, TestPipelineError) as exc:
+            _log(f"⚠️  Validation stage encountered an error: {exc}")
+            _log("Continuing to packaging stage...")
+    else:
+        _log("Skipping validation (--skip-validation flag).")
+
+    # ---- Stage 6: package for release ------------------------------------
+    _log("Packaging release bundle...")
+    try:
+        packager = Packager(
+            generated_dir=GENERATED_DIR,
+            tests_dir=TESTS_DIR,
+            problem_json_path=PROBLEM_JSON_PATH,
+            package_dir=PACKAGE_DIR,
+        )
+        packager.build(progress_callback=_log)
+    except PackagerError as exc:
+        raise AutoSetupError(f"Failed while packaging: {exc}") from exc
+
     _log("Done.")
     return GENERATED_DIR
 
@@ -195,6 +248,18 @@ def _build_arg_parser() -> argparse.ArgumentParser:
         default=DEFAULT_OLLAMA_HOST,
         help=f"Local Ollama server URL (default: {DEFAULT_OLLAMA_HOST}).",
     )
+    parser.add_argument(
+        "--num-tests",
+        type=int,
+        default=10,
+        help="Number of test cases to generate during validation (default: 10).",
+    )
+    parser.add_argument(
+        "--skip-validation",
+        action="store_true",
+        default=False,
+        help="Skip the sandbox validation stage (compile/test/check).",
+    )
     return parser
 
 
@@ -209,6 +274,8 @@ def main(argv: Optional[list] = None) -> int:
             vision_model=args.vision_model,
             text_model=args.text_model,
             ollama_host=args.host,
+            num_tests=args.num_tests,
+            skip_validation=args.skip_validation,
         )
     except AutoSetupError as exc:
         # Expected, well-classified pipeline failures: print a clean error

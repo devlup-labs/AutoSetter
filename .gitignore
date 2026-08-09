@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+node_modules/
+generated/
+tests/
+package/
+.DS_Store
+sandbox/best_card
+sandbox/input.txt
+sandbox/server/node_modules/
