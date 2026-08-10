@@ -66,13 +66,15 @@ def build_pipeline(
 
 
 def test_a_correct_problem_passes(tmp_path):
-    report = build_pipeline(tmp_path).run()
+    pipeline = build_pipeline(tmp_path)
+    report = pipeline.run()
 
     assert report.all_passed
     assert report.validator_trusted
     assert report.checker_trusted
     assert report.brute_verified
-    assert report.passed_tests == report.total_tests == 3
+    assert report.modes_respected
+    assert report.passed_tests == report.total_tests == len(pipeline.plan)
     assert report.diagnosis == ""
 
 
@@ -160,14 +162,15 @@ def test_unusable_tests_never_reach_the_tests_directory(tmp_path):
 
 
 def test_shipped_tests_are_numbered_without_gaps(tmp_path):
-    report = build_pipeline(tmp_path, num_tests=4).run()
+    pipeline = build_pipeline(tmp_path, num_tests=8)
+    report = pipeline.run()
 
     tests_dir = tmp_path / "tests"
     names = sorted(p.name for p in tests_dir.glob("*.in"))
-    assert names == ["001.in", "002.in", "003.in", "004.in"]
+    assert names == [f"{i:03d}.in" for i in range(1, len(pipeline.plan) + 1)]
     for path in tests_dir.glob("*.in"):
         assert path.with_suffix(".ans").exists()
-    assert report.passed_tests == 4
+    assert report.passed_tests == len(pipeline.plan)
 
 
 def test_no_samples_leaves_the_validator_uncorroborated(tmp_path):
@@ -208,11 +211,99 @@ def test_missing_brute_blocks_release_but_not_the_run(tmp_path):
     pipeline (there's still a package worth looking at), but the package
     must not claim to be release-ready without the cross-check having run.
     """
-    report = build_pipeline(tmp_path, brute=None).run()
+    pipeline = build_pipeline(tmp_path, brute=None)
+    report = pipeline.run()
 
     assert not report.compilation.brute
     assert not report.brute_verified
     assert not report.all_passed
     assert "brute.cpp does not compile" in report.diagnosis
     # The rest of the chain still ran and produced usable tests.
-    assert report.passed_tests == report.total_tests == 3
+    assert report.modes_respected
+    assert report.passed_tests == report.total_tests == len(pipeline.plan)
+
+
+def test_compile_failure_shows_the_compiler_error(tmp_path):
+    """The one question a reader has is "why", and it used to be unanswerable.
+
+    The error was always captured into the report; it was simply never printed,
+    so a failure in the terminal said only that something went wrong.
+    """
+    log: list[str] = []
+    generated = tmp_path / "generated"
+    generated.mkdir(parents=True)
+    (generated / "validator.cpp").write_text(VALIDATOR.replace("inf.readEof();", "inf.readEof()"))
+    (generated / "generator.cpp").write_text(GENERATOR)
+    (generated / "solution.cpp").write_text(SOLUTION)
+    (generated / "checker.cpp").write_text(CHECKER)
+    (generated / "brute.cpp").write_text(BRUTE)
+
+    TestPipeline(
+        generated_dir=generated,
+        tests_dir=tmp_path / "tests",
+        sandbox=SandboxLocalClient(testlib_dir=generated),
+        num_tests=1,
+        progress_callback=log.append,
+    )._compile_all()
+
+    printed = "\n".join(log)
+    assert "validator: compilation failed" in printed
+    assert "error:" in printed, "the compiler's own message must reach the terminal"
+    assert "validator.cpp" in printed
+
+
+def test_testlib_that_does_not_build_is_named_as_the_cause(tmp_path):
+    """Three failures with one cause should be reported as one cause.
+
+    The validator, generator and checker are the three artifacts that include
+    testlib.h. When a toolchain cannot compile testlib they fail together, and
+    that is not three broken files -- regenerating them changes nothing.
+    """
+    log: list[str] = []
+    generated = tmp_path / "generated"
+    generated.mkdir(parents=True)
+    (generated / "validator.cpp").write_text(VALIDATOR)
+    (generated / "generator.cpp").write_text(GENERATOR)
+    (generated / "solution.cpp").write_text(SOLUTION)
+    (generated / "checker.cpp").write_text(CHECKER)
+    (generated / "brute.cpp").write_text(BRUTE)
+    (generated / "testlib.h").write_text('#error "unusable here"\n')
+
+    comp = TestPipeline(
+        generated_dir=generated,
+        tests_dir=tmp_path / "tests",
+        sandbox=SandboxLocalClient(testlib_dir=generated),
+        num_tests=1,
+        progress_callback=log.append,
+    )._compile_all()
+
+    printed = "\n".join(log)
+    assert comp.solution and comp.brute, "the files without testlib still build"
+    assert not (comp.validator or comp.generator or comp.checker)
+    assert "toolchain, not the generated code" in printed
+    assert "compiler:" in printed, "the compiler version is part of the diagnosis"
+    assert "testlib" in comp.errors, "and the report records it too"
+
+
+def test_a_single_testlib_failure_is_not_blamed_on_the_toolchain(tmp_path):
+    """One broken file among three working ones is a broken file."""
+    log: list[str] = []
+    generated = tmp_path / "generated"
+    generated.mkdir(parents=True)
+    (generated / "validator.cpp").write_text(VALIDATOR.replace("inf.readEof();", "inf.readEof()"))
+    (generated / "generator.cpp").write_text(GENERATOR)
+    (generated / "solution.cpp").write_text(SOLUTION)
+    (generated / "checker.cpp").write_text(CHECKER)
+    (generated / "brute.cpp").write_text(BRUTE)
+
+    comp = TestPipeline(
+        generated_dir=generated,
+        tests_dir=tmp_path / "tests",
+        sandbox=SandboxLocalClient(testlib_dir=generated),
+        num_tests=1,
+        progress_callback=log.append,
+    )._compile_all()
+
+    assert comp.generator and comp.checker
+    assert "toolchain" not in "\n".join(log)
+    assert "testlib" not in comp.errors

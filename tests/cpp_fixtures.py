@@ -17,8 +17,32 @@ int main(int argc, char* argv[]) {
 }
 """
 
-# Stays inside the declared range, so the validator accepts everything it makes.
+# Stays inside the declared range, so the validator accepts everything it makes,
+# and honours the mode contract in prompts/generator.txt: argv[1] selects a
+# shape, and min/max are fixed by the constraints so the seed cannot alter them.
 GENERATOR = """
+#include "testlib.h"
+#include <string>
+
+int main(int argc, char* argv[]) {
+    registerGen(argc, argv, 1);
+    std::string mode = argc > 1 ? std::string(argv[1]) : std::string("random");
+
+    int n;
+    if (mode == "min") n = 1;
+    else if (mode == "max") n = 100;
+    else if (mode == "edge") n = rnd.next(0, 1) ? 1 : 100;
+    else n = rnd.next(1, 100);
+
+    printf("%d\\n", n);
+    return 0;
+}
+"""
+
+# Ignores argv entirely, so every "shaped" test it is asked for is really just
+# another random one and nothing reaches the declared bound on purpose. This is
+# what the example's real generator does, and what _check_modes exists to catch.
+GENERATOR_IGNORES_MODE = """
 #include "testlib.h"
 
 int main(int argc, char* argv[]) {
@@ -30,11 +54,17 @@ int main(int argc, char* argv[]) {
 
 # Produces values above the stated maximum: the generator misread the
 # constraints, which is one of the two ways the pipeline's files can disagree.
+# Seed-independent per mode, so it passes the mode check and fails on validity
+# alone -- the two checks test different things and must not overlap.
 GENERATOR_OUT_OF_RANGE = """
 #include "testlib.h"
+#include <string>
 
 int main(int argc, char* argv[]) {
     registerGen(argc, argv, 1);
+    std::string mode = argc > 1 ? std::string(argv[1]) : std::string("random");
+    if (mode == "min") { printf("%d\\n", 101); return 0; }
+    if (mode == "max") { printf("%d\\n", 200); return 0; }
     printf("%d\\n", rnd.next(101, 200));
     return 0;
 }

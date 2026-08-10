@@ -229,7 +229,11 @@ def generate_from_image(
                 progress_callback=_log,
                 # The statement's own samples are the only independent evidence
                 # the pipeline has about whether the validator is right.
-                samples=problem_data.get("samples") or [],
+                # The whole extracted problem: its samples are the only
+                # independent evidence about whether the validator is right,
+                # and its input format says whether one file holds several
+                # test cases, which decides the shapes worth generating.
+                problem=problem_data,
             )
             test_report = pipeline.run()
 

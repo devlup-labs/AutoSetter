@@ -41,7 +41,7 @@
     "all_passed": false,
     "validator_trusted": true,
     "checker_trusted": true,
-    "modes_respected": false,
-    "diagnosis": "The generator ignores its mode argument, so no test deliberately reaches the problem's stated bounds. Regenerate it against the mode contract in prompts/generator.txt."
+    "brute_verified": false,
+    "diagnosis": "brute.cpp does not compile, so solution.cpp's correctness could not be cross-verified against an independent implementation."
   }
 }

@@ -4,7 +4,10 @@
     "validator": true,
     "generator": true,
     "checker": true,
-    "errors": {}
+    "brute": false,
+    "errors": {
+      "brute": "Source file not found: brute.cpp"
+    }
   },
   "total_tests": 10,
   "passed_tests": 10,
@@ -12,10 +15,11 @@
   "all_passed": false,
   "validator_trusted": true,
   "checker_trusted": true,
+  "brute_verified": false,
   "modes_respected": false,
   "mode_evidence": "Generator ignores its mode argument: 'min' produced different output for two different seeds, but that mode describes exactly one input. The shaped tests are really just more random ones, so no test reaches a stated bound.",
-  "diagnosis": "The generator ignores its mode argument, so no test deliberately reaches the problem's stated bounds. Regenerate it against the mode contract in prompts/generator.txt.",
-  "duration_ms": 6935,
+  "diagnosis": "brute.cpp does not compile, so solution.cpp's correctness could not be cross-verified against an independent implementation.",
+  "duration_ms": 5955,
   "samples": [
     {
       "index": 1,
@@ -69,6 +73,9 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum -553555307\n",
+      "brute_ok": false,
+      "matches_brute": null,
+      "brute_error": "",
       "usable": true,
       "error": ""
     },
@@ -83,6 +90,9 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum -870869845\n",
+      "brute_ok": false,
+      "matches_brute": null,
+      "brute_error": "",
       "usable": true,
       "error": ""
     },
@@ -97,6 +107,9 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum 734758556\n",
+      "brute_ok": false,
+      "matches_brute": null,
+      "brute_error": "",
       "usable": true,
       "error": ""
     },
@@ -111,6 +124,9 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum -203199462\n",
+      "brute_ok": false,
+      "matches_brute": null,
+      "brute_error": "",
       "usable": true,
       "error": ""
     },
@@ -125,6 +141,9 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum -386536988\n",
+      "brute_ok": false,
+      "matches_brute": null,
+      "brute_error": "",
       "usable": true,
       "error": ""
     },
@@ -139,6 +158,9 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum 797262217\n",
+      "brute_ok": false,
+      "matches_brute": null,
+      "brute_error": "",
       "usable": true,
       "error": ""
     },
@@ -153,6 +175,9 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum -927070782\n",
+      "brute_ok": false,
+      "matches_brute": null,
+      "brute_error": "",
       "usable": true,
       "error": ""
     },
@@ -167,6 +192,9 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum 538057210\n",
+      "brute_ok": false,
+      "matches_brute": null,
+      "brute_error": "",
       "usable": true,
       "error": ""
     },
@@ -181,6 +209,9 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum 489364786\n",
+      "brute_ok": false,
+      "matches_brute": null,
+      "brute_error": "",
       "usable": true,
       "error": ""
     },
@@ -195,6 +226,9 @@
       "solution_ok": true,
       "checker_ok": true,
       "checker_message": "ok Correct pair found with sum -97384726\n",
+      "brute_ok": false,
+      "matches_brute": null,
+      "brute_error": "",
       "usable": true,
       "error": ""
     }

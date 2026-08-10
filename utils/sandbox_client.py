@@ -39,9 +39,34 @@ TESTLIB_URL = "https://raw.githubusercontent.com/MikeMirzayanov/testlib/master/t
 CPP_STANDARD = "c++17"
 CPP_OPTIMIZATION = "-O2"
 
+# The smallest file that exercises testlib: if this does not compile, then
+# nothing that includes testlib will, and the three artifacts that do are not
+# individually broken -- the toolchain is. Used by check_testlib().
+TESTLIB_PROBE = """#include "testlib.h"
+
+int main(int argc, char* argv[]) {
+    registerValidation(argc, argv);
+    return 0;
+}
+"""
+
 
 class SandboxError(Exception):
     """Raised when compilation or execution inside the sandbox fails."""
+
+
+def _resolve_executable(path: Path) -> Path:
+    """Return the file the compiler actually produced.
+
+    MinGW's g++ appends ``.exe`` when the name given to ``-o`` has no
+    extension, so on Windows the binary is not at the path we asked for. Left
+    unhandled, every artifact compiles cleanly and then fails to run with
+    "Binary not found".
+    """
+    if path.exists():
+        return path
+    with_exe = path.with_suffix(".exe")
+    return with_exe if with_exe.exists() else path
 
 
 @dataclass
@@ -260,7 +285,45 @@ class SandboxLocalClient:
                 f"Compilation failed for {source_path.name}:\n{result.stderr}"
             )
 
-        return output_path
+        return _resolve_executable(output_path)
+
+    def compiler_version(self) -> str:
+        """One line identifying the compiler, for diagnostics."""
+        try:
+            result = subprocess.run(
+                [self.compiler, "--version"],
+                capture_output=True, text=True, timeout=15,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            return f"{self.compiler}: not runnable ({exc})"
+        first = (result.stdout or result.stderr).strip().splitlines()
+        return first[0] if first else f"{self.compiler}: no version output"
+
+    def check_testlib(self, workdir: str | Path) -> tuple[bool, str]:
+        """Can anything at all be compiled against testlib here?
+
+        The validator, the generator and the checker are the three artifacts
+        that include testlib.h, and when a toolchain cannot compile testlib
+        they fail together. Three separate "compilation failed" lines make that
+        look like three broken files, when it is one broken environment.
+
+        Compiling a five-line probe answers the question directly, so the
+        pipeline can say which of the two situations it is in.
+        """
+        workdir = Path(workdir)
+        workdir.mkdir(parents=True, exist_ok=True)
+        probe = workdir / "_testlib_probe.cpp"
+        probe.write_text(TESTLIB_PROBE, encoding="utf-8")
+
+        try:
+            self.compile_file(probe, needs_testlib=True, timeout=120)
+            return True, "testlib.h compiles with this toolchain"
+        except SandboxError as exc:
+            return False, str(exc)
+        finally:
+            probe.unlink(missing_ok=True)
+            for leftover in (workdir / "_testlib_probe", workdir / "_testlib_probe.exe"):
+                leftover.unlink(missing_ok=True)
 
     def run_binary(
         self,
@@ -273,7 +336,7 @@ class SandboxLocalClient:
         Execute a compiled binary, feeding *stdin* as input and capturing
         stdout/stderr.
         """
-        binary_path = Path(binary_path)
+        binary_path = _resolve_executable(Path(binary_path))
         if not binary_path.exists():
             raise SandboxError(f"Binary not found: {binary_path}")
 
