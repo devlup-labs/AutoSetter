@@ -42,6 +42,8 @@ REQUIREMENTS:
    practical up to n ~ 200").
 9. Include the standard library headers you actually need (or a single
    `#include <bits/stdc++.h>` is acceptable).
+10. Add `using namespace std;` so that bare `string`, `vector`, etc.
+    compile without `std::` prefixes.
 
 OUTPUT RULES:
 - Output ONLY the raw C++ source code for brute.cpp.

@@ -11,8 +11,11 @@ contestant's output is correct for this problem, given the input file and
 the jury's reference (model) output file.
 
 REQUIREMENTS:
-1. `#include "testlib.h"` and use `registerTestlibCmd(argc, argv);` at the
-   start of `main`. The checker will be invoked as:
+1. `#include "testlib.h"` and add `using namespace std;` immediately after
+   the include (testlib exposes names in `std`, and without the using-
+   directive bare `string`, `vector`, etc. will not compile).  Use
+   `registerTestlibCmd(argc, argv);` at the start of `main`. The checker
+   will be invoked as:
    `checker <input_file> <output_file> <answer_file>`.
 2. Read the input via `inf` (the input file stream), the reference answer
    via `ans` (the jury's answer stream), and the contestant's output via

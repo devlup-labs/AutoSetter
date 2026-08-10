@@ -11,9 +11,11 @@ Your task: write a complete `generator.cpp` that produces a single random
 to stdout in exactly the format described by "input_format".
 
 REQUIREMENTS:
-1. `#include "testlib.h"` and initialize with `registerGen(argc, argv, 1);`
-   at the start of `main` (the `1` selects testlib's modern random engine
-   version).
+1. `#include "testlib.h"` and add `using namespace std;` immediately after
+   the include (testlib exposes names in `std`, and without the using-
+   directive bare `string`, `vector`, etc. will not compile).  Initialize
+   with `registerGen(argc, argv, 1);` at the start of `main` (the `1`
+   selects testlib's modern random engine version).
 2. Use `rnd.next(min, max)` (and related `rnd.next*` overloads) for all
    randomness -- never use `rand()`, `srand()`, or `<random>` directly, so
    that the generator is reproducible via testlib's seeding from

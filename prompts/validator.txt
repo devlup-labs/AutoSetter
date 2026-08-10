@@ -10,15 +10,19 @@ Your task: write a complete `validator.cpp` that checks whether an input
 file strictly satisfies the "input_format" and "constraints" fields above.
 
 REQUIREMENTS:
-1. `#include "testlib.h"` and use the `InStream` reading facilities
-   (`inf.readInt`, `inf.readLong`, `inf.readString`, `inf.readEoln`,
-   `inf.readEof`, etc.) -- do NOT use raw `cin`/`scanf` for reading input.
+1. `#include "testlib.h"` and add `using namespace std;` immediately after
+   the include (testlib exposes names in `std`, and without the using-
+   directive bare `string`, `vector`, etc. will not compile).  Use the
+   `InStream` reading facilities (`inf.readInt`, `inf.readLong`,
+   `inf.readString`, `inf.readEoln`, `inf.readEof`, etc.) -- do NOT use
+   raw `cin`/`scanf` for reading input.
 2. Use `registerValidation(argc, argv);` at the start of `main`.
 3. For every bound mentioned in "constraints", validate it precisely using
    the appropriate `inf.readInt(min, max, "variable_name")` /
    `inf.readLong(min, max, "variable_name")` overloads (or manual checks
-   with `ensure(...)` when a constraint isn't a simple range, e.g.
-   relationships between multiple variables, sortedness, distinctness,
+   with `ensuref(condition, "format string", ...)` when a constraint isn't
+   a simple range, e.g. relationships between multiple variables, sortedness,
+   distinctness,
    or graph/tree structural constraints such as validity of edges).
 4. Enforce the exact structure implied by "input_format": correct number
    of tokens per line, correct whitespace/newline placement (use
@@ -29,8 +33,11 @@ REQUIREMENTS:
    garbage after the last expected token.
 6. If constraints imply array/sequence properties (e.g. strictly
    increasing, a permutation of 1..n, a valid tree with n-1 edges, etc.),
-   validate those properties explicitly with `ensure(...)` and a clear
-   failure message.
+   validate those properties explicitly with `ensuref(condition, "message",
+   ...)` — the format-string variant that accepts a failure message.
+   IMPORTANT: `ensure(cond)` is a 1-argument macro; passing a second
+   argument (e.g. `ensure(x, "msg")`) is a compile error.  Always use
+   `ensuref()` when you need a diagnostic string.
 7. Use command-line arguments (`argv`) as an opportunity to support
    subtask/group validation ONLY if "constraints" or "notes" clearly
    describe subtasks; otherwise validate the single global constraint set.
