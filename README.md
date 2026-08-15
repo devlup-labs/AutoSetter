@@ -1,110 +1,195 @@
 # AutoSetter
 
-Turns a problem statement image into a Codeforces/Polygon-style problem package:
-statement, reference solution, validator, generator, checker, tests and a
-validation report — driven by local Qwen models through Ollama.
+AutoSetter turns competitive programming problem images or PDFs into verified Codeforces/Polygon-style problem packages: specification (`problem.json`), Markdown statement, reference solution, testlib validator, generator, checker, test cases, and a validation report — driven by local Qwen models through Ollama and isolated sandboxed execution.
 
-```
-statement image
-      |  Qwen-VL
-      v
- problem.json  ──►  statement.md, solution.cpp, validator.cpp,
-      |             generator.cpp, checker.cpp     (one Ollama call each)
-      v
-  validate  (compile, generate, validate, solve, check)
-      v
-  package/  ready for human review
+```text
+statement image / PDF
+         │  Qwen-VL
+         ▼
+    problem.json  ──►  statement.md, solution.cpp, validator.cpp,
+         │             generator.cpp, checker.cpp     (one Ollama call each)
+         ▼
+      validate  (compile, generate, validate, solve, check, probe)
+         ▼
+      package/  (release bundle ready for human review & Polygon)
 ```
 
-## Setup
+---
 
+## Clean 4-Folder Repository Structure
+
+The repository is organized into **exactly 4 top-level directories**, keeping the root clean, modular, and intuitive:
+
+```text
+AutoSetter/
+├── ARCHITECTURE.md         # Full architecture and design documentation
+├── README.md               # Quickstart and overview
+├── app.py                  # Top-level CLI entry point
+├── autosetter/             # 1. CORE PACKAGE & ENGINE
+│   ├── config.py           # Centralized configuration & environment variables
+│   ├── llm.py              # Ollama API client (multimodal vision + text)
+│   ├── vision.py           # Image & PDF ingestion/normalization (Pillow, PyMuPDF)
+│   ├── prompts.py          # Prompt loader & safe placeholder substitution
+│   ├── extractor.py        # Vision extraction -> validated problem.json
+│   ├── generator.py        # Code generation for statement & testlib C++
+│   ├── sandbox.py          # C++ compilation & sandbox execution (local + HTTP)
+│   ├── pipeline.py         # Validation engine (sample verification & checker probes)
+│   ├── packager.py         # Release package assembly & manifest generation
+│   ├── polygon.py          # Codeforces Polygon API v2 client & publisher
+│   ├── cli.py              # Command-line interface & pipeline runner
+│   ├── include/            # Vendored C++ headers (testlib.h)
+│   │   └── testlib.h
+│   └── prompts/            # Generation prompt templates
+│       ├── checker.txt
+│       ├── generator.txt
+│       ├── json_extraction.txt
+│       ├── solution.txt
+│       ├── statement.txt
+│       └── validator.txt
+├── sandbox/                # 2. SANDBOX INFRASTRUCTURE
+│   ├── docker/             # Worker container definition (Dockerfile)
+│   ├── scripts/            # Lifecycle scripts (build.sh, start.sh, stop.sh)
+│   └── server/             # Express container pool & NsJail execution server
+├── tests/                  # 3. TEST SUITE
+│   ├── conftest.py         # Shared fixtures (StubOllamaClient)
+│   ├── fixtures.py         # Miniature C++ test problem fixtures
+│   ├── test_cli.py         # CLI parser & orchestration tests
+│   ├── test_extractor.py   # JSON extraction & schema validation tests
+│   ├── test_generator.py   # Code generation & code fence stripping tests
+│   ├── test_packager.py    # Release package & manifest verification tests
+│   ├── test_pipeline.py    # Sandboxed validation & checker probe tests
+│   ├── test_sandbox.py     # Local g++ compilation & execution tests
+│   └── test_vision.py      # Image & PDF parsing tests
+└── example/                # 4. EXAMPLES & DEMO
+    ├── 01_intake/          # Problem screenshot + problem.json
+    ├── 02_build/           # Generated statement & C++ sources
+    ├── 03_validate/        # Validation report & test cases
+    ├── 04_package/         # Packaged bundle ready for release
+    ├── demo/               # Interactive web pipeline demo
+    ├── run_mock_pipeline.py# Offline mock pipeline execution script
+    └── README.md           # Example walkthrough documentation
 ```
+
+---
+
+## Setup & Installation
+
+### Requirements
+- Python 3.10+
+- `g++` on PATH (supporting C++17)
+- Local [Ollama](https://ollama.com/) instance with models pulled:
+  ```bash
+  ollama pull qwen2.5vl:3b
+  ollama pull qwen2.5-coder:1.5b
+  ```
+
+### Install Dependencies
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Needs `g++` on PATH and a local Ollama server with a vision model and a text
-model pulled.
+---
 
-## Running
+## Usage
 
-```
+### CLI Execution
+Run directly on an image or PDF:
+```bash
 python app.py path/to/statement.png
-python app.py statement.pdf --num-tests 20 --skip-validation
 ```
 
-Everything a run produces goes under `out/`, which is the only directory the
-repo ignores:
-
+Or via module invocation:
+```bash
+python -m autosetter statement.pdf --num-tests 20
 ```
+
+### CLI Options
+```text
+positional arguments:
+  image_path              Path to statement image (.png/.jpg) or PDF
+
+options:
+  --vision-model MODEL    Vision model name (default: qwen2.5vl:3b)
+  --text-model MODEL      Text model name (default: qwen2.5-coder:1.5b)
+  --host URL              Ollama server URL (default: http://localhost:11434)
+  --num-tests N           Number of test cases to generate (default: 10)
+  --skip-validation       Skip sandbox compilation and validation stage
+  --out-dir DIR           Output directory (default: out/)
+```
+
+### Output Layout
+All outputs are created in `out/` (which is excluded in `.gitignore`):
+```text
 out/
-  problem.json          extracted specification
-  generated/            statement.md and the four .cpp artifacts
-  tests/                001.in / 001.ans, plus rejected/ for what didn't make it
-  package/              the bundle, with manifest.json
+  problem.json          # Structured problem specification
+  generated/            # statement.md and C++ source files
+  tests/                # 001.in / 001.ans pairs, plus rejected/ for invalid inputs
+  package/              # Assembled bundle with manifest.json
 ```
 
-### Exit codes
-
+### Exit Codes
 | Code | Meaning |
 |---|---|
-| 0 | the package is fit to release |
-| 1 | the pipeline failed outright |
-| 2 | artifacts were produced, but the package is **not** fit to release |
+| `0` | Package is verified and **fit to release** |
+| `1` | Pipeline failed |
+| `2` | Artifacts were generated, but package is **not fit to release** (validation failed) |
 
-Code 2 is the interesting one. A package is only "fit to release" when every
-generated test passed, the validator agrees with the problem's own samples, and
-the checker demonstrably rejects wrong output. Read `manifest.json`'s
-`ready_for_release` and the report's `diagnosis` field, which names what is
-wrong in one sentence.
+Set `AUTOSETTER_DEBUG=1` in your environment to view raw model outputs.
 
-Set `AUTOSETTER_DEBUG=1` to see the raw model replies.
+---
 
-## How the pipeline avoids believing itself
+## How the Pipeline Prevents False Positives
 
-The four generated C++ files all come from one model reading one JSON, so they
-can agree with each other and all be wrong together. Three checks exist to stop
-that:
+When all C++ files are generated by a single model from the same JSON, they can share identical mistakes. AutoSetter enforces three independent verification layers:
 
-- **The samples check the validator.** Every problem ships samples, and a
-  correct validator must accept all of them. This is ground truth that costs
-  nothing, and it is what makes a later disagreement attributable: if the
-  validator accepts the samples and rejects a generated test, the generator is
-  at fault, and the report says so in those words.
-- **The validator checks the generator.** Every generated test is fed to the
-  validator, and any test it rejects is kept out of the package rather than
-  shipped without an answer file.
-- **Wrong output checks the checker.** Running a checker on the reference
-  answer only ever asks whether `x == x`. Each run also hands it an empty file,
-  a truncated answer and a perturbed answer, and requires a rejection. A checker
-  that reads both files and never compares them passes every other test in the
-  pipeline and fails this one.
+1. **Official Samples Verify the Validator**:
+   The statement's official samples are known-good ground truth. A correct validator must accept all of them. If it rejects them, the validator or extracted constraints are flagged.
+2. **The Validator Verifies the Generator**:
+   Every generated test is validated. If the validator accepts official samples but rejects a generated test, the **generator** is diagnosed as the faulty file.
+3. **Flawed Outputs Probe the Checker**:
+   Running a checker on the reference solution only checks whether $x == x$. AutoSetter feeds the checker corrupted outputs (empty file, truncated answer, perturbed numeric values). A checker that accepts wrong outputs is flagged as untrusted.
 
-## Tests
+---
 
-```
-pip install -r requirements-dev.txt
+## Testing
+
+```bash
+pip install -r requirements.txt
 pytest
 ```
 
-The Ollama call sits behind a single class, so most tests need no model
-running. The pipeline tests compile a real validator, generator, solution and
-checker against testlib and skip if `g++` is missing.
+The test suite stubs the Ollama interface, so no running AI models are needed to test parsing, generation, validation, packaging, and CLI flows.
 
-## Sandbox
+---
 
-`sandbox/` holds the Docker + nsjail execution server used to run untrusted C++.
+## Sandbox (Docker + NsJail)
 
+For production isolation of untrusted code, `sandbox/` provides a Docker + NsJail worker pool:
+
+```bash
+bash sandbox/scripts/build.sh    # Builds autosetter-nsjail Docker image
+bash sandbox/scripts/start.sh    # Starts Express pool manager on port 3000
+bash sandbox/scripts/stop.sh     # Shuts down workers
 ```
-bash sandbox/scripts/build.sh    # builds the autosetter-nsjail image
-bash sandbox/scripts/start.sh
+
+Configuration and limits are defined in [`sandbox/server/src/config.js`](file:///Users/shreshthdhimole/AutoSetter/sandbox/server/src/config.js).
+
+---
+
+## Polygon Integration
+
+AutoSetter includes automated publishing to Codeforces Polygon:
+```bash
+export POLYGON_API_KEY="your-api-key"
+export POLYGON_SECRET="your-secret"
+
+python -m autosetter.polygon out/package 123456
 ```
 
-Containment and resource limits live in `sandbox/server/src/config.js`. Workers
-run without `--privileged`, with memory, CPU, PID and network limits, and both
-the compile and the run happen inside nsjail. If nsjail cannot create
-namespaces on your host, `SANDBOX_PRIVILEGED=1` restores the old behaviour —
-temporarily, while you work out which capability is missing.
+---
 
-`third_party/testlib.h` is the one vendored copy every stage compiles against.
+## Documentation
+
+For full system details, read [`ARCHITECTURE.md`](file:///Users/shreshthdhimole/AutoSetter/ARCHITECTURE.md).
