@@ -8,12 +8,12 @@ int main(int argc, char* argv[]) {
     
     int n = inf.readInt(2, 1000, "n");
     inf.readSpace();
-    long long target = inf.readLong(-1000000000LL, 1000000000LL, "target");
+    long long target = inf.readLong(-1'000'000'000LL, 1'000'000'000LL, "target");
     inf.readEoln();
     
     vector<long long> nums(n);
     for (int i = 0; i < n; ++i) {
-        nums[i] = inf.readLong(-1000000000LL, 1000000000LL, format("nums[%d]", i));
+        nums[i] = inf.readLong(-1'000'000'000LL, 1'000'000'000LL, format("nums[%d]", i));
         if (i < n - 1) {
             inf.readSpace();
         }

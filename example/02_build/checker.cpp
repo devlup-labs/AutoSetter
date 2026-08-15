@@ -13,9 +13,9 @@ int main(int argc, char* argv[]) {
         nums[i] = inf.readLong();
     }
     
-    int ans1 = ans.readInt();
-    int ans2 = ans.readInt();
-    
+    // Read (and discard) the jury answer — we verify correctness independently.
+    ans.readInt(); ans.readInt();
+
     int ouf1 = ouf.readInt(0, n - 1, "index1");
     int ouf2 = ouf.readInt(0, n - 1, "index2");
     
@@ -24,8 +24,12 @@ int main(int argc, char* argv[]) {
     }
     
     if (nums[ouf1] + nums[ouf2] != target) {
-        quitf(_wa, "Sum of elements at indices %d and %d is %lld, expected %lld", ouf1, ouf2, nums[ouf1] + nums[ouf2], target);
+        // Avoid %lld on MinGW — build the message with to_string instead.
+        string got  = to_string(nums[ouf1] + nums[ouf2]);
+        string want = to_string(target);
+        quitf(_wa, "indices %d and %d sum to %s, expected %s",
+              ouf1, ouf2, got.c_str(), want.c_str());
     }
-    
-    quitf(_ok, "Correct pair found with sum %lld", target);
+
+    quitf(_ok, "Correct pair found with sum %s", to_string(target).c_str());
 }

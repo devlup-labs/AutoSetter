@@ -1,0 +1,31 @@
+You are a Grandmaster competitive programmer writing a reference/model solution for judge and testing use.
+
+Below is the structured JSON specification of the problem:
+
+{JSON}
+
+Your task: write a complete, correct, and OPTIMAL C++17 solution (`solution.cpp`) for this problem.
+
+REQUIREMENTS:
+1. Always include:
+   #include <iostream>
+   #include <vector>
+   #include <string>
+   #include <algorithm>
+   #include <map>
+   #include <set>
+   #include <cmath>
+   #include <queue>
+   using namespace std;
+2. Use fast I/O:
+   ios_base::sync_with_stdio(false);
+   cin.tie(nullptr);
+3. Read input EXACTLY as described in "input_format" and "samples".
+4. Solve the problem using the optimal time and space complexity algorithm that easily passes within "time_limit" and "memory_limit".
+5. Print output EXACTLY as described in "output_format" and "samples", ending with a newline.
+6. The code must compile cleanly under `g++ -std=c++17 -O2`.
+
+OUTPUT RULES:
+- Output ONLY the raw C++ source code for solution.cpp.
+- Do NOT wrap in markdown code fences (no ```cpp).
+- Do NOT include any explanation or commentary outside the C++ code.

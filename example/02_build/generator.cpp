@@ -17,9 +17,14 @@ int main(int argc, char* argv[]) {
     int idx1 = rnd.next(0, n - 2);
     int idx2 = rnd.next(idx1 + 1, n - 1);
     
-    long long num1 = rnd.next(-max_val, max_val);
-    long long num2 = rnd.next(-max_val, max_val);
-    long long target = num1 + num2;
+    // FIX: draw num1 from the half-range so that target = num1+num2 always
+    // stays within [-max_val, max_val] (the validator constraint).
+    // Without this, target could reach ±2×10^9 and the validator rejected the
+    // test (root cause of the 3 'unusable' tests in the original run).
+    long long half = max_val / 2;
+    long long num1   = rnd.next(-half, half);
+    long long num2   = rnd.next(-half, half);
+    long long target = num1 + num2;  // |target| <= max_val guaranteed
     
     vector<long long> nums(n);
     nums[idx1] = num1;
