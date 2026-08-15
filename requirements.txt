@@ -1,4 +1,4 @@
-# AutoSetup dependencies
+# AutoSetter dependencies
 #
 # ollama       - official Ollama Python client (used for both vision and
 #                text chat calls against the local Ollama server)
@@ -8,3 +8,6 @@
 ollama>=0.4.0
 Pillow>=10.0.0
 PyMuPDF>=1.24.0
+
+# Development / Testing
+pytest>=8.0.0

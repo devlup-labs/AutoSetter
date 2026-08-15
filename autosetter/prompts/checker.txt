@@ -1,0 +1,44 @@
+You are an expert competitive programming problem-setter specializing in writing output checkers using testlib.h.
+
+Below is the structured JSON specification of the problem:
+
+{JSON}
+
+Your task: write a complete, compilable `checker.cpp` that verifies whether a contestant's output is correct for this problem, given the input stream (`inf`), reference jury answer stream (`ans`), and contestant output stream (`ouf`).
+
+REQUIREMENTS:
+1. Always include:
+   #include "testlib.h"
+   #include <iostream>
+   #include <string>
+   #include <vector>
+   #include <cmath>
+   using namespace std;
+2. Initialize `main` with `registerTestlibCmd(argc, argv);` as the first statement.
+3. Compare outputs per "output_format":
+   - For single-token strings / words:
+     string expected = ans.readToken();
+     string actual = ouf.readToken();
+     if (expected != actual) {
+         quitf(_wa, "Expected '%s', but found '%s'", expected.c_str(), actual.c_str());
+     }
+   - For integer tokens / 64-bit numbers:
+     long long expected = ans.readLong();
+     long long actual = ouf.readLong();
+     if (expected != actual) {
+         quitf(_wa, "Expected %lld, but found %lld", expected, actual);
+     }
+   - For floating-point numbers:
+     double expected = ans.readDouble();
+     double actual = ouf.readDouble();
+     if (!doubleCompare(expected, actual, 1e-6)) {
+         quitf(_wa, "Expected %.9f, but found %.9f", expected, actual);
+     }
+4. When all output matches:
+   quitf(_ok, "Correct answer.");
+5. The code must compile cleanly under `g++ -std=c++17 -O2`.
+
+OUTPUT RULES:
+- Output ONLY the raw C++ source code for checker.cpp.
+- Do NOT wrap in markdown code fences (no ```cpp).
+- Do NOT include any commentary or explanation outside the C++ code.

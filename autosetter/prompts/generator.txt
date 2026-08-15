@@ -1,0 +1,41 @@
+You are an expert competitive programming problem-setter specializing in writing robust, reproducible test-case generators using testlib.h (the standard library used by Codeforces Polygon and similar judge systems).
+
+Below is the structured JSON specification of the problem:
+
+{JSON}
+
+Your task: write a complete, compilable `generator.cpp` that produces a single random (but always VALID per "constraints") test case for this problem, printed to stdout in exactly the format described by "input_format" and "samples".
+
+REQUIREMENTS & BEHAVIOR:
+1. Always include:
+   #include "testlib.h"
+   #include <iostream>
+   #include <string>
+   #include <vector>
+   #include <algorithm>
+   using namespace std;
+2. Initialize `main` with `registerGen(argc, argv, 1);` as the first statement.
+3. Use testlib's random engine ONLY:
+   - For integers: `rnd.next(min_val, max_val)`
+   - For 64-bit integers: `rnd.next(min_ll, max_ll)`
+   - For floating-point: `rnd.next(min_d, max_d)`
+   - For random characters/strings: `rnd.next("[a-zA-Z]{1,100}")` or pick characters randomly using `rnd.next('a', 'z')`
+   - For shuffling/permutations: `rnd.shuffle(vec.begin(), vec.end())`
+   - STRICTLY FORBIDDEN: Do NOT use `rand()`, `srand()`, `<random>`, `std::mt19937`.
+4. NO HARDCODED STATIC SAMPLES:
+   - Always generate realistic random valid data matching the constraints. Never simply hardcode the problem statement's sample string or array.
+5. Command-Line Arguments & Edge Cases:
+   - Safely read parameters from `argv` with fallback defaults using `opt<T>("param", default_value)`.
+   - Support `string type = opt<string>("type", "rand");` to produce stress edge cases:
+     - `type == "min"`: produce minimum allowed bounds.
+     - `type == "max"`: produce maximum allowed bounds.
+     - `type == "rand"` (or default): produce uniform random valid test cases.
+6. Exact Formatting & Whitespace:
+   - Strictly match the line and token layout specified in "input_format" and "samples" (e.g. if variables are on separate lines, print `\n`).
+   - Terminate the output with a newline `\n`.
+7. The code must compile cleanly under `g++ -std=c++17 -O2`.
+
+OUTPUT RULES:
+- Output ONLY the complete raw C++ source code for generator.cpp.
+- Do NOT wrap in markdown code fences (no ```cpp).
+- Do NOT include any commentary or explanation outside the C++ code.

@@ -72,7 +72,7 @@ graph TD
 
 ### Step 2: Build (LLM Code Generation)
 * **Input**: The structured `problem.json` spec.
-* **Process**: Using the 5 templates under `prompts/`, AutoSetter calls the LLM to generate the implementation files.
+* **Process**: Using the 5 templates under `autosetter/prompts/`, AutoSetter calls the LLM to generate the implementation files.
 * **Output**: Files created in `02_build/`:
   - `statement.md` — The user-facing problem description.
   - `solution.cpp` — The reference $O(N)$ solution using a hash map.
@@ -85,7 +85,7 @@ graph TD
 ### Step 3: Validate (Sandbox & Testing)
 * **Input**: The generated `.cpp` files in `02_build/`.
 * **Process**: The validation engine:
-  1. Copies `testlib.h` from `third_party/` into the compilation directory.
+  1. Copies `testlib.h` from `autosetter/include/` into the compilation directory.
   2. Compiles `solution.cpp`, `generator.cpp`, `validator.cpp`, and `checker.cpp`.
   3. Runs the validator on the statement's official samples — a correct validator must accept every one.
   4. Runs the generator with 10 random seeds (1-10) to write input files.

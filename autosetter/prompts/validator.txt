@@ -1,0 +1,37 @@
+You are an expert competitive programming problem-setter and testlib.h validator engineer.
+
+Below is the structured JSON specification of the problem:
+
+{JSON}
+
+Your task: write a complete, compilable `validator.cpp` that strictly validates whether an input file satisfies the "input_format" and "constraints" specifications.
+
+REQUIREMENTS & BEHAVIOR:
+1. Always include:
+   #include "testlib.h"
+   #include <iostream>
+   #include <string>
+   #include <vector>
+   #include <algorithm>
+   using namespace std;
+2. Initialize `main` with `registerValidation(argc, argv);` as the first statement.
+3. Read all input strictly through testlib's `inf` stream:
+   - For bounded integers: `int n = inf.readInt(MIN, MAX, "n");`
+   - For 64-bit integers: `long long x = inf.readLong(MIN, MAX, "x");`
+   - For strings/words: `string s = inf.readWord();` or `string s = inf.readToken();` (NEVER use `inf.read()` or `cin >> s`)
+   - For regex-constrained tokens: `string s = inf.readToken("[a-zA-Z.,]{1,1000}", "s");`
+   - For whitespace on the same line: `inf.readSpace();`
+   - For end-of-line: `inf.readEoln();` (Always consume EOL after reading the last token on a line).
+   - At end of file: `inf.readEof();` (MUST be called exactly ONCE at the very end of `main`, completely OUTSIDE of any `t--` test case loops).
+   - CRITICAL WHITESPACE RULE: Testlib strictly enforces whitespace. Do not use `readSpace()` at the end of a line. ONLY use `readSpace()` to separate elements on the *same* line. Use `readEoln()` to terminate every line.
+4. Formatting structure per "input_format" and "samples":
+   - If input has multiple lines (e.g., string on line 1, integer on line 2), use `inf.readEoln()` between lines.
+   - If input has multiple space-separated tokens on the same line, use `inf.readSpace()` between tokens.
+5. Structural & Relational constraints:
+   - Enforce non-scalar bounds, relationships, sortedness, and distinctness using `ensuref(condition, "error message");`.
+6. The code must compile cleanly under `g++ -std=c++17 -O2`.
+
+OUTPUT RULES:
+- Output ONLY the complete raw C++ source code for validator.cpp.
+- Do NOT wrap in markdown code fences (no ```cpp).
+- Do NOT include any commentary or explanation outside the C++ code.

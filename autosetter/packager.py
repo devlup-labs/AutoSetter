@@ -1,35 +1,26 @@
 """
-packager.py
-============
-Stage 04 of the AutoSetter workflow: **Release** (minus the Human Review
-Gate and Polygon API publication, which are handled separately).
+autosetter.packager
+===================
+Release packaging and manifest generation for Codeforces Polygon-ready bundles.
 
-Bundles all generated artifacts, test data, and the validation report into
-a self-contained release package directory, ready for human review or
-Polygon upload.
-
-Package layout
---------------
-::
-
-    package/
-    ├── problem.json          # structured problem specification
-    ├── statement.md          # rendered problem statement
-    ├── solutions/
-    │   ├── solution.cpp      # reference (optimal) solution
-    │   └── brute.cpp         # independent brute-force solution, for reviewers
-    ├── files/
-    │   ├── validator.cpp     # input validator (testlib.h)
-    │   ├── generator.cpp     # test generator (testlib.h)
-    │   └── checker.cpp       # output checker (testlib.h)
-    ├── tests/
-    │   ├── 001.in            # generated test inputs
-    │   ├── 001.ans           # expected outputs
-    │   ├── 002.in
-    │   ├── 002.ans
-    │   └── ...
-    ├── testlib.h             # bundled testlib.h for convenience
-    └── validation_report.json
+Assembles:
+package/
+├── problem.json          # Structured problem specification
+├── statement.md          # Publication-ready Markdown statement
+├── solutions/
+│   └── solution.cpp      # Reference solution
+├── files/
+│   ├── validator.cpp     # Input validator (testlib.h)
+│   ├── generator.cpp     # Test generator (testlib.h)
+│   ├── checker.cpp       # Output checker (testlib.h)
+│   └── testlib.h         # Bundled testlib header
+├── tests/
+│   ├── 001.in            # Shippable test inputs
+│   ├── 001.ans           # Expected jury outputs
+│   └── ...
+├── testlib.h             # Root testlib header
+├── validation_report.json
+└── manifest.json         # Package contents, excluded tests, and release readiness
 """
 
 from __future__ import annotations
@@ -37,30 +28,29 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
-from .sandbox_client import VENDORED_TESTLIB
+from autosetter.config import VENDORED_TESTLIB
 
 
 class PackagerError(Exception):
-    """Raised when packaging fails."""
+    """Raised when release bundle assembly fails."""
 
 
 class Packager:
     """
-    Bundles all pipeline outputs into a release-ready package directory.
+    Bundles generated artifacts, validated test cases, and reports into a release package.
 
     Parameters
     ----------
-    generated_dir : Path
-        Directory containing generated artifacts (solution.cpp, etc.).
-    tests_dir : Path
-        Directory containing generated test inputs/outputs and the
-        validation report.
-    problem_json_path : Path
-        Path to the problem.json file.
-    package_dir : Path
-        Destination directory for the assembled package.
+    generated_dir : Path | str
+        Directory containing generated artifacts (`statement.md`, `solution.cpp`, etc.).
+    tests_dir : Path | str
+        Directory containing generated `.in`/`.ans` pairs and `validation_report.json`.
+    problem_json_path : Path | str
+        Path to `problem.json`.
+    package_dir : Path | str
+        Target destination directory for the bundle.
     """
 
     def __init__(
@@ -74,30 +64,27 @@ class Packager:
         self.tests_dir = Path(tests_dir)
         self.problem_json_path = Path(problem_json_path)
         self.package_dir = Path(package_dir)
-        # Anything the packager refused to ship, recorded so the manifest can
-        # say what is missing instead of the package quietly being short.
         self._excluded_tests: List[str] = []
 
-    def build(self, progress_callback=None) -> Path:
-        """
-        Assemble the release package.  Returns the path to the package
-        directory.
-        """
+    def build(
+        self,
+        progress_callback: Optional[Callable[[str], None]] = None,
+    ) -> Path:
+        """Assemble the complete package directory."""
         _log = progress_callback or (lambda msg: None)
 
-        # Clean and recreate the package directory
         if self.package_dir.exists():
             shutil.rmtree(self.package_dir)
         self.package_dir.mkdir(parents=True, exist_ok=True)
 
-        # ---- problem.json ------------------------------------------------
+        # 1. Copy problem.json
         _log("Packaging problem.json...")
         if self.problem_json_path.exists():
             shutil.copy2(self.problem_json_path, self.package_dir / "problem.json")
         else:
             _log("  ⚠️  problem.json not found, skipping")
 
-        # ---- statement.md ------------------------------------------------
+        # 2. Copy statement.md
         _log("Packaging statement...")
         statement_src = self.generated_dir / "statement.md"
         if statement_src.exists():
@@ -105,27 +92,19 @@ class Packager:
         else:
             _log("  ⚠️  statement.md not found, skipping")
 
-        # ---- solutions/ --------------------------------------------------
+        # 3. Copy solutions/
         _log("Packaging solutions...")
         solutions_dir = self.package_dir / "solutions"
         solutions_dir.mkdir(exist_ok=True)
-        solution_src = self.generated_dir / "solution.cpp"
-        if solution_src.exists():
-            shutil.copy2(solution_src, solutions_dir / "solution.cpp")
-        else:
-            _log("  ⚠️  solution.cpp not found, skipping")
+        
+        for sol_name in ["solution.cpp", "solution.wa.cpp", "solution.brute.cpp", "solution.tle.cpp"]:
+            sol_src = self.generated_dir / sol_name
+            if sol_src.exists():
+                shutil.copy2(sol_src, solutions_dir / sol_name)
+            elif sol_name == "solution.cpp":
+                _log("  ⚠️  solution.cpp not found, skipping main solution")
 
-        # brute.cpp ships alongside solution.cpp: it's a second, independent
-        # solution (deliberately unoptimized) kept for human reviewers to
-        # re-run stress tests against, the same reason Polygon lets a
-        # problem carry multiple tagged solutions.
-        brute_src = self.generated_dir / "brute.cpp"
-        if brute_src.exists():
-            shutil.copy2(brute_src, solutions_dir / "brute.cpp")
-        else:
-            _log("  ⚠️  brute.cpp not found, skipping")
-
-        # ---- files/ (validator, generator, checker) ----------------------
+        # 4. Copy files/ (validator, generator, checker)
         _log("Packaging testlib files...")
         files_dir = self.package_dir / "files"
         files_dir.mkdir(exist_ok=True)
@@ -136,9 +115,7 @@ class Packager:
             else:
                 _log(f"  ⚠️  {name} not found, skipping")
 
-        # ---- testlib.h ---------------------------------------------------
-        # One vendored copy is the source of truth; the package gets it at the
-        # top level and in files/ so the tools compile relative to themselves.
+        # 5. Copy testlib.h
         testlib_src = self.generated_dir / "testlib.h"
         if not testlib_src.exists():
             testlib_src = VENDORED_TESTLIB
@@ -148,16 +125,21 @@ class Packager:
         else:
             _log("  ⚠️  testlib.h not found, skipping")
 
-        # ---- tests/ ------------------------------------------------------
-        # Only complete pairs go in. An input whose answer is missing is not a
-        # test: the judge has nothing to compare against, and Polygon rejects
-        # the package. The validation stage already separated the usable tests
-        # from the rejected ones, so a stray file here is a bug worth seeing
-        # rather than something to quietly copy.
+        # 6. Copy tests/ (only complete .in and .ans pairs)
         _log("Packaging tests...")
         tests_dest = self.package_dir / "tests"
         tests_dest.mkdir(exist_ok=True)
         self._excluded_tests = []
+
+        generated_indices = set()
+        report_src = self.tests_dir / "validation_report.json"
+        if report_src.exists():
+            try:
+                report_data = json.loads(report_src.read_text(encoding="utf-8"))
+                for tc in report_data.get("test_cases", []):
+                    generated_indices.add(tc.get("index"))
+            except json.JSONDecodeError:
+                pass
 
         if self.tests_dir.exists():
             for input_path in sorted(self.tests_dir.glob("*.in")):
@@ -168,10 +150,18 @@ class Packager:
                     )
                     _log(f"  ⚠️  {input_path.name} has no answer file, excluded")
                     continue
+                
+                try:
+                    idx = int(input_path.stem)
+                    if idx in generated_indices:
+                        # Skip generated tests; they will be defined in the script
+                        continue
+                except ValueError:
+                    pass
+
                 shutil.copy2(input_path, tests_dest / input_path.name)
                 shutil.copy2(answer_path, tests_dest / answer_path.name)
 
-            # Copy validation report
             report_src = self.tests_dir / "validation_report.json"
             if report_src.exists():
                 shutil.copy2(report_src, self.package_dir / "validation_report.json")
@@ -179,9 +169,27 @@ class Packager:
             _log("  ⚠️  Tests directory not found, skipping")
 
         if not list(tests_dest.glob("*.in")):
-            _log("  ⚠️  The package contains no tests at all")
+            _log("  ⚠️  Package contains no tests")
 
-        # ---- manifest / summary ------------------------------------------
+        # 7. Generate script file for Polygon (if tests were generated)
+        _log("Generating test script...")
+        script_content = ""
+        report_src = self.tests_dir / "validation_report.json"
+        if report_src.exists():
+            try:
+                report_data = json.loads(report_src.read_text(encoding="utf-8"))
+                for tc in report_data.get("test_cases", []):
+                    if "seed" in tc:
+                        script_content += f"generator {tc['seed']} > $\n"
+            except json.JSONDecodeError:
+                pass
+        
+        if script_content:
+            (self.package_dir / "script").write_text(script_content, encoding="utf-8")
+        else:
+            _log("  ⚠️  Could not generate script, missing validation report or test_cases")
+
+        # 8. Generate manifest.json
         _log("Creating package manifest...")
         manifest = self._build_manifest()
         manifest_path = self.package_dir / "manifest.json"
@@ -194,15 +202,12 @@ class Packager:
         return self.package_dir
 
     def _build_manifest(self) -> Dict[str, Any]:
-        """
-        Build a manifest listing all files in the package.
-        """
+        """Construct the package manifest dictionary."""
         files = []
         for p in sorted(self.package_dir.rglob("*")):
             if p.is_file():
                 files.append(str(p.relative_to(self.package_dir)))
 
-        # Load problem title from problem.json if available
         title = "Unknown"
         pjson = self.package_dir / "problem.json"
         if pjson.exists():
@@ -212,7 +217,6 @@ class Packager:
             except Exception:
                 pass
 
-        # Load validation summary if available
         validation_summary = None
         report_path = self.package_dir / "validation_report.json"
         if report_path.exists():
@@ -224,17 +228,12 @@ class Packager:
                     "all_passed": report.get("all_passed", False),
                     "validator_trusted": report.get("validator_trusted", False),
                     "checker_trusted": report.get("checker_trusted", False),
-                    "brute_verified": report.get("brute_verified", False),
                     "diagnosis": report.get("diagnosis", ""),
                 }
             except Exception:
                 pass
 
         packaged_tests = len(list((self.package_dir / "tests").glob("*.in")))
-
-        # The single field a human should look at first. A package that was
-        # assembled is not the same thing as a package that is fit to upload,
-        # and the old manifest had no way of saying so.
         ready = bool(
             validation_summary
             and validation_summary.get("all_passed")

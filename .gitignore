@@ -29,7 +29,7 @@ sandbox/best_card
 sandbox/input.txt
 
 # testlib.h copied into the recorded example package at package time.
-# The vendored copy in third_party/ is the one under version control.
+# The vendored copy in autosetter/include/ is the one under version control.
 example/02_build/testlib.h
 example/04_package/testlib.h
 example/04_package/files/testlib.h

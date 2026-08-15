@@ -1,0 +1,105 @@
+\documentclass[a4paper,11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath, amssymb}
+\usepackage{geometry}
+\usepackage{parskip}
+\usepackage{fancyhdr}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+
+\geometry{margin=2.5cm}
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Competitive Programming}
+\lhead{Two Sum}
+\cfoot{\thepage}
+
+\lstset{
+    basicstyle=\ttfamily\small,
+    backgroundcolor=\color{gray!10},
+    frame=single,
+    breaklines=true,
+}
+
+\begin{document}
+
+\begin{center}
+    {\LARGE \textbf{Two Sum}} \\[0.4em]
+    {\large Time Limit: 2.0s \quad Memory Limit: 256 MB}
+\end{center}
+
+\hrule
+\vspace{1em}
+
+% ─── Problem Statement ────────────────────────────────────────────────────────
+\section*{Problem Statement}
+
+You are given an array of integers \texttt{nums} and an integer \texttt{target}.
+Return the \textbf{0-based indices} of the two numbers such that they add up to
+\texttt{target}.
+
+You may assume that each input has \textbf{exactly one solution}, and you may
+\textbf{not} use the same element twice. You may return the answer in any order.
+
+% ─── Input Format ─────────────────────────────────────────────────────────────
+\section*{Input Format}
+
+\begin{itemize}
+    \item The first line contains two integers: $n$ (the size of the array) and
+          $\text{target}$.
+    \item The second line contains $n$ space-separated integers $\text{nums}[i]$.
+\end{itemize}
+
+% ─── Output Format ────────────────────────────────────────────────────────────
+\section*{Output Format}
+
+Print two space-separated integers representing the 0-based indices of the two
+numbers that add up to \texttt{target} (in any order).
+
+% ─── Constraints ──────────────────────────────────────────────────────────────
+\section*{Constraints}
+
+\[
+    2 \le n \le 1000
+\]
+\[
+    -10^9 \le \text{nums}[i] \le 10^9
+\]
+\[
+    -10^9 \le \text{target} \le 10^9
+\]
+
+\textbf{Guarantee:} Exactly one valid pair of indices exists.
+
+% ─── Sample ───────────────────────────────────────────────────────────────────
+\section*{Sample}
+
+\subsection*{Input}
+\begin{lstlisting}
+4 9
+2 7 11 15
+\end{lstlisting}
+
+\subsection*{Output}
+\begin{lstlisting}
+0 1
+\end{lstlisting}
+
+\subsection*{Explanation}
+$\text{nums}[0] + \text{nums}[1] = 2 + 7 = 9 = \text{target}$, so we output
+\texttt{0 1}.
+
+% ─── Notes ────────────────────────────────────────────────────────────────────
+\section*{Notes}
+
+\begin{itemize}
+    \item The array contains integers that may be negative or zero.
+    \item The answer indices must be \emph{distinct} ($i \neq j$).
+    \item There is guaranteed to be exactly one solution; no need to handle the
+          case of no solution or multiple solutions.
+\end{itemize}
+
+\end{document}

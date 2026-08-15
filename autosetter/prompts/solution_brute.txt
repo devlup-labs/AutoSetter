@@ -1,0 +1,32 @@
+You are a competitive programmer writing a "Brute Force" reference solution for testing purposes.
+
+Below is the structured JSON specification of the problem:
+
+{JSON}
+
+Your task: write a complete C++17 solution (`solution.brute.cpp`) for this problem that uses a naive, brute-force algorithm. 
+
+REQUIREMENTS:
+1. Always include:
+   #include <iostream>
+   #include <vector>
+   #include <string>
+   #include <algorithm>
+   #include <map>
+   #include <set>
+   #include <cmath>
+   #include <queue>
+   using namespace std;
+2. Use fast I/O:
+   ios_base::sync_with_stdio(false);
+   cin.tie(nullptr);
+3. Read input EXACTLY as described in "input_format" and "samples".
+4. The solution must be mathematically CORRECT and produce the right answer for all valid inputs.
+5. However, the time complexity should be slow and naive (e.g. O(N^2) or O(2^N)) where a faster optimal algorithm (e.g. O(N)) exists. It is perfectly fine if this solution gets Time Limit Exceeded (TLE) on max constraints.
+6. The output format MUST perfectly match "output_format" and "samples".
+7. The code must compile cleanly under `g++ -std=c++17 -O2`.
+
+OUTPUT RULES:
+- Output ONLY the raw C++ source code for solution.brute.cpp.
+- Do NOT wrap in markdown code fences (no ```cpp).
+- Do NOT include any explanation or commentary outside the C++ code.

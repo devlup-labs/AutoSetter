@@ -3,7 +3,7 @@
 // Every containment and resource knob in one place.
 // ============================================================
 
-// Compiler settings. These must match utils/sandbox_client.py (CPP_STANDARD,
+// Compiler settings. These must match autosetter/config.py (CPP_STANDARD,
 // CPP_OPTIMIZATION): the two backends used to disagree (-O3/c++20 here,
 // -O2/c++17 there), so code could build in local mode and fail over HTTP.
 const CPP_STANDARD = process.env.CPP_STANDARD || "c++17";
