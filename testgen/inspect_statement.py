@@ -28,7 +28,32 @@ REQUIRED = [
 
 # A constraints field that carries usable bounds says something like
 # "1 <= n <= 2*10^5". Prose without any comparison in it does not.
-BOUND = re.compile(r"[<>]=?|\\le|\\ge|≤|≥")
+#
+# The lookbehind keeps an arrow out of it. A LeetCode statement often gives a
+# function signature where the input format should be -- `def threeSum(nums:
+# List[int]) -> bool` -- and the `>` of `->` is not a comparison. Counting it
+# as one makes a statement with no bounds at all look like a statement that
+# has them.
+BOUND = re.compile(r"(?<!-)[<>]=?|\\le|\\ge|≤|≥")
+
+# An input format that is one worked example rather than a description of the
+# shape: "Input = [2, 7, 4, 0, 9, 5, 1, 3] & Sum = 20", or a function
+# signature. Brackets or an equals sign, and no bound anywhere.
+EXAMPLE_SHAPED = re.compile(r"[\[\]]|=")
+
+
+def looks_like_an_example(input_format: str) -> bool:
+    """Is this one worked example rather than a description of the format?
+
+    Worth having as its own function because two callers need it and they do
+    different things with the answer. The report says the statement is not
+    usable as it stands. Extraction uses it to know that the problem has no
+    stdin format at all, which means one has to be designed -- and that the
+    samples, being written in the statement's own notation rather than the
+    designed one, cannot be used to check the result.
+    """
+    text = input_format or ""
+    return bool(text and not BOUND.search(text) and EXAMPLE_SHAPED.search(text))
 
 
 def report(path: Path) -> int:
@@ -57,7 +82,7 @@ def report(path: Path) -> int:
     # An input format that is one worked example rather than a description of
     # the shape cannot say how many values there are or how big they get.
     fmt = data.get("input_format") or ""
-    if fmt and not BOUND.search(fmt) and re.search(r"[\[\]]|=", fmt):
+    if looks_like_an_example(fmt):
         print()
         print("  WARNING  input_format looks like one example rather than a format:")
         print(f"           {fmt!r}")

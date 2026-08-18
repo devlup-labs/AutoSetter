@@ -22,11 +22,25 @@ Bound = Union[int, str]
 ComparisonOp = Literal["<=", "<", "==", ">=", ">"]
 
 
+# Where a bound came from. A statement that says "1 <= n <= 2*10^5" states its
+# bounds; a LeetCode style statement states none at all, and somebody has to
+# pick them before a validator can exist. Those two are not the same thing and
+# must not look the same once they are in the IR, because `n <= 500` and
+# `n <= 10^5` are different problems with different intended solutions.
+#
+# The default is "stated", so every hand-written IR keeps its current meaning.
+BoundOrigin = Literal["stated", "chosen"]
+
+
 class IntDomain(BaseModel):
     """The set of values an integer may take, as a closed interval."""
 
     lo: Bound
     hi: Bound
+    origin: BoundOrigin = Field(
+        default="stated",
+        description="Whether the statement gave this range or we picked it.",
+    )
 
 
 class IntVar(BaseModel):
