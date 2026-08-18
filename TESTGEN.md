@@ -44,7 +44,7 @@ out whether the IR was right before anything expensive depended on it.
 4. Test plan derivation — done
 5. Generator emitter — done
 6. Checker selection and emitter — done
-7. Statement to IR extraction — not started
+7. Statement to IR extraction — done
 
 ## How the three tools check each other
 
@@ -65,6 +65,142 @@ one. A validator that only ever sees correct input proves nothing.
 answer, a wrong answer, an empty file and an output with extra tokens, and each
 has to produce the expected verdict rather than merely not crashing.
 
+## Getting the IR without writing it
+
+Everything above starts from the IR, and for a long time the IR was written by
+hand. `extract` is the step that removes the person: an extracted statement goes
+in, a constraint IR comes out.
+
+A model is the only thing that can read prose, so a model does that part. The
+part worth describing is what happens to what it says, because nothing here
+takes the reply on trust.
+
+```
+extracted problem.json
+        |
+        v   prompt: schema + worked examples + the statement
+   candidate IR  <-------------------------------+
+        |                                        |
+        v  schema gate: does it load?            | the reason, written
+        |  no ------------------------------->---+  back into a new prompt
+        v  yes
+        |  sample gate: does a validator built
+        |  from it accept the problem's own samples?
+        |  no ------------------------------->---+
+        v  yes
+      IR + blockers
+```
+
+**The schema gate is free.** `Problem` already refuses a bound naming a
+variable the statement never mentioned, an array whose length is not a real
+name, a multitest problem with no test count. The pydantic error names the
+field, and that error is what gets sent back.
+
+**The sample gate is the one that matters.** The samples shipped with the
+statement are known to be legal, so a validator emitted from the candidate IR
+that rejects one proves the IR is wrong. No labelling, no judgement, no human.
+It catches what the schema cannot see: a bound that is too tight, a line layout
+that does not match the real file.
+
+Feeding a failure back is the same idea as handing compiler errors to a model
+writing C++, with one difference that decides whether it is worth anything: a
+compiler error says the code parses, and these say the constraints are right.
+
+### When the statement has no input format
+
+A LeetCode style statement does not describe its input. It shows an example
+where the format should be:
+
+```
+Input = [2, 7, 4, 0, 9, 5, 1, 3] & Sum = 20
+```
+
+There is no `n` anywhere in that problem, no line structure, and no bounds. The
+input format does not exist yet and has to be **designed**: read a size, then
+the values, and pick bounds that admit the intended solution and exclude the
+brute force one. That is a setter's decision, and the IR records it as one —
+every domain comes out with `"origin": "chosen"`.
+
+The consequence is easy to miss and it breaks the sample gate. Once the format
+is designed, the samples that shipped with the statement are written in the
+*old* notation. `[2, 7, 4] & Sum = 20` is not a test file for any format, so a
+validator built from a perfectly correct IR rejects it. Running the gate anyway
+would fail every problem of this kind for a reason that says nothing about the
+IR.
+
+So for these statements the gate is skipped — not because it is inconvenient,
+but because there is nothing for it to check. Ground truth does not exist for a
+format invented a moment ago. Whether this applies is read off the statement by
+`looks_like_an_example`, never off anything the model claimed, so it cannot be
+talked into being an escape hatch. The result comes back `review`, with a
+blocker saying the IR was never checked against a real test file and why.
+
+Converting the samples into the designed format would restore the gate, and is
+the obvious next thing to build.
+
+### The prompt is generated
+
+`prompt.py` builds the prompt from `Problem.model_json_schema()` and from the
+hand-written IR files in `ir/problems/`. Nothing describes the IR twice. Widen
+the schema and the prompt widens with it, which is the only way a description
+of a format and the format itself stay in step.
+
+### What comes out, and what may be done with it
+
+An IR alone is not an answer. Extraction also returns blockers, and their worst
+severity decides what the caller is allowed to do:
+
+| Verdict | Cause | What happens |
+|---|---|---|
+| `ready` | every constraint was read from the statement | run unattended |
+| `review` | something was decided rather than read | run, but the package records it |
+| `fallback` | the IR cannot describe this problem | use the LLM-written C++ path |
+
+The middle row is the interesting one, and it is why `origin` exists on a
+domain. A statement that says `1 <= n <= 2*10^5` states its bounds. A LeetCode
+style statement states none, and somebody has to choose them before a validator
+can exist — `n <= 500` and `n <= 10^5` are different problems with different
+intended solutions. Both end up as numbers in the same field, so without
+`origin` a chosen bound and a read one are indistinguishable, and the pipeline
+would ship invented difficulty with nothing anywhere saying so.
+
+Marking it costs no automation. It only means the package knows which of its
+bounds nobody has confirmed.
+
+### Measuring it
+
+`eval` extracts every statement in `samples/` and scores the result two ways:
+
+| Measure | Needs | Says |
+|---|---|---|
+| agreement | a hand-written IR for the same problem | how close the model got to it |
+| samples | nothing but the statement | whether the IR is provably wrong |
+
+Agreement is stricter and scarcer. Samples is the one that scales to problems
+nobody has written an IR for, and it is what the pipeline itself gates on.
+
+A disagreement is not automatically the model's fault. A hand-written IR can be
+the wrong one, and the report says which side is which rather than assuming.
+
+**Each problem is left out of its own prompt.** Four of the IR files in
+`ir/problems/` are the worked examples, and some of those problems are also the
+ones being scored. Without leaving them out, the model is handed the answer and
+the score measures copying. The first run of this eval had exactly that flaw and
+reported a perfect number because of it.
+
+The eval is small — two matched pairs — and a number from two problems is a
+direction, not a result. It grows by adding an extracted `problem.json` beside a
+hand-written IR of the same name.
+
+**Agreement means less on a designed format than on a stated one.** When the
+statement gives the input format, there is one right answer and disagreeing with
+it is a mistake. When the format had to be designed, the hand-written IR is one
+valid design among several: calling the array `arr` instead of `a`, or putting
+the values on one line instead of two, scores as a disagreement and is not
+wrong. For those problems the number to watch is whether a usable IR came out at
+all, and whether the bounds are sensible — not how closely it matched a choice
+somebody else made.
+
 ## Reference problems
 
 Three problems, chosen so that between them they cover every kind of constraint.
@@ -75,11 +211,22 @@ Each is the simplest problem that demonstrates its lesson.
 | Watermelon (CF 4A) | `1 <= w <= 100` | a single scalar range, nothing else |
 | Theatre Square (CF 1A) | `1 <= n, m, a <= 10^9` | several scalars on one line |
 | Max of array | `t <= 10^4`, `sum of n <= 2*10^5` | multitest, arrays, global sum |
+| Two Sum (LC 1) | none stated | a statement with no input format at all |
 
-The third is the interesting one. `sum of n over all test cases <= 2*10^5` is not a
-property of any single variable, so it cannot be checked while reading one test
-case. It needs an accumulator and a check after the loop, and it is the constraint
-most validators get wrong.
+The third is the interesting one for the validator. `sum of n over all test cases
+<= 2*10^5` is not a property of any single variable, so it cannot be checked while
+reading one test case. It needs an accumulator and a check after the loop, and it
+is the constraint most validators get wrong.
+
+The fourth is the interesting one for extraction, and it is the only reference
+problem that is not a competitive programming problem at all. Two Sum states no
+input format and no bounds — it is a function signature and an example — so
+every bound in its IR is marked `"origin": "chosen"` with the reasoning written
+into `source`. It is here because a model shown only statements that describe
+their input will not attempt to design one: handed a LeetCode statement with no
+example of the kind, qwen3:4b returns the statement unchanged, five times out of
+five. Since AutoSetter exists to port OA problems, that is the class that
+matters most.
 
 ## Layout
 
@@ -88,8 +235,16 @@ testgen/
   __main__.py       command line entry point
   build.py          emit and compile the three tools, and run them
   plan.py           which tests the constraints call for
+  solve.py          the solver: choose the shape of a test
   selftest.py       the whole suite: validators, generators, checkers
   inspect_statement.py   report whether an extracted statement is usable
+  adapt.py          statement -> draft IR by regular expression
+  extract.py        statement -> IR with a model, gated and repaired
+  prompt.py         the extraction prompt, generated from the schema
+  blockers.py       what stood in the way, and what to do about it
+  samples.py        get the problem's own samples onto disk
+  llm.py            talk to a local model
+  eval.py           score extraction against the hand-written IR
   testlib.h         vendored, so the emitted C++ compiles out of the box
   emit/
     validator.py    IR -> testlib validator
@@ -143,6 +298,8 @@ obtain. Then feed it deliberately broken files and confirm each is refused.
 | `checker <problem> [--decide]` | emit the checker, or say which one is needed |
 | `contract <problem>` | print the input format description for a solution prompt |
 | `selftest` | compile everything and run the whole suite |
+| `extract <file>` | build an IR from an extracted statement with a model |
+| `eval` | extract every statement in `samples/` and score the results |
 
 ### Generator modes
 
@@ -202,6 +359,7 @@ the format without anyone keeping copies of it in step.
 | distinct values | `"distinct": true` |
 | string over an alphabet | `"alphabet": "01"` with a length |
 | sum across test cases | `"kind": "sum_over_tests"` |
+| where a bound came from | `"origin": "chosen"` on a domain |
 
 Anything not in this table is not checked, and the emitter is deliberately not
 clever about it: a variable kind it does not understand raises rather than

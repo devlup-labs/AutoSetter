@@ -25,6 +25,8 @@ from testgen.emit.checker import CheckerNeedsHuman, describe as describe_checker
 from testgen.emit.generator import emit_generator
 from testgen.emit.io_contract import emit_io_contract
 from testgen.emit.validator import emit_validator
+from testgen.extract import DEFAULT_ATTEMPTS
+from testgen.llm import DEFAULT_MODEL
 from testgen.ir.problems import PROBLEM_DIR, load, load_all
 from testgen.plan import describe, plan_tests
 
@@ -110,6 +112,103 @@ def cmd_adapt(args: argparse.Namespace) -> int:
 
     banner("adapting extracted problem", Path(args.file).name)
     return report(Path(args.file))
+
+
+def cmd_extract(args: argparse.Namespace) -> int:
+    """Build an IR from an extracted statement with a model, and report it."""
+    import json as _json
+
+    from testgen.blockers import Verdict, describe as describe_blockers
+    from testgen.extract import extract, save, slug
+    from testgen.llm import LLMError, Model, available
+
+    path = Path(args.file)
+    banner("extracting an IR", path.name)
+
+    ok, detail = available()
+    if not ok:
+        print(f"  {detail}", file=sys.stderr)
+        print("  start one with `ollama serve`, then pull a model.", file=sys.stderr)
+        return 2
+    print(f"  models available: {detail}")
+    print(f"  using: {args.model}")
+    print()
+
+    data = _json.loads(path.read_text())
+    try:
+        result = extract(
+            data,
+            model=Model(name=args.model),
+            max_attempts=args.attempts,
+            check_samples=not args.no_samples,
+        )
+    except LLMError as exc:
+        print(f"  {exc}", file=sys.stderr)
+        return 2
+
+    print("  ATTEMPTS")
+    for attempt in result.attempts:
+        print(f"  {attempt}")
+    print()
+
+    if result.problem is None:
+        print("  no IR could be built.")
+        print()
+        print(describe_blockers(result.blockers))
+        return 1
+
+    print("  IR")
+    print(result.problem.model_dump_json(indent=2, exclude_none=True))
+    print()
+    print(describe_blockers(result.blockers))
+    print()
+    print(f"  VERDICT: {result.verdict.value}")
+
+    if result.verdict is Verdict.FALLBACK:
+        print("  this problem should go to the LLM-written C++ path instead.")
+        return 1
+
+    if args.save:
+        stem = args.stem or slug(data)
+        try:
+            written = save(result.problem, stem, force=args.force)
+        except FileExistsError as exc:
+            print(f"  {exc}", file=sys.stderr)
+            return 1
+        print(f"  saved {written}")
+        print(f"  now try: python -m testgen plan {stem}")
+
+    return 0
+
+
+def cmd_eval(args: argparse.Namespace) -> int:
+    """Score extraction against every statement on disk that has an IR."""
+    from testgen.eval import report, run, totals
+    from testgen.llm import LLMError, Model, available
+
+    banner("extraction eval")
+
+    ok, detail = available()
+    if not ok:
+        print(f"  {detail}", file=sys.stderr)
+        return 2
+    print(f"  using: {args.model}")
+
+    try:
+        rows = run(
+            model=Model(name=args.model),
+            max_attempts=args.attempts,
+            only=args.only,
+        )
+    except LLMError as exc:
+        print(f"  {exc}", file=sys.stderr)
+        return 2
+
+    for line in report(rows):
+        print(line)
+    print(totals(rows))
+    print()
+    return 0
 
 
 def cmd_plan(args: argparse.Namespace) -> int:
@@ -230,6 +329,39 @@ def main() -> int:
     )
     adapt.add_argument("file", help="the problem.json the extraction step wrote")
     adapt.set_defaults(func=cmd_adapt)
+
+    extract = sub.add_parser(
+        "extract", help="build an IR from an extracted statement with a model"
+    )
+    extract.add_argument("file", help="the problem.json the extraction step wrote")
+    extract.add_argument("--model", default=DEFAULT_MODEL, help="Ollama model name")
+    extract.add_argument(
+        "--attempts",
+        type=int,
+        default=DEFAULT_ATTEMPTS,
+        help="how many times to retry against the gates",
+    )
+    extract.add_argument(
+        "--save", action="store_true", help="write the IR into ir/problems/"
+    )
+    extract.add_argument("--stem", help="file name to save under, if not the title")
+    extract.add_argument(
+        "--force",
+        action="store_true",
+        help="overwrite an existing IR file (this can erase a hand-written one)",
+    )
+    extract.add_argument(
+        "--no-samples",
+        action="store_true",
+        help="skip the sample gate (schema check only)",
+    )
+    extract.set_defaults(func=cmd_extract)
+
+    ev = sub.add_parser("eval", help="score extraction against the hand-written IR")
+    ev.add_argument("--model", default=DEFAULT_MODEL, help="Ollama model name")
+    ev.add_argument("--attempts", type=int, default=DEFAULT_ATTEMPTS)
+    ev.add_argument("--only", help="score just this problem")
+    ev.set_defaults(func=cmd_eval)
 
     plan = sub.add_parser("plan", help="show which tests the constraints call for")
     plan.add_argument("problem")

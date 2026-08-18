@@ -1,0 +1,39 @@
+{
+  "name": "Two Sum",
+  "source": "LeetCode 1, ported. The statement gives no input format and no bounds; both were chosen here, and every domain is marked accordingly.",
+  "multitest": false,
+  "body": {
+    "variables": [
+      {
+        "kind": "int",
+        "name": "n",
+        "domain": { "lo": 2, "hi": 200000, "origin": "chosen" },
+        "source": "CHOSEN. The statement never says how many numbers there are, but an array read from stdin needs its length read first. At least 2 so a pair can exist. 2*10^5 admits the O(n) hash map solution and excludes the O(n^2) scan, which would be 4*10^10 operations."
+      },
+      {
+        "kind": "int",
+        "name": "t",
+        "domain": { "lo": -2000000000, "hi": 2000000000, "origin": "chosen" },
+        "source": "CHOSEN. A pair of the extreme element values sums to at most 2*10^9, so a target outside this range is unreachable and the problem would be trivial."
+      },
+      {
+        "kind": "array",
+        "name": "a",
+        "length": "n",
+        "elem": { "lo": -1000000000, "hi": 1000000000, "origin": "chosen" },
+        "source": "CHOSEN. The usual bound on this problem, and it keeps every pair sum inside a 64 bit integer."
+      }
+    ],
+    "lines": [
+      { "tokens": ["n", "t"] },
+      { "tokens": ["a"] }
+    ]
+  },
+  "global_constraints": [],
+  "output": {
+    "unique_answer": false,
+    "case_insensitive": false,
+    "float_eps": null,
+    "tokens_per_test": null
+  }
+}
