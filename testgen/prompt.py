@@ -17,7 +17,7 @@ import json
 from typing import Any
 
 from testgen.ir.problems import PROBLEM_DIR
-from testgen.ir.schema import Problem
+from testgen.ir.schema import GlobalConstraint, Problem, Variable
 
 # Chosen to cover the whole IR between them in as few tokens as possible:
 #
@@ -60,16 +60,40 @@ def schema_text() -> str:
     return json.dumps(_prune(Problem.model_json_schema()), indent=2)
 
 
-def supported_kinds() -> list[str]:
-    """Every variable kind the IR can express, read out of the schema."""
-    defs = Problem.model_json_schema().get("$defs", {})
+def _kinds_of(union: object) -> list[str]:
+    """The `kind` discriminator values of a tagged union, read from the code.
+
+    Reading them off the union rather than off every definition in the schema
+    matters: the schema also defines `sum_over_tests`, which is a constraint
+    across test cases and not a kind of input value at all. Lumping the two
+    together told the model that `sum_over_tests` was something it could
+    declare as a variable.
+    """
+    from typing import get_args
+
+    inner = get_args(union)[0]
+    # A Union of one member collapses to the bare class, so get_args returns
+    # nothing for it. GlobalConstraint is exactly that today, and reading it as
+    # an empty union would quietly tell the model the IR expresses no
+    # cross-test constraints at all.
+    members = get_args(inner) or (inner,)
+
     kinds = []
-    for name, body in defs.items():
-        const = body.get("properties", {}).get("kind", {})
-        value = const.get("const") or (const.get("enum") or [None])[0]
-        if value:
-            kinds.append(value)
+    for member in members:
+        field = getattr(member, "model_fields", {}).get("kind")
+        if field is not None and isinstance(field.default, str):
+            kinds.append(field.default)
     return sorted(set(kinds))
+
+
+def supported_kinds() -> list[str]:
+    """Every kind of input VALUE the IR can express."""
+    return _kinds_of(Variable)
+
+
+def supported_constraints() -> list[str]:
+    """Every kind of constraint spanning more than one value."""
+    return _kinds_of(GlobalConstraint)
 
 
 def examples_text(names: tuple[str, ...] = EXAMPLES) -> str:
@@ -249,6 +273,7 @@ def build(data: dict[str, Any], examples: tuple[str, ...] = EXAMPLES) -> str:
     omission and sent the repair loop chasing a field instead of the mistake.
     """
     kinds = ", ".join(supported_kinds())
+    constraints = ", ".join(supported_constraints())
     return f"""You are converting a competitive programming problem statement into a
 machine readable description of its INPUT, called the IR.
 
@@ -267,6 +292,9 @@ That is the INPUT to this task. What you produce is something else entirely,
 described below.
 
 The IR can describe these kinds of input value, and nothing else: {kinds}.
+Separately from those, it can express these constraints spanning more than one
+value: {constraints}. Those are not input values and never appear in
+"body"."variables"; they go in "global_constraints".
 
 SCHEMA
 

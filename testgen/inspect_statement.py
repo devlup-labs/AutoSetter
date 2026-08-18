@@ -41,6 +41,17 @@ BOUND = re.compile(r"(?<!-)[<>]=?|\\le|\\ge|≤|≥")
 # signature. Brackets or an equals sign, and no bound anywhere.
 EXAMPLE_SHAPED = re.compile(r"[\[\]]|=")
 
+# The vocabulary a real input format uses. Brackets and equals signs are not
+# enough on their own: "the first line contains n, where n = the count" has an
+# equals sign and no comparison, and is a perfectly ordinary format. Reading it
+# as an example makes extraction skip the sample gate, which is the strongest
+# check in the system, so the test has to be harder to trip than that.
+FORMAT_WORDS = re.compile(
+    r"\b(lines?|contains?|consists?|followed by|next|first|second|"
+    r"integers?|test cases?|space[- ]separated|denoting|each)\b",
+    re.IGNORECASE,
+)
+
 
 def looks_like_an_example(input_format: str) -> bool:
     """Is this one worked example rather than a description of the format?
@@ -53,7 +64,9 @@ def looks_like_an_example(input_format: str) -> bool:
     designed one, cannot be used to check the result.
     """
     text = input_format or ""
-    return bool(text and not BOUND.search(text) and EXAMPLE_SHAPED.search(text))
+    if not text or BOUND.search(text) or not EXAMPLE_SHAPED.search(text):
+        return False
+    return not FORMAT_WORDS.search(text)
 
 
 def report(path: Path) -> int:

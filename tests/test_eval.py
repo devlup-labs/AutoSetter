@@ -28,7 +28,8 @@ def test_the_prompt_carries_the_real_schema():
 
 
 def test_supported_kinds_comes_from_the_schema_not_a_list():
-    assert prompts.supported_kinds() == ["array", "int", "string", "sum_over_tests"]
+    """Kinds of input value only. See the separate constraints test below."""
+    assert prompts.supported_kinds() == ["array", "int", "string"]
 
 
 def test_the_prompt_names_the_origin_field():
@@ -327,3 +328,28 @@ def test_scored_problems_overlap_the_examples():
     if not scored:
         pytest.skip("no extracted statements in samples/ (it is untracked)")
     assert scored & set(prompts.EXAMPLES)
+
+
+def test_input_values_and_cross_test_constraints_are_listed_separately():
+    """`sum_over_tests` is a constraint, not a kind of input value.
+
+    Both come out of the schema, and merging them told the model it could
+    declare a variable of kind "sum_over_tests".
+    """
+    assert prompts.supported_kinds() == ["array", "int", "string"]
+    assert prompts.supported_constraints() == ["sum_over_tests"]
+
+
+def test_a_single_member_union_still_yields_its_kind():
+    """GlobalConstraint has one member today, and a Union of one collapses.
+
+    Read naively that says the IR expresses no cross-test constraints at all,
+    which is exactly the guarantee the sum accumulator exists to enforce.
+    """
+    assert prompts.supported_constraints()
+
+
+def test_the_prompt_says_constraints_do_not_go_in_variables():
+    text = prompts.build({"title": "x"})
+    assert "global_constraints" in text
+    assert "not input values" in text

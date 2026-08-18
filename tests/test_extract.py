@@ -429,7 +429,7 @@ def test_slug_makes_a_file_stem_from_a_title():
 def test_normalise_gives_exactly_one_trailing_newline():
     assert normalise("5\n2\n\n\n") == "5\n2\n"
     assert normalise("5\r\n2\r\n") == "5\n2\n"
-    assert normalise("  5  \n") == "  5\n"
+    assert normalise("  5  \n") == "5\n"
 
 
 def test_normalise_of_nothing_is_nothing():
@@ -454,3 +454,54 @@ def test_the_worst_blocker_decides_the_verdict():
 
 def test_an_extraction_with_no_problem_is_always_fallback():
     assert Extraction().verdict is Verdict.FALLBACK
+
+
+# --- bugs found by auditing the finished code ----------------------------
+
+
+def test_normalise_strips_indentation_not_just_trailing_space():
+    """A sample transcribed into JSON often picks up indentation.
+
+    testlib reads the first token of a line immediately, so a space in front of
+    it fails the validator -- and the failure gets attributed to the IR, which
+    was correct all along.
+    """
+    assert normalise("  5\n  1 2 3\n") == "5\n1 2 3\n"
+    assert normalise("\t5\n") == "5\n"
+    # Separators *inside* a line are untouched; only the ends are stripped.
+    assert normalise("1 2 3") == "1 2 3\n"
+
+
+def test_an_indented_sample_still_passes_the_gate(tmp_path):
+    """The whole point of the fix, exercised through the real loop."""
+    indented = dict(WATERMELON, samples=[{"input": "   8   \n", "output": "YES"}])
+    result = extract(indented, model=replies(envelope(GOOD_IR)), workdir=tmp_path)
+
+    assert result.ok
+    assert result.samples_passed == 1
+
+
+def test_a_format_containing_an_equals_sign_is_not_called_an_example():
+    """This one silently skipped the sample gate, the strongest check there is.
+
+    Brackets or an equals sign are not enough on their own to call something an
+    example, because ordinary input formats contain both.
+    """
+    from testgen.inspect_statement import looks_like_an_example
+
+    assert not looks_like_an_example("The first line contains n, where n = the count")
+    assert not looks_like_an_example("Line 1: n and k. Line 2: n integers a[i]")
+    # The genuine articles still read as examples.
+    assert looks_like_an_example("Input = [2, 7, 4] & Sum = 20")
+    assert looks_like_an_example("def threeSum(nums: List[int]) -> bool")
+
+
+def test_a_real_format_is_still_gated_on_its_samples(tmp_path):
+    """The consequence of the bug above, checked end to end."""
+    tricky = dict(
+        WATERMELON, input_format="The first line contains w, where w = the weight"
+    )
+    result = extract(tricky, model=replies(envelope(GOOD_IR)), workdir=tmp_path)
+
+    assert not result.designed_format
+    assert result.samples_total == 1

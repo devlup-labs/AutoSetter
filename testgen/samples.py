@@ -42,10 +42,17 @@ class Sample:
 def normalise(text: str) -> str:
     """Put a sample into the exact shape a testlib validator will accept.
 
-    Carriage returns removed, trailing whitespace on every line removed, blank
-    lines at the end removed, then exactly one newline at the end.
+    Carriage returns removed, whitespace stripped from both ends of every line,
+    blank lines at the end removed, then exactly one newline at the end.
+
+    Leading whitespace goes too, and that is the part worth saying. A sample
+    transcribed into JSON often picks up indentation from whoever formatted the
+    file, and testlib reads the first token of a line immediately -- so a space
+    in front of it fails the validator. Left in, a perfectly correct IR gets
+    blamed for somebody's indentation.
     """
-    lines = [line.rstrip() for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")]
+    normalised = text.replace("\r\n", "\n").replace("\r", "\n")
+    lines = [line.strip() for line in normalised.split("\n")]
     while lines and not lines[-1]:
         lines.pop()
     if not lines:
