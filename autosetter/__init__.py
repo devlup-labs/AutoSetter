@@ -25,11 +25,9 @@ from autosetter.generator import (
     ArtifactSpec,
     CodeGenerationError,
     FileGenerationError,
-    HF_MODEL_ARTIFACTS,
     generate_all_artifacts,
 )
-# ── NEW: HuggingFace model client for the fine-tuned Qwen 7B ──
-from autosetter.hf_model import HFModelClient, HFModelError
+
 from autosetter.llm import OllamaCallError, OllamaClient
 from autosetter.packager import Packager, PackagerError
 from autosetter.pipeline import (
@@ -64,10 +62,6 @@ __all__ = [
     "Config",
     "OllamaClient",
     "OllamaCallError",
-    # ── NEW: HuggingFace model client exports ──
-    "HFModelClient",
-    "HFModelError",
-    "HF_MODEL_ARTIFACTS",
     "load_image_as_base64",
     "ImageParsingError",
     "generate_problem_json",

@@ -40,21 +40,7 @@ DEFAULT_OLLAMA_HOST = (
     or os.environ.get("AUTOSETTER_OLLAMA_HOST", "http://localhost:11434")
 )
 
-# ---------------------------------------------------------------------------
-# HuggingFace Second Model (Fine-tuned Qwen 7B for Codeforces artifacts)
-# ---------------------------------------------------------------------------
-# This model is used ONLY for generating: statement.tex, solution.cpp,
-# brute.cpp, checker.cpp.  All other artifacts remain on the Ollama path.
-#
-# AUTOSETTER_HF_MODEL      — HuggingFace Hub model identifier or local path.
-# AUTOSETTER_HF_DEVICE      — Device placement: "auto" | "cuda" | "cpu".
-# AUTOSETTER_HF_MAX_TOKENS  — Maximum new tokens per generation call.
-# ---------------------------------------------------------------------------
-DEFAULT_HF_MODEL_NAME = os.environ.get(
-    "AUTOSETTER_HF_MODEL", "winglian/qwen-2.5-codeforces-cot-kd-v1"
-)
-DEFAULT_HF_DEVICE = os.environ.get("AUTOSETTER_HF_DEVICE", "auto")
-DEFAULT_HF_MAX_NEW_TOKENS = int(os.environ.get("AUTOSETTER_HF_MAX_TOKENS", "4096"))
+
 
 # C++ Compilation
 CPP_STANDARD = os.environ.get("AUTOSETTER_CPP_STANDARD", "c++17")
@@ -96,12 +82,7 @@ class Config:
     debug: bool = False
     skip_validation: bool = False
 
-    # ── HuggingFace second model configuration (NEW) ──
-    # These fields control the fine-tuned Qwen 7B model used for generating
-    # statement.tex, solution.cpp, brute.cpp, and checker.cpp.
-    hf_model_name: str = DEFAULT_HF_MODEL_NAME  # HuggingFace Hub model ID
-    hf_device: str = DEFAULT_HF_DEVICE  # "auto", "cuda", or "cpu"
-    hf_max_new_tokens: int = DEFAULT_HF_MAX_NEW_TOKENS  # Max tokens per generation
+
 
     @classmethod
     def from_env(cls) -> Config:
@@ -116,9 +97,4 @@ class Config:
             compile_timeout=DEFAULT_COMPILE_TIMEOUT,
             prompts_dir=PROMPTS_DIR,
             out_dir=DEFAULT_OUT_DIR,
-            debug=bool(os.environ.get("AUTOSETTER_DEBUG")),
-            # ── Populate HF model config from environment variables ──
-            hf_model_name=DEFAULT_HF_MODEL_NAME,
-            hf_device=DEFAULT_HF_DEVICE,
-            hf_max_new_tokens=DEFAULT_HF_MAX_NEW_TOKENS,
         )
