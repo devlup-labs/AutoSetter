@@ -8,64 +8,74 @@ problem, extracted from the original problem statement image:
 
 Using ONLY the information in this JSON (do not invent new constraints,
 samples, or story elements), write a clean, well-formatted, publication-
-ready Markdown problem statement.
+ready LaTeX problem statement compatible with Codeforces Polygon.
 
-The Markdown document MUST follow this structure:
+You may rephrase sentences for clarity, but MUST NOT change the meaning
+or introduce any new information.
 
-# <title>
+The LaTeX document MUST follow this structure:
 
-**Time limit:** <time_limit>
-**Memory limit:** <memory_limit>
+\textbf{Time limit:} <time_limit>
 
-## Problem Statement
+\textbf{Memory limit:} <memory_limit>
 
-<the "story" field, rewritten clearly and grammatically, preserving all
-technical/mathematical details and meaning -- do not remove any
-information, only improve clarity and flow>
+\section*{Problem Statement}
 
-## Input
+<Rewrite the "story" field clearly and grammatically, preserving all
+technical and mathematical meaning. Use proper LaTeX math formatting
+such as $n$, $a_i$, $\le$, $\sum$, etc.>
 
-<the "input_format" field, formatted clearly, using a bulleted or
-numbered list if the original format has multiple distinct lines of input>
+\section*{Input}
 
-## Output
+<Format the "input_format" field clearly. Use line breaks or itemization
+if multiple inputs are present. Use LaTeX math where appropriate.>
 
-<the "output_format" field, formatted clearly>
+\section*{Output}
 
-## Constraints
+<Format the "output_format" field clearly.>
 
-<the "constraints" field, formatted as a bulleted list with each bound on
-its own line, using Markdown math-friendly notation, e.g. `1 <= n <= 10^5`>
+\section*{Constraints}
 
-## Examples
+\begin{itemize}
+<Each constraint from "constraints" must be written as a separate \item,
+using proper LaTeX math formatting, e.g. $1 \le n \le 10^5$.>
+\end{itemize}
+
+\section*{Examples}
 
 For EACH entry in "samples", render:
 
-### Example <index, starting at 1>
+\subsection*{Example <index>}
 
-**Input:**
-```
-<sample input, verbatim>
-```
+\textbf{Input}
+\begin{verbatim}
+<sample input EXACTLY as given>
+\end{verbatim}
 
-**Output:**
-```
-<sample output, verbatim>
-```
+\textbf{Output}
+\begin{verbatim}
+<sample output EXACTLY as given>
+\end{verbatim}
 
-<If "explanation" is non-empty for this sample, add:>
-**Explanation:** <explanation text>
+<If "explanation" exists, include:>
+\textbf{Explanation:} <explanation text>
 
-## Notes
+\section*{Notes}
 
-<the "notes" field, if non-empty; omit this whole section if "notes" is empty>
+<Include ONLY if "notes" is non-empty>
 
-FORMATTING RULES:
-1. Output ONLY the final Markdown document. Do not wrap it in code fences.
-   Do not add any preamble like "Here is the statement".
-2. Use proper Markdown syntax throughout (headings, code blocks, bold text).
-3. Keep all sample inputs/outputs byte-for-byte identical to the JSON --
-   never modify, reformat, or "fix" sample data.
-4. If a field in the JSON is empty, omit the corresponding section rather
-   than emitting an empty heading.
-5. Write in clear, professional, contest-quality English.
+--------------------------------------------------
+
+STRICT FORMATTING RULES:
+
+1. Output ONLY valid LaTeX. Do NOT use Markdown.
+2. Do NOT wrap output in code fences.
+3. Do NOT add any explanations or extra text.
+4. Use $...$ for inline math and proper LaTeX symbols:
+   - \le, \ge, \times, \sum, etc.
+5. Preserve ALL sample inputs/outputs EXACTLY (no changes at all).
+6. Do NOT leave any section empty — omit it if JSON field is empty.
+7. Ensure the LaTeX is directly usable in Codeforces Polygon.
+
+Generate the LaTeX now.
+If you output anything other than LaTeX your output is incorrect.

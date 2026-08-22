@@ -59,9 +59,9 @@ def run_mock() -> int:
         sandbox=sandbox,
         num_tests=10,
         progress_callback=print,
-        # The statement's own samples, so the validator can be corroborated
-        # before anything it says about generated tests is believed.
-        samples=problem_data.get("samples") or [],
+        # The statement's own samples corroborate the validator, and its
+        # input format decides which test shapes are worth asking for.
+        problem=problem_data,
     )
 
     print(

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+# pyrefly: ignore [missing-import]
 import pytest
 from PIL import Image
 
