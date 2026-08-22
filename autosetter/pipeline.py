@@ -108,9 +108,9 @@ class CompilationReport:
     validator: bool = False
     generator: bool = False
     checker: bool = False
-    solution_wa: bool = False
+    solution_greedy: bool = False
     solution_brute: bool = False
-    solution_tle: bool = False
+    solution_heavy: bool = False
     errors: Dict[str, str] = field(default_factory=dict)
 
 
@@ -144,9 +144,9 @@ class TestReport:
                 "validator": self.compilation.validator,
                 "generator": self.compilation.generator,
                 "checker": self.compilation.checker,
-                "solution_wa": self.compilation.solution_wa,
+                "solution_greedy": self.compilation.solution_greedy,
                 "solution_brute": self.compilation.solution_brute,
-                "solution_tle": self.compilation.solution_tle,
+                "solution_heavy": self.compilation.solution_heavy,
                 "errors": self.compilation.errors,
             },
             "total_tests": self.total_tests,
@@ -220,9 +220,9 @@ class TestPipeline:
         "validator": ("validator.cpp", True),
         "generator": ("generator.cpp", True),
         "checker": ("checker.cpp", True),
-        "solution_wa": ("solution.wa.cpp", False),
+        "solution_greedy": ("solution.greedy.cpp", False),
         "solution_brute": ("solution.brute.cpp", False),
-        "solution_tle": ("solution.tle.cpp", False),
+        "solution_heavy": ("solution.heavy.cpp", False),
     }
 
     def __init__(
@@ -402,7 +402,13 @@ class TestPipeline:
                 self._log(f"  ✅ {name}: compiled successfully")
             except SandboxError as exc:
                 comp.errors[name] = str(exc)
-                self._log(f"  ❌ {name}: compilation failed")
+                # Write a detailed error note for this artifact
+                error_path = self.generated_dir / f"{name}_compile_error.txt"
+                try:
+                    error_path.write_text(str(exc), encoding="utf-8")
+                except Exception as e_write:
+                    self._log(f"  ⚠️  Failed to write error note for {name}: {e_write}")
+                self._log(f"  ❌ {name}: compilation failed – see {error_path.name}")
 
         return comp
 
@@ -423,6 +429,17 @@ class TestPipeline:
             except SandboxError as exc:
                 accepted, message = False, str(exc)
 
+            # If the sample is rejected, write a detailed failure note
+            if not accepted:
+                note_path = self.generated_dir / f"sample_{index}_failure.txt"
+                try:
+                    note_path.write_text(message or "Validator rejected the input.", encoding="utf-8")
+                except Exception as e_note:
+                    self._log(f"  ⚠️  Failed to write sample failure note for sample {index}: {e_note}")
+
+            checks.append(
+                SampleCheck(index=index, accepted=accepted, message=message)
+            )
             checks.append(
                 SampleCheck(index=index, accepted=accepted, message=message)
             )

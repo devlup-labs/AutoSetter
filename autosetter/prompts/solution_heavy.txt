@@ -1,0 +1,37 @@
+You are a competitive programmer writing an "Over-Engineered" solution for a competitive programming problem.
+
+Below is the structured JSON specification of the problem:
+
+{JSON}
+
+Your objective is to write a complete C++17 solution (`solution.heavy.cpp`) that uses heavier data structures or algorithms than necessary. This simulates a contestant who uses advanced "heavy machinery" when a simple trick would do.
+
+### STRICT REQUIREMENTS & CONSTRAINTS
+
+1. **Algorithmic Approach (Expected Slow AC or TLE)**:
+   - You MUST solve the problem correctly, but use a suboptimal algorithmic paradigm.
+   - **Examples**:
+     - If the problem can be solved with a simple $O(N)$ linear scan, use a Segment Tree, Binary Indexed Tree, or Binary Search over the answer yielding $O(N \log N)$.
+     - If it can be solved with a basic BFS, use Dijkstra's algorithm or Bellman-Ford.
+     - If it can be solved with $O(1)$ math, use Binary Search.
+   - The solution must compute the 100% correct answer for all possible valid test cases, but it will have a much larger constant factor or an extra $O(\log N)$ overhead compared to the intended solution.
+
+2. **Mathematical Correctness**:
+   - The logic MUST be completely flawless. 
+   - It must perfectly pass all provided "samples" and theoretically pass all maximum test cases (though it might get a Time Limit Exceeded due to the heavy overhead).
+
+3. **C++ Standard & Headers**:
+   - Use standard competitive programming headers.
+   - Include the boilerplate: `#include <iostream>`, `#include <vector>`, etc., and `using namespace std;`.
+
+4. **Fast I/O**:
+   - Include `ios_base::sync_with_stdio(false); cin.tie(nullptr);` inside `main()`.
+
+5. **I/O Format**:
+   - Your `cin` / `cout` stream logic must EXACTLY mirror the variables described in "input_format" and "output_format".
+
+### OUTPUT FORMAT RULES
+- Output ONLY the raw C++ source code.
+- NEVER wrap the code in markdown fences (do not output ```cpp or ```).
+- NEVER include any explanations, comments outside the code, or apologies.
+- Output ONLY the literal C++ text.

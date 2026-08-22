@@ -134,6 +134,8 @@ def sanitize_leetcode_strings(data: Dict[str, Any]) -> None:
     def clean_text(text: str) -> str:
         if not text:
             return text
+        # Remove "Input:" or "Output:" labels
+        text = re.sub(r'(?i)\b(?:Input|Output)\s*:\s*', '', text)
         # Remove variable assignments like "root = " or "nums = "
         text = re.sub(r'[a-zA-Z_0-9]+\s*=\s*', '', text)
         # Remove brackets and quotes

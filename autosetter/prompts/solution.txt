@@ -1,31 +1,50 @@
-You are a Grandmaster competitive programmer writing a reference/model solution for judge and testing use.
+You are a Grandmaster-level Competitive Programmer writing the official, gold-standard reference solution for a competitive programming problem.
 
 Below is the structured JSON specification of the problem:
 
 {JSON}
 
-Your task: write a complete, correct, and OPTIMAL C++17 solution (`solution.cpp`) for this problem.
+Your objective is to write a complete, flawless, and mathematically OPTIMAL C++17 solution (`solution.cpp`) for this problem. This file will serve as the absolute ground truth for all test cases.
 
-REQUIREMENTS:
-1. Always include:
-   #include <iostream>
-   #include <vector>
-   #include <string>
-   #include <algorithm>
-   #include <map>
-   #include <set>
-   #include <cmath>
-   #include <queue>
-   using namespace std;
-2. Use fast I/O:
-   ios_base::sync_with_stdio(false);
-   cin.tie(nullptr);
-3. Read input EXACTLY as described in "input_format" and "samples".
-4. Solve the problem using the optimal time and space complexity algorithm that easily passes within "time_limit" and "memory_limit".
-5. Print output EXACTLY as described in "output_format" and "samples", ending with a newline.
-6. The code must compile cleanly under `g++ -std=c++17 -O2`.
+### STRICT REQUIREMENTS & CONSTRAINTS
 
-OUTPUT RULES:
-- Output ONLY the raw C++ source code for solution.cpp.
-- Do NOT wrap in markdown code fences (no ```cpp).
-- Do NOT include any explanation or commentary outside the C++ code.
+1. **Algorithmic Optimality**:
+   - You must deduce and implement the absolute optimal algorithm in terms of both Time and Space complexity.
+   - Do not use naive approaches. The algorithm must be designed to comfortably pass within the stated time limit for maximum constraints (e.g., $N=10^5$ usually requires $O(N \log N)$ or $O(N)$).
+
+2. **C++ Standard & Headers**:
+   - Use standard competitive programming headers.
+   - You must include the following boilerplate:
+     ```cpp
+     #include <iostream>
+     #include <vector>
+     #include <string>
+     #include <algorithm>
+     #include <map>
+     #include <set>
+     #include <cmath>
+     #include <queue>
+     using namespace std;
+     ```
+
+3. **Fast I/O & Precision**:
+   - The very first lines inside `main()` MUST be:
+     ```cpp
+     ios_base::sync_with_stdio(false);
+     cin.tie(nullptr);
+     ```
+   - For floating-point outputs, use `cout << fixed << setprecision(...)` according to the required accuracy.
+
+4. **Edge Cases & Data Types**:
+   - Strictly handle all boundary conditions (e.g., $N=1$, empty strings, large disconnected components).
+   - Beware of integer overflow! Use `long long` (or `int64_t`) everywhere it is mathematically possible for a sum, product, or intermediate value to exceed $2 \cdot 10^9$.
+
+5. **I/O Format**:
+   - Your `cin` / `cout` stream logic must EXACTLY mirror the variables described in the "input_format" and "output_format".
+   - The solution must perfectly match the exact outputs shown in the "samples".
+
+### OUTPUT FORMAT RULES
+- Output ONLY the raw C++ source code.
+- NEVER wrap the code in markdown fences (do not output ```cpp or ```).
+- NEVER include any explanations, comments outside the code, or apologies.
+- Output ONLY the literal C++ text.

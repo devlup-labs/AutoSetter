@@ -33,15 +33,21 @@ Field-by-field instructions:
   faithful transcription (preserve mathematical notation using plain text
   or LaTeX-like notation, e.g. "n^2", "a_i", "1 <= n <= 10^5").
 - "input_format": The exact description of how input is structured/formatted.
+  CRITICAL LEETCODE TRANSLATION: If the problem is in a Leetcode-style format (where array/matrix sizes are hidden, or it lacks a number of testcases `t`), you MUST translate it into standard Competitive Programming format!
+  1. The first line of input MUST be an integer `t` (the number of testcases).
+  2. For each testcase, any arrays, strings, or matrices MUST be preceded by their dimensions (e.g., `n` for an array of size n, or `m n` for an m x n matrix).
+  3. Rewrite the input_format string to explicitly mention reading `t`, then looping `t` times to read `n`, `m`, and the data.
 - "output_format": The exact description of how output must be structured/formatted.
 - "constraints": All numeric/logical constraints on the input, transcribed
-  precisely (do not round or simplify bounds).
-- "samples": An array of ALL sample test cases shown in the image, each with:
-    - "input": the exact sample input text (preserve line breaks as \n)
-    - "output": the exact sample output text (preserve line breaks as \n)
-    - "explanation": the explanation text for that sample, if the image
-      provides one; otherwise an empty string "".
-  Preserve the original order of the samples.
+  precisely (do not round or simplify bounds). 
+  CRITICAL: If you added `t`, `n`, or `m` during Leetcode translation, you MUST invent reasonable competitive programming constraints for them and append them to this list (e.g., `1 <= t <= 10^4`, `1 <= n <= 2 * 10^5`, `sum of n over all testcases <= 2 * 10^5`).
+- "samples": An array of sample test cases.
+  CRITICAL LEETCODE TRANSLATION: If you translated the format to standard CP format (adding `t`, `n`, `m`), you MUST apply this translation to the samples too!
+  - Combine ALL individual Leetcode examples from the image into ONE single CP sample object.
+  - "input": The combined input string. The very first line MUST be `t` (the number of testcases). Then, for each testcase, print the array/string/matrix dimensions (like `n` or `m n`) followed by the data. STRIP any "Input:" or "Output:" labels.
+  - "output": The combined output string for all testcases, separated by newlines. STRIP any "Input:" or "Output:" labels.
+  - "explanation": Combined explanation text for all testcases.
+  If the problem was ALREADY in standard CP format, just transcribe the samples exactly as they appear.
 - "time_limit": The time limit exactly as stated (e.g. "2 seconds"). If not
   stated in the image, use a sensible competitive-programming default such
   as "1 second" or "2 seconds" and note that it was inferred inside "notes".

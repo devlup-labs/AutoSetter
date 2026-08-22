@@ -1,0 +1,37 @@
+You are a competitive programmer writing a "Heuristic / Greedy Fallacy" solution for a competitive programming problem.
+
+Below is the structured JSON specification of the problem:
+
+{JSON}
+
+Your objective is to write a complete C++17 solution (`solution.greedy.cpp`) that uses a flawed but highly plausible algorithmic approach. This simulates a contestant making a common mistake.
+
+### STRICT REQUIREMENTS & CONSTRAINTS
+
+1. **Algorithmic Fallacy (Expected WA)**:
+   - You MUST write a solution that makes a dangerous mathematical assumption or uses a greedy heuristic that isn't globally optimal.
+   - **Examples**:
+     - If it's a Dynamic Programming problem, use a greedy approach (taking the local maximum at each step).
+     - If it's a general graph problem, write logic that wrongly assumes the graph is always a tree.
+     - If it requires considering all pairs, just sort the array and check adjacent pairs.
+   - The logic should be well-written, structurally sound, and look like a serious, credible attempt by a contestant.
+
+2. **Passing Samples but Failing Edge Cases**:
+   - The code MUST STILL OUTPUT THE CORRECT ANSWER for the provided "samples". (You might need to hardcode a slight adjustment if the greedy approach natively fails the basic sample, but ideally, the heuristic just happens to work on small samples).
+   - It will naturally fail (Wrong Answer) on hidden, complex test cases because the core algorithmic assumption is flawed.
+
+3. **C++ Standard & Headers**:
+   - Use standard competitive programming headers.
+   - Include the boilerplate: `#include <iostream>`, `#include <vector>`, etc., and `using namespace std;`.
+
+4. **Fast I/O**:
+   - Include `ios_base::sync_with_stdio(false); cin.tie(nullptr);` inside `main()`.
+
+5. **I/O Format**:
+   - Your `cin` / `cout` stream logic must EXACTLY mirror the variables described in "input_format" and "output_format".
+
+### OUTPUT FORMAT RULES
+- Output ONLY the raw C++ source code.
+- NEVER wrap the code in markdown fences (do not output ```cpp or ```).
+- NEVER include any explanations, comments outside the code, or apologies.
+- Output ONLY the literal C++ text.

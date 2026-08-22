@@ -235,11 +235,10 @@ def upload_problem_package(
     if solutions_dir.exists():
         _log("▶ Uploading solutions...")
         tag_map = {
-            "solution_ac.cpp": "PA",
-            "solution_brute.cpp": "OK",
-            "solution.cpp": "OK",
-            "solution_wrong.cpp": "WA",
-            "solution_tle.cpp": "TL",
+            "solution.cpp": "MA",
+            "solution.brute.cpp": "TL",
+            "solution.greedy.cpp": "WA",
+            "solution.heavy.cpp": "TL",
         }
         for sol_file in sorted(solutions_dir.glob("*.cpp")):
             tag = tag_map.get(sol_file.name, "OK")

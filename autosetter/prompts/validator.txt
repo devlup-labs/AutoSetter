@@ -19,7 +19,7 @@ REQUIREMENTS & BEHAVIOR:
    - For bounded integers: `int n = inf.readInt(MIN, MAX, "n");`
    - For 64-bit integers: `long long x = inf.readLong(MIN, MAX, "x");`
    - For strings/words: `string s = inf.readWord();` or `string s = inf.readToken();` (NEVER use `inf.read()` or `cin >> s`)
-   - For regex-constrained tokens: `string s = inf.readToken("[a-zA-Z.,]{1,1000}", "s");`
+   - For strings/words: NEVER use regex patterns in `readToken` (e.g., `inf.readToken("[a-z]{1,10}")`). Testlib's regex engine is buggy and crashes on special characters. Instead, use `string s = inf.readToken();` and MANUALLY validate the string's length and character contents using standard C++ `for` loops and `ensuref()`.
    - For whitespace on the same line: `inf.readSpace();`
    - For end-of-line: `inf.readEoln();` (Always consume EOL after reading the last token on a line).
    - At end of file: `inf.readEof();` (MUST be called exactly ONCE at the very end of `main`, completely OUTSIDE of any `t--` test case loops).

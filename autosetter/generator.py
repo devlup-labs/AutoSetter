@@ -94,9 +94,9 @@ ARTIFACTS: List[ArtifactSpec] = [
         strip_code_fence=True,
     ),
     ArtifactSpec(
-        name="solution_wa",
-        prompt_template="solution_wa.txt",
-        output_filename="solution.wa.cpp",
+        name="solution_greedy",
+        prompt_template="solution_greedy.txt",
+        output_filename="solution.greedy.cpp",
         is_cpp=True,
         is_testlib=False,
         strip_code_fence=True,
@@ -110,9 +110,9 @@ ARTIFACTS: List[ArtifactSpec] = [
         strip_code_fence=True,
     ),
     ArtifactSpec(
-        name="solution_tle",
-        prompt_template="solution_tle.txt",
-        output_filename="solution.tle.cpp",
+        name="solution_heavy",
+        prompt_template="solution_heavy.txt",
+        output_filename="solution.heavy.cpp",
         is_cpp=True,
         is_testlib=False,
         strip_code_fence=True,
@@ -235,6 +235,7 @@ def generate_single_artifact(
     text_model: str = DEFAULT_TEXT_MODEL,
     max_retries: int = DEFAULT_MAX_RETRIES,
     include_dir: Optional[Path] = None,
+    feedback_context: Optional[str] = None,
 ) -> Path:
     """
     Generate, sanitize, syntax-verify, and write a single artifact to disk.
@@ -252,6 +253,16 @@ def generate_single_artifact(
         ) from exc
 
     current_prompt = rendered_prompt
+    if feedback_context:
+        current_prompt = (
+            f"⚠️ PREVIOUS ATTEMPT FAILED ⚠️\n"
+            f"Your previous attempt to generate this file was rejected by the sandbox validation pipeline.\n"
+            f"Here is the exact error/crash log from the sandbox:\n\n"
+            f"{feedback_context.strip()}\n\n"
+            f"=========================================\n\n"
+            f"{current_prompt}"
+        )
+
     last_error = ""
 
     for attempt in range(max_retries + 1):
@@ -308,6 +319,8 @@ def generate_all_artifacts(
     max_retries: int = DEFAULT_MAX_RETRIES,
     include_dir: Optional[Path] = None,
     progress_callback: Optional[Callable[[str], None]] = None,
+    targets: Optional[List[str]] = None,
+    feedback_context: Optional[Dict[str, str]] = None,
 ) -> Dict[str, Path]:
     """
     Generate statement.md and all four C++ artifacts (validator, generator, solution, checker).
@@ -340,9 +353,13 @@ def generate_all_artifacts(
     generated_dir_path = Path(generated_dir)
 
     json_payload = json.dumps(problem_data, indent=2, ensure_ascii=False)
+    feedback_context = feedback_context or {}
     written_paths: Dict[str, Path] = {}
 
     for spec in ARTIFACTS:
+        if targets is not None and spec.name not in targets:
+            continue
+
         if progress_callback:
             progress_callback(f"Generating {spec.name}...")
 
@@ -355,6 +372,7 @@ def generate_all_artifacts(
             text_model=text_model,
             max_retries=max_retries,
             include_dir=include_dir,
+            feedback_context=feedback_context.get(spec.name),
         )
         written_paths[spec.name] = path
 

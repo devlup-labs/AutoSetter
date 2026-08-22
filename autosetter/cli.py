@@ -161,50 +161,102 @@ def generate_from_image(
     except JSONExtractionError as exc:
         raise AutoSetterError(f"Failed to save problem.json: {exc}") from exc
 
-    # 4. Generate Downstream Artifacts
-    try:
-        generate_all_artifacts(
-            problem_data=problem_data,
-            generated_dir=generated_dir,
-            client=client,
-            prompts_dir=prompts_dir_path,
-            text_model=text_model,
-            progress_callback=logger_fn,
-        )
-    except (CodeGenerationError, OllamaCallError) as exc:
-        raise AutoSetterError(f"Failed while generating code artifacts: {exc}") from exc
-
-    # 5. Sandboxed Validation Pipeline
+    # 4. Generate Downstream Artifacts & Validation Loop
     test_report = None
     validation_error = ""
-    if not skip_validation:
-        logger_fn("Starting validation pipeline...")
-        try:
-            ensure_testlib(generated_dir)
-            sandbox = SandboxLocalClient(testlib_dir=generated_dir)
-            pipeline = TestPipeline(
-                generated_dir=generated_dir,
-                tests_dir=tests_dir,
-                sandbox=sandbox,
-                num_tests=num_tests,
-                progress_callback=logger_fn,
-                samples=problem_data.get("samples") or [],
-            )
-            test_report = pipeline.run()
 
-            if test_report.all_passed:
-                logger_fn(f"✅ All {test_report.passed_tests} tests passed!")
-            else:
-                logger_fn(
-                    f"⚠️  Validation: {test_report.passed_tests}/{test_report.total_tests} "
-                    f"tests passed ({test_report.failed_tests} failed)"
-                )
-        except (SandboxError, PipelineError) as exc:
-            validation_error = str(exc)
-            logger_fn(f"⚠️  Validation encountered an error: {exc}")
-            logger_fn("Continuing to packaging stage, but package is unverified...")
+    if skip_validation:
+        logger_fn("Skipping validation (--skip-validation flag). Generating artifacts once.")
+        try:
+            generate_all_artifacts(
+                problem_data=problem_data,
+                generated_dir=generated_dir,
+                client=client,
+                prompts_dir=prompts_dir_path,
+                text_model=text_model,
+                progress_callback=logger_fn,
+            )
+        except (CodeGenerationError, OllamaCallError) as exc:
+            raise AutoSetterError(f"Failed while generating code artifacts: {exc}") from exc
     else:
-        logger_fn("Skipping validation (--skip-validation flag).")
+        targets = None
+        feedback_context = {}
+        
+        for iteration in range(3):
+            if iteration > 0:
+                logger_fn(f"\n🔄 Initiating Self-Healing Iteration {iteration}/3 for targets: {targets or 'all'}")
+            
+            try:
+                generate_all_artifacts(
+                    problem_data=problem_data,
+                    generated_dir=generated_dir,
+                    client=client,
+                    prompts_dir=prompts_dir_path,
+                    text_model=text_model,
+                    progress_callback=logger_fn,
+                    targets=targets,
+                    feedback_context=feedback_context,
+                )
+            except (CodeGenerationError, OllamaCallError) as exc:
+                raise AutoSetterError(f"Failed while generating code artifacts: {exc}") from exc
+
+            logger_fn("Starting validation pipeline...")
+            try:
+                ensure_testlib(generated_dir)
+                sandbox = SandboxLocalClient(testlib_dir=generated_dir)
+                pipeline = TestPipeline(
+                    generated_dir=generated_dir,
+                    tests_dir=tests_dir,
+                    sandbox=sandbox,
+                    num_tests=num_tests,
+                    progress_callback=logger_fn,
+                    samples=problem_data.get("samples") or [],
+                )
+                test_report = pipeline.run()
+
+                if test_report.all_passed:
+                    logger_fn(f"✅ All {test_report.passed_tests} tests passed!")
+                    break  # Success!
+                else:
+                    logger_fn(
+                        f"⚠️  Validation: {test_report.passed_tests}/{test_report.total_tests} "
+                        f"tests passed ({test_report.failed_tests} failed)"
+                    )
+                    
+                    # Analyze failure for next iteration
+                    targets = []
+                    feedback_context = {}
+                    
+                    if "validator rejects official samples" in test_report.diagnosis:
+                        targets.append("validator")
+                        feedback_context["validator"] = "The validator you generated rejected the official problem samples provided in the problem description."
+                    
+                    if test_report.test_cases:
+                        generator_errors = [tc.error for tc in test_report.test_cases if not tc.generator_ok or (tc.generator_ok and not tc.validator_ok)]
+                        if generator_errors:
+                            targets.append("generator")
+                            feedback_context["generator"] = f"Your generator produced output that violates the constraints or crashed. Error: {generator_errors[0]}"
+                        
+                        solution_errors = [tc.error for tc in test_report.test_cases if not tc.solution_ok]
+                        if solution_errors:
+                            targets.append("solution")
+                            feedback_context["solution"] = f"Your reference solution crashed or gave Wrong Answer. Error: {solution_errors[0]}"
+                            
+                    if not test_report.checker_trusted and not "validator rejects official samples" in test_report.diagnosis:
+                        if "checker" not in targets:
+                            targets.append("checker")
+                        feedback_context["checker"] = "The checker accepts definitely wrong outputs, meaning it is flawed and would accept wrong contestant submissions. You must write a strict checker."
+                            
+                    if not targets:
+                        # Fallback if we can't pinpoint the error
+                        targets = None
+                        feedback_context = {}
+                        
+            except (SandboxError, PipelineError) as exc:
+                validation_error = str(exc)
+                logger_fn(f"⚠️  Validation encountered a fatal error: {exc}")
+                logger_fn("Continuing to packaging stage, but package is unverified...")
+                break
 
     # 6. Release Packaging
     logger_fn("Packaging release bundle...")

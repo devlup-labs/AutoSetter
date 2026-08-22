@@ -19,7 +19,7 @@ REQUIREMENTS & BEHAVIOR:
    - For integers: `rnd.next(min_val, max_val)`
    - For 64-bit integers: `rnd.next(min_ll, max_ll)`
    - For floating-point: `rnd.next(min_d, max_d)`
-   - For random characters/strings: `rnd.next("[a-zA-Z]{1,100}")` or pick characters randomly using `rnd.next('a', 'z')`
+   - For random strings: NEVER use testlib regex generation like `rnd.next("[a-z.*]{1,20}")` because it crashes on special characters. ALWAYS generate strings manually using a `for` loop and picking characters randomly with `rnd.next('a', 'z')` or `rnd.any(...)`.
    - For shuffling/permutations: `rnd.shuffle(vec.begin(), vec.end())`
    - STRICTLY FORBIDDEN: Do NOT use `rand()`, `srand()`, `<random>`, `std::mt19937`.
 4. NO HARDCODED STATIC SAMPLES:

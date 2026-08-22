@@ -97,7 +97,7 @@ class Packager:
         solutions_dir = self.package_dir / "solutions"
         solutions_dir.mkdir(exist_ok=True)
         
-        for sol_name in ["solution.cpp", "solution.wa.cpp", "solution.brute.cpp", "solution.tle.cpp"]:
+        for sol_name in ["solution.cpp", "solution.greedy.cpp", "solution.brute.cpp", "solution.heavy.cpp"]:
             sol_src = self.generated_dir / sol_name
             if sol_src.exists():
                 shutil.copy2(sol_src, solutions_dir / sol_name)
