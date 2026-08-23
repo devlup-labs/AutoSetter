@@ -194,9 +194,10 @@ def strip_code_fence(text: str) -> str:
     # 4. Return as-is if no fences found
     return stripped + "\n"
 
-
+    """
     This function ensures that the standard competitive programming headers and `using namespace std;`
     are present in the generated C++ source code to prevent namespace and type errors.
+    """
     cleaned = code.strip()
     if not cleaned:
         return code
@@ -283,6 +284,7 @@ def generate_single_artifact(
     include_dir: Optional[Path] = None,
     feedback_context: Optional[str] = None,
 ) -> Path:
+    """
     Generate, sanitize, syntax-verify, and write a single artifact to disk
     using the Ollama backend.
 
