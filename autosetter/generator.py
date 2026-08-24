@@ -194,8 +194,10 @@ def strip_code_fence(text: str) -> str:
     # 4. Return as-is if no fences found
     return stripped + "\n"
 
+
+def sanitize_cpp_code(code: str, is_testlib: bool = True) -> str:
     """
-    This function ensures that the standard competitive programming headers and `using namespace std;`
+    Ensure standard competitive programming headers and `using namespace std;`
     are present in the generated C++ source code to prevent namespace and type errors.
     """
     cleaned = code.strip()
