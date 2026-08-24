@@ -73,7 +73,7 @@ The repository adopts responsibility-based modular organization:
   3. `generator.txt` ➔ `generated/generator.cpp` (uses `testlib.h`)
   4. `solution.txt` ➔ `generated/solution.cpp` (optimal C++17 solution)
   5. `checker.txt` ➔ `generated/checker.cpp` (uses `testlib.h`)
-- Runs text inference against a local coding model (`qwen2.5-coder:1.5b`).
+- Runs text inference against a local coding model (`qwen2.5-coder:7b`).
 
 ### Stage 3: Sandboxed Validation & Attribution (`autosetter.pipeline`)
 To avoid model self-hallucination (where flawed code agrees with flawed tests), the pipeline executes three safeguards:

@@ -106,7 +106,7 @@ def generate_from_image(
     vision_model : str
         Ollama vision model name (e.g. 'qwen2.5vl:3b') — 1st model, UNCHANGED.
     text_model : str
-        Ollama text model name (e.g. 'qwen2.5-coder:1.5b') — for non-HF artifacts.
+        Ollama text model name (e.g. 'qwen2.5-coder:7b') — for text/code artifacts.
     ollama_host : str
         Base URL for the Ollama daemon.
     num_tests : int

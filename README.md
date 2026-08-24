@@ -80,7 +80,7 @@ AutoSetter/
 - Local [Ollama](https://ollama.com/) instance with models pulled:
   ```bash
   ollama pull qwen2.5vl:3b
-  ollama pull qwen2.5-coder:1.5b
+  ollama pull qwen2.5-coder:7b
   ```
 
 ### Install Dependencies
@@ -112,7 +112,7 @@ positional arguments:
 
 options:
   --vision-model MODEL    Vision model name (default: qwen2.5vl:3b)
-  --text-model MODEL      Text model name (default: qwen2.5-coder:1.5b)
+  --text-model MODEL      Text model name (default: qwen2.5-coder:7b)
   --host URL              Ollama server URL (default: http://localhost:11434)
   --num-tests N           Number of test cases to generate (default: 10)
   --skip-validation       Skip sandbox compilation and validation stage
