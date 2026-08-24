@@ -16,6 +16,51 @@ statement image / PDF
 
 ---
 
+## Quickstart (Google Colab + Cloudflare Tunnel)
+
+### Step 1: Run this in a Google Colab notebook (GPU runtime)
+
+```python
+# 1. Install Ollama & Cloudflared
+!apt-get update -qq && apt-get install -y -qq zstd pciutils lshw
+!curl -fsSL https://ollama.com/install.sh | sh
+!wget -q https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+!dpkg -i cloudflared-linux-amd64.deb
+
+# 2. Start Ollama in the background
+import os
+import time
+os.environ['OLLAMA_HOST'] = '0.0.0.0'
+get_ipython().system_raw('ollama serve > ollama.log 2>&1 &')
+time.sleep(5)
+
+# 3. Pull the correct 7B models
+!ollama pull qwen2.5vl:7b
+!ollama pull qwen2.5-coder:7b
+
+# 4. Start Cloudflare tunnel and print the URL
+get_ipython().system_raw('cloudflared tunnel --url http://localhost:11434 > tunnel.log 2>&1 &')
+time.sleep(8)
+print("\n--- COPY THE URL BELOW ---")
+!grep -o 'https://.*\.trycloudflare\.com' tunnel.log
+print("--------------------------\n")
+```
+
+### Step 2: Run this on your local terminal
+
+```bash
+# 1. Clean previous run outputs
+rm -rf out
+
+# 2. Set environment variables (Replace the URL with the one Colab printed)
+export OLLAMA_HOST="https://YOUR-NEW-URL.trycloudflare.com"
+export AUTOSETTER_VISION_MODEL="qwen2.5vl:7b"
+export AUTOSETTER_TEXT_MODEL="qwen2.5-coder:7b"
+
+# 3. Execute the pipeline
+python3 app.py statement.png
+```
+
 ## Clean 4-Folder Repository Structure
 
 The repository is organized into **exactly 4 top-level directories**, keeping the root clean, modular, and intuitive:

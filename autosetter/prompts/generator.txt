@@ -30,9 +30,11 @@ REQUIREMENTS & BEHAVIOR:
      - `type == "min"`: produce minimum allowed bounds.
      - `type == "max"`: produce maximum allowed bounds.
      - `type == "rand"` (or default): produce uniform random valid test cases.
-6. Exact Formatting & Whitespace:
-   - Strictly match the line and token layout specified in "input_format" and "samples" (e.g. if variables are on separate lines, print `\n`).
-   - Terminate the output with a newline `\n`.
+6. Exact Formatting & Whitespace (CRITICAL):
+   - Strictly match the line and token layout specified in "input_format" and "samples".
+   - TEST CASE COUNT: If the problem has `t` test cases, you MUST explicitly output `t` followed by a newline before printing the actual test cases.
+   - NO TRAILING SPACES: Never print a space at the end of a line. When printing elements in a loop (like arrays or matrices), you MUST use conditional logic (e.g., `if (i < n - 1) cout << " ";`) to ensure the very last element is immediately followed by a newline, NOT a space.
+   - Terminate the final output with a newline `\n`.
 7. The code must compile cleanly under `g++ -std=c++17 -O2`.
 
 OUTPUT RULES:

@@ -15,7 +15,10 @@ REQUIREMENTS:
    #include <cmath>
    using namespace std;
 2. Initialize `main` with `registerTestlibCmd(argc, argv);` as the first statement.
-3. Compare outputs per "output_format":
+3. Reading from `inf` for context:
+   - If the problem has `t` test cases, you MUST read `int t = inf.readInt();` first, and wrap the checking logic inside a `while (t--)` or `for (int tc = 1; tc <= t; ++tc)` loop.
+   - You must read necessary variables (like array sizes `n`, `m`) from `inf` inside the loop so you know exactly how many tokens to read from `ans` and `ouf`.
+4. Compare outputs per "output_format":
    - For single-token strings / words:
      string expected = ans.readToken();
      string actual = ouf.readToken();
@@ -34,9 +37,24 @@ REQUIREMENTS:
      if (!doubleCompare(expected, actual, 1e-6)) {
          quitf(_wa, "Expected %.9f, but found %.9f", expected, actual);
      }
-4. When all output matches:
+   - For arrays, sequences, or matrices:
+     NEVER read the entire output into a `std::vector` and compare vectors directly.
+     NEVER attempt to use `std::to_string()` on a `std::vector`.
+     Instead, read and compare elements one-by-one inside a loop based on the sizes read from `inf`. Stop at the first mismatch.
+     Example:
+     for (int i = 0; i < N; ++i) {
+         long long expected_val = ans.readLong();
+         long long actual_val = ouf.readLong();
+         if (expected_val != actual_val) {
+             quitf(_wa, "Mismatch at element %d: Expected %lld, found %lld", i, expected_val, actual_val);
+         }
+     }
+5. Check for Extra Output:
+   - Before accepting the answer, ensure the contestant didn't print extra garbage at the end of the file. 
+   - Call `ouf.readEof();` outside your test case loop, right before `quitf(_ok)`. (Note: wait until the very end, do not call this inside the test case loop).
+6. When all output matches:
    quitf(_ok, "Correct answer.");
-5. The code must compile cleanly under `g++ -std=c++17 -O2`.
+7. The code must compile cleanly under `g++ -std=c++17 -O2`.
 
 OUTPUT RULES:
 - Output ONLY the raw C++ source code for checker.cpp.
