@@ -1,35 +1,301 @@
-You are a competitive programmer writing a "Naive / Brute Force" solution for a competitive programming problem. 
+You are given a competitive programming problem as a structured JSON specification.
 
-Below is the structured JSON specification of the problem:
-
+INPUT SPECIFICATION:
 {JSON}
 
-Your objective is to write a complete C++17 solution (`solution.brute.cpp`) that simulates the problem process or explores the entire search space without ANY optimizations. 
+TASK:
+Generate a complete brute-force C++17 solution for the problem described in the JSON specification.
 
-### STRICT REQUIREMENTS & CONSTRAINTS
+Your objective is to construct an algorithm that is mathematically correct for every valid input but deliberately avoids optimization. The resulting algorithm should simulate the process directly, enumerate the relevant search space, or use straightforward nested iteration. It should naturally exceed the time limit on maximum constraints where a significantly more efficient algorithm exists.
 
-1. **Algorithmic Approach (Expected TLE)**:
-   - Do NOT use the optimal algorithm (e.g., do not use $O(N)$ logic, Dynamic Programming, Segment Trees, or clever mathematical tricks).
-   - Use an exhaustive search, simple step-by-step simulation, or unoptimized nested loops (e.g., $O(N^2)$, $O(N!)$, or $O(2^N)$).
-   - The solution must intentionally be slow enough that it naturally exceeds the time limit (TLE) on maximum constraints.
+EXECUTION PROCEDURE
+Follow the procedure below in order. Do not skip, merge, or replace any stage.
 
-2. **Mathematical Correctness**:
-   - Despite being slow, the logic MUST be 100% mathematically correct.
-   - If given infinite time and memory, your brute force code MUST output the exact correct answer for all valid inputs.
-   - It must perfectly pass all provided "samples".
+==================================================
+STAGE 1 — PARSE THE PROBLEM SPECIFICATION
+=========================================
 
-3. **C++ Standard & Headers**:
-   - Use standard competitive programming headers.
-   - Include the boilerplate: `#include <iostream>`, `#include <vector>`, etc., and `using namespace std;`.
+Extract and identify all information available in the JSON, including:
 
-4. **Fast I/O**:
-   - Include `ios_base::sync_with_stdio(false); cin.tie(nullptr);` inside `main()`.
+1. The problem objective.
+2. Input variables.
+3. Input constraints.
+4. Output requirements.
+5. Required operations or transitions.
+6. Valid states, choices, combinations, permutations, or search space.
+7. Sample inputs and outputs.
+8. Edge cases implied by the constraints.
+9. Any definitions necessary for mathematical correctness.
 
-5. **I/O Format**:
-   - Your `cin` / `cout` stream logic must EXACTLY mirror the variables described in "input_format" and "output_format".
+Use the fields in the JSON specification as the authoritative source of truth.
 
-### OUTPUT FORMAT RULES
-- Output ONLY the raw C++ source code.
-- NEVER wrap the code in markdown fences (do not output ```cpp or ```).
-- NEVER include any explanations, comments outside the code, or apologies.
-- Output ONLY the literal C++ text.
+The generated program's input and output behavior must exactly match the JSON specification.
+
+Do not invent additional input variables, output values, assumptions, or problem rules.
+
+==================================================
+STAGE 2 — IDENTIFY THE DIRECT SEARCH SPACE
+==========================================
+
+Determine the most direct mathematically correct brute-force formulation of the problem.
+
+Choose one or more of the following approaches when applicable:
+
+* Exhaustive enumeration.
+* Complete search over all valid states.
+* Enumeration of all subsets.
+* Enumeration of all permutations.
+* Enumeration of all combinations.
+* Enumeration of all candidate answers.
+* Direct simulation of every operation.
+* Repeated scanning of the complete input.
+* Naive pairwise comparison.
+* Naive triple or higher-order nested comparison.
+* Recursive backtracking without optimization.
+* Explicit state exploration without pruning unless pruning is required for correctness.
+* Direct checking of every valid possibility.
+
+The selected approach must prioritize simplicity and completeness over efficiency.
+
+Do not replace exhaustive exploration with an optimized observation, shortcut, invariant, data structure, preprocessing technique, or mathematical simplification merely to improve complexity.
+
+==================================================
+STAGE 3 — ENFORCE THE NAIVE / BRUTE-FORCE COMPLEXITY
+====================================================
+
+The algorithm must intentionally remain computationally expensive.
+
+Prefer a direct complexity such as:
+
+* O(N²)
+* O(N³)
+* O(N^K)
+* O(2^N)
+* O(N!)
+* O(number of all reachable states)
+
+when such direct exploration is mathematically appropriate.
+
+The implementation must NOT intentionally optimize itself to pass maximum constraints.
+
+Specifically, do not use an algorithmic shortcut equivalent to:
+
+* Optimal O(N) or near-O(N) logic.
+* Dynamic Programming intended to reduce repeated computation.
+* Segment Trees.
+* Fenwick Trees / Binary Indexed Trees.
+* Sparse tables.
+* Binary lifting.
+* Divide-and-conquer optimization.
+* Convex hull trick.
+* Greedy optimization when exhaustive search is the direct brute-force alternative.
+* Advanced graph algorithms when direct state exploration is sufficient.
+* Clever mathematical formulas that replace enumeration.
+* Hashing intended to eliminate repeated searching.
+* Precomputation intended primarily to improve asymptotic complexity.
+* Memoization intended primarily to avoid repeated brute-force computation.
+* Any optimization whose purpose is to make the algorithm pass the maximum time limit.
+
+Do not optimize repeated work simply because it is redundant if performing that repeated work is part of the natural naive solution.
+
+The expected behavior on maximum constraints should naturally be Time Limit Exceeded when the brute-force complexity is asymptotically too large.
+
+Do not artificially insert meaningless delays, sleeps, infinite loops, or unrelated computations merely to force TLE.
+
+The slowness must arise naturally from the genuine brute-force algorithm.
+
+==================================================
+STAGE 4 — PRESERVE MATHEMATICAL CORRECTNESS
+===========================================
+
+Despite the intentionally inefficient complexity, the algorithm must be fully correct.
+
+The following condition is mandatory:
+
+If given sufficient time and memory, the program must produce the exact correct output for every valid input described by the JSON specification.
+
+Before producing the final code, verify all of the following internally:
+
+1. Every valid case is considered when exhaustive exploration is required.
+2. No valid candidate is accidentally skipped.
+3. No invalid candidate is accepted.
+4. Every simulation transition follows the problem definition.
+5. Boundary conditions are handled correctly.
+6. Minimum and maximum valid input sizes are handled.
+7. Duplicate values or equivalent states are handled according to the problem rules.
+8. Integer ranges are sufficient for all calculations.
+9. The final answer is selected using the exact criterion specified by the problem.
+10. The logic is consistent with all provided samples.
+
+Correctness has higher priority than speed.
+
+A slow but correct algorithm is required.
+
+A fast but incorrect or optimized algorithm is not acceptable.
+
+==================================================
+STAGE 5 — SAMPLE VALIDATION
+===========================
+
+Use every sample provided in the JSON specification as a mandatory correctness check.
+
+For each sample:
+
+1. Parse the input exactly as the program will parse it.
+2. Apply the brute-force algorithm.
+3. Verify that the resulting output exactly matches the specified sample output.
+
+Do not alter the algorithm merely to hardcode or special-case sample answers.
+
+The general algorithm must produce the sample results naturally.
+
+==================================================
+STAGE 6 — MAP THE EXACT I/O FORMAT
+==================================
+
+Construct the C++ input logic directly from the JSON field describing the input format.
+
+Requirements:
+
+* Read all variables in the exact specified order.
+* Use `cin` for input.
+* Respect the number of test cases if present.
+* Respect arrays, matrices, strings, queries, operations, and repeated structures exactly as specified.
+* Do not request input that is not part of the specification.
+* Do not omit any required input.
+
+Construct the output logic directly from the JSON field describing the output format.
+
+Requirements:
+
+* Output exactly the requested value or values.
+* Preserve required ordering.
+* Preserve required line structure.
+* Do not print labels unless explicitly required.
+* Do not print debugging information.
+* Do not print explanations.
+* Do not print complexity analysis.
+* Do not print additional whitespace-dependent text beyond valid competitive programming output.
+
+The `cin` and `cout` logic must exactly mirror the variables and structure described in `input_format` and `output_format`.
+
+==================================================
+STAGE 7 — IMPLEMENTATION REQUIREMENTS
+=====================================
+
+Generate a complete standalone C++17 source file.
+
+Use standard competitive programming conventions.
+
+Include the required headers appropriate for the implementation, including at minimum the standard headers needed by the generated code.
+
+Use:
+
+#include <iostream>
+#include <vector>
+
+and any additional standard C++ headers genuinely required by the brute-force implementation.
+
+Also include:
+
+using namespace std;
+
+The `main()` function must contain:
+
+ios_base::sync_with_stdio(false);
+cin.tie(nullptr);
+
+The program must compile under the C++17 standard.
+
+Do not depend on:
+
+* External libraries.
+* Non-standard libraries.
+* External files.
+* Network access.
+* Interactive tools unless the JSON explicitly describes an interactive problem.
+* Compiler extensions that are unnecessary for a C++17 solution.
+
+==================================================
+STAGE 8 — ANTI-OPTIMIZATION CHECK
+=================================
+
+Before finalizing the code, inspect the chosen algorithm and implementation for accidental optimization.
+
+Ask the following questions internally:
+
+A. Did any mathematical shortcut replace direct enumeration?
+
+B. Did any preprocessing reduce the natural brute-force search space?
+
+C. Did any memoization, caching, or dynamic programming avoid repeated exploration?
+
+D. Did any data structure reduce a repeated linear scan into a logarithmic or constant-time operation?
+
+E. Did any greedy observation replace exhaustive candidate evaluation?
+
+F. Did any pruning remove valid states for performance rather than because they are mathematically impossible?
+
+G. Did the implementation accidentally become efficient enough to represent an intended optimal solution?
+
+If the answer to any of these questions is YES, remove or replace that optimization with the most direct correct brute-force alternative.
+
+Exception:
+
+Basic implementation necessities are allowed when they do not change the intended brute-force algorithmic nature, such as:
+
+* Storing input.
+* Maintaining loop counters.
+* Maintaining the current best answer.
+* Performing direct validity checks.
+* Using standard containers to represent the problem state.
+
+==================================================
+STAGE 9 — FINAL CONSISTENCY CHECK
+=================================
+
+Perform a final internal consistency pass before generating the output.
+
+Verify:
+
+1. The solution solves the problem defined by `{JSON}`.
+2. The solution is mathematically correct.
+3. The solution explores or simulates the required possibilities directly.
+4. The solution does not use the intended optimal algorithm.
+5. The solution does not use Dynamic Programming.
+6. The solution does not use advanced optimization techniques.
+7. The solution naturally has brute-force complexity.
+8. The solution is expected to exceed the time limit on sufficiently large maximum inputs when appropriate.
+9. The solution would still produce the correct answer if unlimited computational resources were available.
+10. The solution exactly matches all samples.
+11. The source code is valid C++17.
+12. The input parsing exactly follows `input_format`.
+13. The output exactly follows `output_format`.
+14. Fast I/O initialization is present.
+15. No explanatory text is included outside the C++ source code.
+
+==================================================
+OUTPUT PROTOCOL
+===============
+
+After completing all stages, output ONLY the complete raw C++17 source code.
+
+Mandatory output restrictions:
+
+* Output only literal C++ source code.
+* Do not use Markdown.
+* Do not wrap the code in triple backticks.
+* Do not output ```cpp.
+* Do not include an explanation before the code.
+* Do not include an explanation after the code.
+* Do not include an algorithm description.
+* Do not include a complexity analysis outside the code.
+* Do not include apologies.
+* Do not include validation notes.
+* Do not include any text that is not part of the C++ source file.
+
+FINAL OBJECTIVE:
+
+Produce `solution.brute.cpp` as a complete, standalone, mathematically correct, intentionally naive C++17 implementation of the problem specified by `{JSON}`.
+
+The implementation must favor exhaustive correctness over performance and must avoid algorithmic optimization.

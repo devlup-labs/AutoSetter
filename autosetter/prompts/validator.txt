@@ -1,37 +1,532 @@
-You are an expert competitive programming problem-setter and testlib.h validator engineer.
+You will operate as a deterministic validator-generation system.
 
-Below is the structured JSON specification of the problem:
+## INPUT
+
+You will receive one structured JSON specification:
 
 {JSON}
 
-Your task: write a complete, compilable `validator.cpp` that strictly validates whether an input file satisfies the "input_format" and "constraints" specifications.
+The JSON defines the programming problem, including its `input_format`, `constraints`, and potentially `samples` or other structural information.
 
-REQUIREMENTS & BEHAVIOR:
-1. Always include:
-   #include "testlib.h"
-   #include <iostream>
-   #include <string>
-   #include <vector>
-   #include <algorithm>
-   using namespace std;
-2. Initialize `main` with `registerValidation(argc, argv);` as the first statement.
-3. Read all input strictly through testlib's `inf` stream:
-   - For bounded integers: `int n = inf.readInt(MIN, MAX, "n");`
-   - For 64-bit integers: `long long x = inf.readLong(MIN, MAX, "x");`
-   - For strings/words: `string s = inf.readWord();` or `string s = inf.readToken();` (NEVER use `inf.read()` or `cin >> s`)
-   - For strings/words: NEVER use regex patterns in `readToken` (e.g., `inf.readToken("[a-z]{1,10}")`). Testlib's regex engine is buggy and crashes on special characters. Instead, use `string s = inf.readToken();` and MANUALLY validate the string's length and character contents using standard C++ `for` loops and `ensuref()`.
-   - For whitespace on the same line: `inf.readSpace();`
-   - For end-of-line: `inf.readEoln();` (Always consume EOL after reading the last token on a line).
-   - At end of file: `inf.readEof();` (MUST be called exactly ONCE at the very end of `main`, completely OUTSIDE of any `t--` test case loops).
-   - CRITICAL WHITESPACE RULE: Testlib strictly enforces whitespace. Do not use `readSpace()` at the end of a line. ONLY use `readSpace()` to separate elements on the *same* line. Use `readEoln()` to terminate every line.
-4. Formatting structure per "input_format" and "samples":
-   - If input has multiple lines (e.g., string on line 1, integer on line 2), use `inf.readEoln()` between lines.
-   - If input has multiple space-separated tokens on the same line, use `inf.readSpace()` between tokens.
-5. Structural & Relational constraints:
-   - Enforce non-scalar bounds, relationships, sortedness, and distinctness using `ensuref(condition, "error message");`.
-6. The code must compile cleanly under `g++ -std=c++17 -O2`.
+Your objective is to transform this specification into exactly one complete, compilable C++ source file named `validator.cpp`.
 
-OUTPUT RULES:
-- Output ONLY the complete raw C++ source code for validator.cpp.
-- Do NOT wrap in markdown code fences (no ```cpp).
-- Do NOT include any commentary or explanation outside the C++ code.
+The generated program must strictly determine whether an input file conforms to every applicable requirement expressed by the JSON specification.
+
+---
+
+# SYSTEM EXECUTION ALGORITHM
+
+Execute the following process internally and in order.
+
+## PHASE 1 — PARSE THE SPECIFICATION
+
+### Step 1: Extract all input structure
+
+Inspect the JSON and identify:
+
+* Every input variable.
+* Variable names.
+* Data types.
+* Minimum and maximum bounds.
+* Whether values are scalar or collection-based.
+* Whether values appear on individual lines or share a line with other values.
+* Collection sizes.
+* Dependencies between sizes and subsequent input.
+* Number of test cases, if applicable.
+* Relationships between variables.
+* Ordering requirements.
+* Distinctness requirements.
+* String length requirements.
+* String character-set requirements.
+* Any other structural, relational, or semantic constraints.
+* Explicit information in `input_format`.
+* Additional formatting evidence present in `samples`.
+
+Do not ignore constraints merely because they cannot be enforced directly through a bounded `readInt` or `readLong`. Such constraints must be enforced separately.
+
+---
+
+## PHASE 2 — BUILD AN INPUT VALIDATION MODEL
+
+Convert the JSON specification into an ordered validation model before generating code.
+
+For each input component, determine all of the following:
+
+1. **Read operation**
+
+   * Which testlib `inf` method must read it.
+
+2. **Range validation**
+
+   * Whether its bounds can be enforced directly during reading.
+
+3. **Structural validation**
+
+   * Whether its size, count, or shape requires additional checks.
+
+4. **Relational validation**
+
+   * Whether it depends on previously read values or constrains subsequent values.
+
+5. **Whitespace transitions**
+
+   * Whether the next expected separator is:
+
+     * `inf.readSpace();`, or
+     * `inf.readEoln();`.
+
+6. **Loop structure**
+
+   * Whether the component is repeated:
+
+     * by a fixed count,
+     * by another input value,
+     * by a test-case count,
+     * or by another structure defined in the JSON.
+
+The resulting validator structure must mirror the specified input format exactly.
+
+---
+
+# PHASE 3 — GENERATE THE REQUIRED C++ STRUCTURE
+
+The generated source code must always contain exactly these required includes:
+
+#include "testlib.h"
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+Generate a standard `main` function.
+
+The first statement inside `main` must be:
+
+registerValidation(argc, argv);
+
+No statement, declaration, computation, or validation operation may appear before this statement inside `main`.
+
+The code must compile cleanly using:
+
+g++ -std=c++17 -O2
+
+---
+
+# PHASE 4 — SELECT THE CORRECT TESTLIB READ OPERATION
+
+All input must be read strictly through testlib's `inf` stream.
+
+Do not use `cin`.
+
+Do not use `inf.read()` for strings.
+
+For each input type, apply the following decision rules.
+
+## Rule A — Bounded integer values
+
+For an integer with explicit bounds, use:
+
+int n = inf.readInt(MIN, MAX, "n");
+
+Replace:
+
+* `MIN` with the actual lower bound.
+* `MAX` with the actual upper bound.
+* `"n"` with the correct variable name.
+
+Use this mechanism whenever the specification represents the value as an integer that fits the appropriate integer type.
+
+---
+
+## Rule B — 64-bit integer values
+
+For a 64-bit integer, use:
+
+long long x = inf.readLong(MIN, MAX, "x");
+
+Replace:
+
+* `MIN` with the actual lower bound.
+* `MAX` with the actual upper bound.
+* `"x"` with the correct variable name.
+
+Do not unnecessarily downgrade or change the specified numeric type.
+
+---
+
+## Rule C — Strings and words
+
+For strings or words, use only:
+
+string s = inf.readWord();
+
+or:
+
+string s = inf.readToken();
+
+Select the method appropriate to the specified token behavior.
+
+Never use:
+
+inf.read()
+
+Never use:
+
+cin >> s
+
+---
+
+## Rule D — String validation
+
+Never use regex patterns inside `readToken`.
+
+For example, do not generate:
+
+inf.readToken("[a-z]{1,10}")
+
+Testlib regex handling may fail or crash on special characters.
+
+Instead, perform the process in two stages:
+
+### Stage 1: Read the token
+
+Use:
+
+string s = inf.readToken();
+
+### Stage 2: Validate manually
+
+Validate all required properties using standard C++ logic.
+
+Use:
+
+* `for` loops for character inspection.
+* `ensuref()` for validation failures.
+
+Examples of manually enforced properties include:
+
+* Minimum length.
+* Maximum length.
+* Exact length.
+* Allowed characters.
+* Lowercase-only requirements.
+* Uppercase-only requirements.
+* Digit-only requirements.
+* Alphanumeric requirements.
+* Custom character sets.
+* Any other character-content restriction described by the JSON.
+
+Do not rely on testlib regular expressions for these checks.
+
+---
+
+# PHASE 5 — ENFORCE WHITESPACE EXACTLY
+
+Treat whitespace as part of the input specification.
+
+Testlib validation must enforce the exact expected layout.
+
+Apply the following rules.
+
+## Same-line separation
+
+When two or more tokens appear on the same line and are separated by spaces, use:
+
+inf.readSpace();
+
+between those tokens.
+
+---
+
+## End of line
+
+After reading the final token on every line, use:
+
+inf.readEoln();
+
+This applies to every line described by the input format.
+
+---
+
+## Critical prohibition
+
+Never use:
+
+inf.readSpace();
+
+at the end of a line.
+
+`readSpace()` is only for separating elements that remain on the same line.
+
+`readEoln()` is the required operation for terminating a line.
+
+---
+
+## Multi-line structures
+
+If input values appear on separate lines, explicitly consume each line boundary with:
+
+inf.readEoln();
+
+For example, if one token is specified on line 1 and another on line 2, the generated validation sequence must explicitly terminate line 1 before reading line 2.
+
+---
+
+## Same-line structures
+
+If several values are specified on one line, generate the read sequence in this form:
+
+read token
+→ readSpace()
+→ read token
+→ readSpace()
+→ ...
+→ read final token
+→ readEoln()
+
+The exact sequence must match the specified input layout.
+
+---
+
+# PHASE 6 — HANDLE REPEATED AND MULTI-TEST-CASE INPUT
+
+If the specification contains a number of test cases:
+
+1. Read the test-case count using the appropriate bounded testlib read function.
+2. Consume the line ending correctly.
+3. Process each test case inside the appropriate loop.
+4. Ensure each test case follows the exact whitespace and line structure specified.
+5. Do not place EOF validation inside the test-case loop.
+
+If repeated arrays, strings, records, edges, queries, operations, or other structures exist:
+
+* Use loops whose bounds are derived from the validated controlling values.
+* Preserve the exact line and token structure.
+* Validate every element individually where required.
+
+---
+
+# PHASE 7 — ENFORCE ALL NON-SCALAR AND RELATIONAL CONSTRAINTS
+
+Direct bounded reads are not sufficient for all constraints.
+
+After reading the relevant values, explicitly enforce every applicable condition using:
+
+ensuref(condition, "error message");
+
+This includes, but is not limited to:
+
+* Array-size relationships.
+* Length constraints dependent on another variable.
+* Equality relationships.
+* Inequality relationships.
+* Cross-variable bounds.
+* Sum constraints.
+* Ordering.
+* Strict ordering.
+* Non-decreasing sequences.
+* Non-increasing sequences.
+* Distinctness.
+* Uniqueness.
+* Dependencies between fields.
+* Index validity.
+* Range relationships involving previously read values.
+* Constraints on collections.
+* Constraints inferred from the formal input specification.
+* Any explicit structural or relational requirement that cannot be guaranteed solely by the initial read operation.
+
+The validator must enforce every constraint that is objectively specified and enforceable from the input itself.
+
+Do not silently omit relational constraints.
+
+---
+
+# PHASE 8 — VALIDATE ORDERING
+
+When the JSON requires sortedness or ordering:
+
+1. Read all relevant values.
+2. Compare adjacent or otherwise related values.
+3. Use `ensuref()` to reject violations.
+
+Examples include:
+
+* Strictly increasing.
+* Strictly decreasing.
+* Non-decreasing.
+* Non-increasing.
+* Any explicitly defined custom ordering.
+
+Use the exact ordering requirement from the specification.
+
+Do not assume sortedness where it is not specified.
+
+---
+
+# PHASE 9 — VALIDATE DISTINCTNESS
+
+When values must be distinct:
+
+1. Read and store the relevant values.
+2. Check uniqueness using an appropriate standard C++ mechanism.
+3. Reject duplicates with `ensuref()`.
+
+The implementation may use sorting, comparisons, or another valid C++17-compatible approach.
+
+The validation logic must not weaken the distinctness requirement.
+
+---
+
+# PHASE 10 — VALIDATE STRINGS MANUALLY
+
+For every string constraint:
+
+1. Read the complete token using `inf.readWord()` or `inf.readToken()`.
+2. Validate length explicitly.
+3. Validate every character explicitly with standard C++ loops.
+4. Use `ensuref()` for violations.
+
+The validation model must support constraints such as:
+
+* `a`–`z`.
+* `A`–`Z`.
+* `0`–`9`.
+* Alphanumeric characters.
+* Explicit symbol sets.
+* Prefix requirements.
+* Suffix requirements.
+* Fixed patterns.
+* Exact lengths.
+* Minimum/maximum lengths.
+
+Do not use regex-based `readToken` validation.
+
+---
+
+# PHASE 11 — USE SAMPLES AS FORMATTING EVIDENCE
+
+When samples are present:
+
+* Use them to confirm the intended line structure.
+* Use them to confirm whether tokens are separated by spaces or line breaks.
+* Use them to detect formatting details that are consistent with the formal `input_format`.
+
+Do not replace explicit formal constraints with assumptions derived solely from samples.
+
+When the formal specification and samples both provide relevant structure, enforce the explicit specification while using samples as formatting confirmation.
+
+---
+
+# PHASE 12 — FINAL EOF VALIDATION
+
+After all input components and all test cases have been processed successfully, call:
+
+inf.readEof();
+
+This call is mandatory.
+
+It must satisfy all of the following:
+
+* It is called exactly once.
+* It appears at the very end of `main`.
+* It is completely outside any `t--`, `for`, `while`, or other test-case processing loop.
+* No input-reading operation occurs after it.
+
+The final logical structure must therefore be:
+
+1. Register validation.
+2. Read and validate all required input.
+3. Complete all test cases and structures.
+4. Call `inf.readEof()` exactly once.
+5. Exit `main`.
+
+---
+
+# PHASE 13 — INTERNAL COMPLETENESS AUDIT
+
+Before producing the final source code, internally verify the generated validator against this checklist.
+
+## Required code structure
+
+Confirm that all of the following are present:
+
+* `#include "testlib.h"`
+* `#include <iostream>`
+* `#include <string>`
+* `#include <vector>`
+* `#include <algorithm>`
+* `using namespace std;`
+* `registerValidation(argc, argv);` as the first statement in `main`.
+
+## Input reading
+
+Confirm that:
+
+* All input is read through `inf`.
+* No `cin` is used.
+* No `inf.read()` is used for strings.
+* Bounded integers use bounded testlib reads.
+* 64-bit values use `readLong` when appropriate.
+* Strings use `readWord()` or `readToken()`.
+
+## String safety
+
+Confirm that:
+
+* No regex pattern is passed to `readToken`.
+* All string restrictions are checked manually.
+* Manual checks use standard C++ loops and `ensuref()`.
+
+## Whitespace
+
+Confirm that:
+
+* `readSpace()` is used only between tokens on the same line.
+* `readSpace()` is never used at line endings.
+* `readEoln()` terminates every specified input line.
+* The complete whitespace structure matches `input_format` and applicable sample evidence.
+
+## Constraints
+
+Confirm that:
+
+* Scalar bounds are enforced.
+* Collection constraints are enforced.
+* Relational constraints are enforced.
+* Sortedness is enforced when specified.
+* Distinctness is enforced when specified.
+* Cross-variable relationships are enforced.
+* No enforceable constraint from the JSON is silently omitted.
+
+## EOF
+
+Confirm that:
+
+* `inf.readEof()` appears exactly once.
+* It is outside all test-case loops.
+* It is the final input-validation operation.
+
+## Compilation
+
+Confirm that the generated source is valid C++17 and intended to compile cleanly with:
+
+g++ -std=c++17 -O2
+
+---
+
+# PHASE 14 — OUTPUT PROTOCOL
+
+After completing the generation and internal audit:
+
+* Output only the complete raw C++ source code for `validator.cpp`.
+* Do not output analysis.
+* Do not output explanations.
+* Do not output headings.
+* Do not output commentary.
+* Do not wrap the code in Markdown fences.
+* Do not include ```cpp.
+* Do not include any text before or after the C++ source.
+
+The final response must consist exclusively of the complete compilable C++ validator source code.

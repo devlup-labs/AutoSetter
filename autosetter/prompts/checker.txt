@@ -1,44 +1,421 @@
-You are an expert competitive programming problem-setter specializing in writing output checkers using testlib.h.
-
-Below is the structured JSON specification of the problem:
+You are given a structured JSON specification of a competitive programming problem:
 
 {JSON}
 
-Your task: write a complete, compilable `checker.cpp` that verifies whether a contestant's output is correct for this problem, given the input stream (`inf`), reference jury answer stream (`ans`), and contestant output stream (`ouf`).
+Your task is to transform the specification into a complete, deterministic, compilable C++17 output checker named `checker.cpp`, using `testlib.h`.
 
-REQUIREMENTS:
-1. Always include:
-   #include "testlib.h"
-   #include <iostream>
-   #include <string>
-   #include <vector>
-   #include <cmath>
-   using namespace std;
-2. Initialize `main` with `registerTestlibCmd(argc, argv);` as the first statement.
-3. Compare outputs per "output_format":
-   - For single-token strings / words:
-     string expected = ans.readToken();
-     string actual = ouf.readToken();
-     if (expected != actual) {
-         quitf(_wa, "Expected '%s', but found '%s'", expected.c_str(), actual.c_str());
-     }
-   - For integer tokens / 64-bit numbers:
-     long long expected = ans.readLong();
-     long long actual = ouf.readLong();
-     if (expected != actual) {
-         quitf(_wa, "Expected %lld, but found %lld", expected, actual);
-     }
-   - For floating-point numbers:
-     double expected = ans.readDouble();
-     double actual = ouf.readDouble();
-     if (!doubleCompare(expected, actual, 1e-6)) {
-         quitf(_wa, "Expected %.9f, but found %.9f", expected, actual);
-     }
-4. When all output matches:
-   quitf(_ok, "Correct answer.");
-5. The code must compile cleanly under `g++ -std=c++17 -O2`.
+Follow the algorithm below exactly.
 
-OUTPUT RULES:
-- Output ONLY the raw C++ source code for checker.cpp.
-- Do NOT wrap in markdown code fences (no ```cpp).
-- Do NOT include any commentary or explanation outside the C++ code.
+## PRIMARY OBJECTIVE
+
+Construct a checker that:
+
+1. Reads the problem input from `inf` when required by the specification.
+2. Reads the reference jury output from `ans`.
+3. Reads the contestant output from `ouf`.
+4. Determines the expected output structure from the JSON field `output_format`.
+5. Selects the correct comparison mechanism for every output item.
+6. Rejects incorrect contestant output using `_wa`.
+7. Accepts fully correct output using `_ok`.
+8. Produces C++ code that compiles cleanly with:
+
+g++ -std=c++17 -O2 checker.cpp
+
+---
+
+# EXECUTION ALGORITHM
+
+Perform the following phases internally and sequentially.
+
+## PHASE 1 — PARSE THE SPECIFICATION
+
+Extract and analyze all relevant information from `{JSON}`.
+
+Identify:
+
+* The problem input structure.
+* The output structure.
+* The number of expected output values.
+* Whether output contains one item or multiple items.
+* The order of output items.
+* The data type of each output item.
+* Any dependencies between output items.
+* Any constraints affecting validation.
+* Whether validation requires information from `inf`.
+* Whether the jury answer in `ans` is sufficient for validation.
+* Whether the JSON explicitly requires semantic validation beyond direct comparison.
+
+Do not invent requirements that are absent from the JSON.
+
+Use the JSON as the source of truth.
+
+---
+
+# PHASE 2 — CLASSIFY THE CHECKING STRATEGY
+
+For every output element, determine its validation category.
+
+Use the following decision procedure.
+
+### CASE A — Exact string or word comparison
+
+Use this strategy when the output item is:
+
+* A word.
+* A string.
+* A symbolic token.
+* A categorical answer.
+* Any single-token textual value requiring exact equality.
+
+Generate:
+
+string expected = ans.readToken();
+string actual = ouf.readToken();
+
+if (expected != actual) {
+quitf(_wa, "Expected '%s', but found '%s'",
+expected.c_str(), actual.c_str());
+}
+
+Do not perform case normalization unless the JSON explicitly requires it.
+
+Do not trim, reinterpret, or approximate string values unless explicitly specified.
+
+---
+
+### CASE B — Integer or 64-bit integer comparison
+
+Use this strategy when the output item is:
+
+* An integer.
+* A long integer.
+* A 64-bit number.
+* A count.
+* An index.
+* A discrete numeric result requiring exact equality.
+
+Generate:
+
+long long expected = ans.readLong();
+long long actual = ouf.readLong();
+
+if (expected != actual) {
+quitf(_wa, "Expected %lld, but found %lld",
+expected, actual);
+}
+
+Use exact comparison.
+
+Do not use floating-point comparison for integer values.
+
+---
+
+### CASE C — Floating-point comparison
+
+Use this strategy when the output item is:
+
+* A decimal number.
+* A real number.
+* A floating-point result.
+* A numerical approximation.
+
+Generate:
+
+double expected = ans.readDouble();
+double actual = ouf.readDouble();
+
+if (!doubleCompare(expected, actual, 1e-6)) {
+quitf(_wa, "Expected %.9f, but found %.9f",
+expected, actual);
+}
+
+Use tolerance `1e-6` unless the JSON explicitly specifies another comparison tolerance.
+
+Do not use exact equality for floating-point values.
+
+---
+
+### CASE D — Multiple output elements
+
+If the output contains multiple values:
+
+1. Determine the exact sequence from `output_format`.
+2. Process values in that sequence.
+3. Apply the appropriate checking strategy independently to each value.
+4. Stop immediately and return `_wa` when the first invalid value is found.
+5. Continue only when the current value passes validation.
+
+The generated checker must preserve the output ordering defined by the JSON.
+
+Do not reorder values.
+
+Do not skip values.
+
+---
+
+# PHASE 3 — DETERMINE WHETHER INPUT-DEPENDENT VALIDATION IS REQUIRED
+
+Apply this decision process.
+
+### Step 1
+
+Determine whether the correctness of the contestant output can be established solely by comparison with `ans`.
+
+If yes:
+
+* Read only the required output values from `ans` and `ouf`.
+* Do not read from `inf` unnecessarily.
+
+### Step 2
+
+Determine whether the JSON requires validation based on:
+
+* Input constraints.
+* Relationships between output values.
+* Constructive validity.
+* Optimization conditions.
+* Feasibility conditions.
+* Certificates.
+* Permutations.
+* Graph structures.
+* Assignments.
+* Schedules.
+* Other semantic conditions.
+
+If yes:
+
+* Read the necessary input from `inf`.
+* Validate the contestant output against the rules described in the JSON.
+* Use `ans` where a reference answer is required.
+* Do not rely on direct token comparison when the JSON requires semantic checking.
+
+### Step 3
+
+For every validation rule explicitly present in the JSON:
+
+* Translate the rule into deterministic C++ logic.
+* Validate it in the checker.
+* Produce a precise `_wa` message when the rule fails.
+
+Do not silently ignore any explicit validation rule.
+
+---
+
+# PHASE 4 — GENERATE THE REQUIRED SOURCE STRUCTURE
+
+The generated source code must always begin with exactly these required includes:
+
+#include "testlib.h"
+#include <iostream>
+#include <string>
+#include <vector>
+#include <cmath>
+
+using namespace std;
+
+Do not omit any of these headers.
+
+Additional headers may be included only when necessary for requirements explicitly derived from the JSON.
+
+---
+
+# PHASE 5 — INITIALIZE THE CHECKER
+
+The generated program must contain `main`.
+
+The first executable statement inside `main` must be:
+
+registerTestlibCmd(argc, argv);
+
+No executable statement may appear before it.
+
+The required initialization pattern is:
+
+int main(int argc, char* argv[]) {
+registerTestlibCmd(argc, argv);
+
+```
+// validation logic
+```
+
+}
+
+---
+
+# PHASE 6 — BUILD THE VALIDATION PIPELINE
+
+Construct the checker as an ordered validation pipeline.
+
+For each required output component:
+
+1. Read the expected value from `ans` when applicable.
+2. Read the contestant value from `ouf`.
+3. Validate syntax through the appropriate `testlib` reader.
+4. Apply the correct comparison or semantic validation rule.
+5. Immediately terminate with `_wa` if validation fails.
+6. Continue to the next component only if validation succeeds.
+
+The pipeline must be deterministic.
+
+The checker must not depend on random behavior.
+
+The checker must not produce ambiguous outcomes.
+
+---
+
+# PHASE 7 — FAILURE HANDLING
+
+Every incorrect output condition must terminate with:
+
+quitf(_wa, ...);
+
+Error messages must identify:
+
+* What was expected, when meaningful.
+* What was received.
+* Which validation condition failed, when direct expected-versus-actual comparison is insufficient.
+
+For direct comparisons, preserve these required formats.
+
+### Strings
+
+quitf(_wa, "Expected '%s', but found '%s'",
+expected.c_str(), actual.c_str());
+
+### Integers
+
+quitf(_wa, "Expected %lld, but found %lld",
+expected, actual);
+
+### Floating-point values
+
+quitf(_wa, "Expected %.9f, but found %.9f",
+expected, actual);
+
+Do not accept incorrect output.
+
+Do not downgrade an incorrect result into a partial success.
+
+---
+
+# PHASE 8 — SUCCESS HANDLING
+
+Only after all required validation steps have succeeded, terminate with:
+
+quitf(_ok, "Correct answer.");
+
+No success result may be returned before all required checks are complete.
+
+---
+
+# PHASE 9 — OUTPUT INTEGRITY CHECK
+
+Before producing the final C++ source code, internally verify all of the following.
+
+## Mandatory header verification
+
+Confirm that all of these are present:
+
+* `#include "testlib.h"`
+* `#include <iostream>`
+* `#include <string>`
+* `#include <vector>`
+* `#include <cmath>`
+* `using namespace std;`
+
+## Initialization verification
+
+Confirm that:
+
+* `main` exists.
+* `registerTestlibCmd(argc, argv);` exists.
+* It is the first executable statement in `main`.
+
+## Type verification
+
+Confirm that:
+
+* Strings use `string` and `readToken()`.
+* Integers use `long long` and `readLong()`.
+* Floating-point values use `double` and `readDouble()`.
+* Floating-point comparisons use `doubleCompare(..., 1e-6)` unless the JSON explicitly overrides the tolerance.
+
+## Logic verification
+
+Confirm that:
+
+* Every output component specified by the JSON is checked.
+* Output order matches the JSON.
+* No required validation rule is omitted.
+* No unsupported assumption was introduced.
+* Direct comparison is used only when appropriate.
+* Semantic validation is implemented when explicitly required.
+
+## Termination verification
+
+Confirm that:
+
+* Every detected invalid condition returns `_wa`.
+* Fully valid output returns `_ok`.
+* The exact success message is:
+
+"Correct answer."
+
+## Compilation verification
+
+Review the generated source for:
+
+* Missing semicolons.
+* Missing braces.
+* Undefined variables.
+* Incorrect `testlib` API usage.
+* Type mismatches.
+* Incorrect format specifiers.
+* Missing includes.
+* Invalid C++17 syntax.
+
+The final source must be intended to compile cleanly with:
+
+g++ -std=c++17 -O2
+
+---
+
+# FINAL SELF-CHECK ALGORITHM
+
+Before returning the result, perform this internal checklist:
+
+1. Re-read `{JSON}`.
+2. Reconstruct the required output structure.
+3. Compare the reconstructed structure against the generated checker.
+4. Verify that every JSON-defined output element is represented.
+5. Verify that the correct reader and comparison method are used for every element.
+6. Verify that all explicit constraints and semantic validation requirements are covered.
+7. Verify all mandatory includes.
+8. Verify `registerTestlibCmd(argc, argv);` is the first executable statement.
+9. Verify all `_wa` paths.
+10. Verify the final `_ok` path.
+11. Verify C++17 syntax and compilation consistency.
+12. Remove all commentary that is not part of the C++ source code.
+
+If any inconsistency is found during this verification process, correct the checker before returning it.
+
+---
+
+# OUTPUT CONSTRAINT
+
+After completing all parsing, classification, validation planning, code generation, and self-checking internally, return exactly one artifact:
+
+The complete raw contents of `checker.cpp`.
+
+The final response must contain:
+
+* Only raw C++ source code.
+* No markdown code fences.
+* No explanation.
+* No analysis.
+* No headings outside the C++ source.
+* No notes.
+* No comments outside the generated source code.
+* No additional text before or after the source.
+
+The generated C++ source must be complete and directly usable as `checker.cpp`.

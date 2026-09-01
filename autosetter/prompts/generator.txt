@@ -1,41 +1,353 @@
-You are an expert competitive programming problem-setter specializing in writing robust, reproducible test-case generators using testlib.h (the standard library used by Codeforces Polygon and similar judge systems).
+TASK: Generate a complete, compilable C++17 test-case generator (`generator.cpp`) from the JSON problem specification provided below.
 
-Below is the structured JSON specification of the problem:
-
+INPUT SPECIFICATION:
 {JSON}
 
-Your task: write a complete, compilable `generator.cpp` that produces a single random (but always VALID per "constraints") test case for this problem, printed to stdout in exactly the format described by "input_format" and "samples".
+PRIMARY OBJECTIVE:
+Transform the JSON specification into a single C++ source file that generates exactly one random but valid test case.
 
-REQUIREMENTS & BEHAVIOR:
-1. Always include:
-   #include "testlib.h"
-   #include <iostream>
-   #include <string>
-   #include <vector>
-   #include <algorithm>
-   using namespace std;
-2. Initialize `main` with `registerGen(argc, argv, 1);` as the first statement.
-3. Use testlib's random engine ONLY:
-   - For integers: `rnd.next(min_val, max_val)`
-   - For 64-bit integers: `rnd.next(min_ll, max_ll)`
-   - For floating-point: `rnd.next(min_d, max_d)`
-   - For random strings: NEVER use testlib regex generation like `rnd.next("[a-z.*]{1,20}")` because it crashes on special characters. ALWAYS generate strings manually using a `for` loop and picking characters randomly with `rnd.next('a', 'z')` or `rnd.any(...)`.
-   - For shuffling/permutations: `rnd.shuffle(vec.begin(), vec.end())`
-   - STRICTLY FORBIDDEN: Do NOT use `rand()`, `srand()`, `<random>`, `std::mt19937`.
-4. NO HARDCODED STATIC SAMPLES:
-   - Always generate realistic random valid data matching the constraints. Never simply hardcode the problem statement's sample string or array.
-5. Command-Line Arguments & Edge Cases:
-   - Safely read parameters from `argv` with fallback defaults using `opt<T>("param", default_value)`.
-   - Support `string type = opt<string>("type", "rand");` to produce stress edge cases:
-     - `type == "min"`: produce minimum allowed bounds.
-     - `type == "max"`: produce maximum allowed bounds.
-     - `type == "rand"` (or default): produce uniform random valid test cases.
-6. Exact Formatting & Whitespace:
-   - Strictly match the line and token layout specified in "input_format" and "samples" (e.g. if variables are on separate lines, print `\n`).
-   - Terminate the output with a newline `\n`.
-7. The code must compile cleanly under `g++ -std=c++17 -O2`.
+The generated test case MUST satisfy every applicable constraint in the JSON specification and MUST match the required input syntax exactly.
 
-OUTPUT RULES:
-- Output ONLY the complete raw C++ source code for generator.cpp.
-- Do NOT wrap in markdown code fences (no ```cpp).
-- Do NOT include any commentary or explanation outside the C++ code.
+Do not infer unsupported requirements. Derive all generation logic, bounds, dependencies, formatting rules, and validity conditions directly from:
+
+1. `constraints`
+2. `input_format`
+3. `samples`
+4. Any other explicitly defined fields in `{JSON}`
+
+================================================================
+SYSTEMATIC GENERATION ALGORITHM
+===============================
+
+Execute the following process internally and deterministically.
+
+PHASE 1 — PARSE THE SPECIFICATION
+
+1. Read the complete JSON specification.
+2. Extract all input variables, structures, and ordering rules.
+3. Extract:
+
+   * primitive types
+   * minimum and maximum bounds
+   * array sizes
+   * string lengths
+   * allowed character sets
+   * uniqueness requirements
+   * permutation requirements
+   * ordering requirements
+   * graph/tree requirements
+   * cross-variable dependencies
+   * aggregate constraints
+   * special validity rules
+4. Extract the exact token and line layout from `input_format`.
+5. Use `samples` only to understand formatting and structural conventions.
+6. Do NOT reproduce sample values as static output unless those exact values are mathematically required by the constraints.
+
+PHASE 2 — BUILD A CONSTRAINT MODEL
+For every generated value, determine:
+
+* Type
+* Domain
+* Lower bound
+* Upper bound
+* Dependency on previously generated values
+* Dependency on subsequently generated values
+* Required invariants
+* Formatting location
+
+Model generation dependencies explicitly.
+
+Generation order MUST ensure that every value is generated only after all values needed to constrain it are known.
+
+If independent values exist, they may be generated in any order.
+
+If dependent values exist, generate the controlling values first.
+
+PHASE 3 — DETERMINE GENERATION STRATEGY
+For every input component, select the appropriate strategy.
+
+INTEGER:
+Use:
+rnd.next(min_value, max_value)
+
+64-BIT INTEGER:
+Use:
+rnd.next(min_value, max_value)
+
+FLOATING-POINT VALUE:
+Use:
+rnd.next(min_value, max_value)
+
+STRING:
+Generate manually.
+
+Required algorithm:
+
+1. Determine valid length.
+2. Create an empty string.
+3. Repeat for the required length.
+4. Select each character from the permitted character domain using testlib random functions.
+5. Append the character.
+6. Validate all string constraints.
+
+Never use regex-based generation such as:
+rnd.next("[a-z.*]{1,20}")
+
+PERMUTATION:
+
+1. Construct the required elements.
+2. Shuffle using:
+   rnd.shuffle(vec.begin(), vec.end())
+
+ARRAY:
+
+1. Determine its valid size.
+2. Generate each element within its domain.
+3. Enforce uniqueness, ordering, aggregate, or dependency constraints.
+4. Validate the completed array.
+
+GRAPH OR TREE:
+
+1. Determine the required number of vertices and edges.
+2. Generate the structure using a method that guarantees all mandatory graph invariants.
+3. Validate connectivity, acyclicity, edge count, uniqueness, bounds, and any additional restrictions.
+4. Do not rely on accidental validity.
+
+CONSTRAINED OR DEPENDENT STRUCTURES:
+Generate using a constructive approach whenever possible.
+
+Do NOT generate arbitrary values and hope that they satisfy constraints.
+
+If rejection sampling is necessary:
+
+* Bound the retry process safely.
+* Preserve all constraints.
+* Ensure the algorithm remains practical for maximum constraints.
+* Prefer constructive generation over repeated rejection.
+
+PHASE 4 — HANDLE GENERATION MODES
+The generator MUST support the following command-line parameter:
+
+string type = opt<string>("type", "rand");
+
+Supported modes:
+
+A. `type == "min"`
+Generate a valid test case representing minimum allowed bounds.
+
+Rules:
+
+* Use minimum sizes where allowed.
+* Use minimum numeric values where allowed.
+* Preserve all mandatory structural constraints.
+* If all values cannot independently be minimized because of dependencies, construct the lexically/simple structurally valid minimum configuration consistent with all constraints.
+
+B. `type == "max"`
+Generate a valid test case representing maximum allowed bounds.
+
+Rules:
+
+* Use maximum sizes where allowed.
+* Use maximum numeric values where allowed.
+* Preserve all mandatory structural constraints.
+* If all values cannot independently be maximized because of dependencies, construct a valid maximum-scale configuration consistent with all constraints.
+
+C. `type == "rand"` or any default invocation
+Generate a uniformly randomized valid test case within the specified legal domains whenever independent uniform generation is possible.
+
+For dependent structures:
+
+* Randomize valid choices appropriately.
+* Preserve every dependency and invariant.
+* Do not produce invalid intermediate or final states.
+
+If additional command-line parameters are useful and supported by the specification, read them safely using:
+
+opt<T>("param", default_value)
+
+Never access `argv` manually when `opt<T>` provides the required functionality.
+
+PHASE 5 — CONSTRUCT THE SOURCE FILE
+The generated source code MUST include exactly these required headers:
+
+#include "testlib.h"
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+The program structure MUST contain a standard `main` function.
+
+The FIRST statement inside `main` MUST be:
+
+registerGen(argc, argv, 1);
+
+No executable statement may appear before this statement.
+
+PHASE 6 — RANDOMNESS POLICY
+Use testlib's random engine exclusively.
+
+PERMITTED:
+
+For integers:
+rnd.next(min_val, max_val)
+
+For 64-bit integers:
+rnd.next(min_ll, max_ll)
+
+For floating-point values:
+rnd.next(min_d, max_d)
+
+For character generation:
+rnd.next('a', 'z')
+or another valid testlib random selection method appropriate to the required character set.
+
+For shuffling:
+rnd.shuffle(vec.begin(), vec.end())
+
+STRICTLY FORBIDDEN:
+
+* rand()
+* srand()
+* <random>
+* std::mt19937
+* default_random_engine
+* random_device
+* any external or custom pseudo-random generator
+* regex-based testlib string generation involving special-character patterns
+
+All randomness MUST originate from testlib.
+
+PHASE 7 — VALIDITY INVARIANTS
+Before printing, conceptually verify the generated test case against every applicable invariant.
+
+CHECK:
+
+1. Every scalar value is within bounds.
+2. Every array has the correct size.
+3. Every string has the correct length.
+4. Every string uses only permitted characters.
+5. Every uniqueness condition is satisfied.
+6. Every ordering condition is satisfied.
+7. Every permutation contains exactly the required elements.
+8. Every graph or tree property is satisfied.
+9. Every cross-variable dependency is satisfied.
+10. Every aggregate constraint is satisfied.
+11. Minimum mode produces a valid minimum-bound case.
+12. Maximum mode produces a valid maximum-bound case.
+13. Random mode produces only valid cases.
+14. No sample output is statically hardcoded.
+15. The output layout matches `input_format` exactly.
+
+If a constraint can be violated by the chosen generation strategy, modify the strategy before producing the source code.
+
+PHASE 8 — OUTPUT FORMATTING
+Print the generated test case to stdout.
+
+Formatting MUST be derived from `input_format` and confirmed against structural conventions demonstrated by `samples`.
+
+Preserve exactly:
+
+* variable order
+* line breaks
+* token separators
+* spaces where required
+* repeated blocks
+* array formatting
+* graph edge formatting
+* matrix formatting
+* any other structural layout
+
+Do NOT add:
+
+* labels
+* explanations
+* comments to stdout
+* debug information
+* extra spaces where not required
+* additional test cases
+
+Generate exactly one test case.
+
+The output MUST terminate with:
+
+\n
+
+PHASE 9 — SOURCE VALIDATION
+Before returning the final source code, perform a final consistency audit.
+
+VERIFY ALL OF THE FOLLOWING:
+
+[ ] `#include "testlib.h"` is present.
+[ ] `#include <iostream>` is present.
+[ ] `#include <string>` is present.
+[ ] `#include <vector>` is present.
+[ ] `#include <algorithm>` is present.
+[ ] `using namespace std;` is present.
+[ ] `registerGen(argc, argv, 1);` is the first statement inside `main`.
+[ ] `opt<string>("type", "rand")` is used.
+[ ] All optional command-line parameters use `opt<T>("param", default_value)`.
+[ ] No forbidden random generator is used.
+[ ] No `rand()` is used.
+[ ] No `srand()` is used.
+[ ] No `<random>` functionality is used.
+[ ] No `std::mt19937` is used.
+[ ] No regex-based random string generation is used.
+[ ] Strings are generated manually when random generation is required.
+[ ] Permutations are shuffled using `rnd.shuffle`.
+[ ] No static sample test case is hardcoded.
+[ ] `min` mode is valid.
+[ ] `max` mode is valid.
+[ ] `rand` mode is valid.
+[ ] All constraints from the JSON specification are enforced.
+[ ] All dependencies between variables are preserved.
+[ ] Output exactly matches the required input structure.
+[ ] Output ends with a newline.
+[ ] The code compiles under:
+
+g++ -std=c++17 -O2
+
+FINAL OUTPUT PROTOCOL
+Return ONLY the complete raw contents of `generator.cpp`.
+
+Do NOT return:
+
+* Markdown code fences
+* Explanations
+* Analysis
+* Comments outside the C++ source
+* Multiple alternative implementations
+* Pseudocode
+* Validation notes
+
+The response must begin directly with the C++ source code and end with the final character of the source code.
+
+================================================================
+FAIL-SAFE RULES
+===============
+
+If the JSON specification is ambiguous:
+
+1. Prefer explicit constraints over inferred assumptions.
+2. Prefer `input_format` over sample values for syntax.
+3. Use samples only as structural examples.
+4. Do not invent unsupported fields or constraints.
+5. Construct the most conservative valid interpretation.
+6. Ensure the resulting generator cannot intentionally emit an invalid test case.
+
+If multiple constraints conflict:
+
+1. Identify the dependency relationship internally.
+2. Apply the most explicit and restrictive valid interpretation.
+3. Ensure all generated values satisfy the intersection of applicable constraints.
+
+If random independent generation could violate a global invariant:
+
+1. Do not print the invalid candidate.
+2. Use constructive generation, controlled adjustment, or safe bounded regeneration.
+3. Validate the final structure before output.
+
+QUALITY STANDARD:
+The generator must be reproducible through testlib seeding, constraint-safe, structurally exact, free from forbidden randomness, free from hardcoded sample cases, and suitable for direct compilation and use in Codeforces Polygon or a comparable testlib-based judging environment.

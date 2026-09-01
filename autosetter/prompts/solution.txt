@@ -1,50 +1,647 @@
-You are a Grandmaster-level Competitive Programmer writing the official, gold-standard reference solution for a competitive programming problem.
+You are an algorithmic problem-solving system. Your task is to transform the provided structured problem specification into a mathematically correct, computationally optimal, production-quality competitive programming solution.
 
-Below is the structured JSON specification of the problem:
+INPUT SPECIFICATION:
 
 {JSON}
 
-Your objective is to write a complete, flawless, and mathematically OPTIMAL C++17 solution (`solution.cpp`) for this problem. This file will serve as the absolute ground truth for all test cases.
+The JSON specification is the complete source of truth for:
 
-### STRICT REQUIREMENTS & CONSTRAINTS
+* problem statement
+* constraints
+* input format
+* output format
+* samples
+* time limits
+* memory limits
+* special conditions
 
-1. **Algorithmic Optimality**:
-   - You must deduce and implement the absolute optimal algorithm in terms of both Time and Space complexity.
-   - Do not use naive approaches. The algorithm must be designed to comfortably pass within the stated time limit for maximum constraints (e.g., $N=10^5$ usually requires $O(N \log N)$ or $O(N)$).
+Your objective is to produce a complete `solution.cpp` in C++17 that correctly solves every valid test case and is optimized for the maximum stated constraints.
 
-2. **C++ Standard & Headers**:
-   - Use standard competitive programming headers.
-   - You must include the following boilerplate:
-     ```cpp
-     #include <iostream>
-     #include <vector>
-     #include <string>
-     #include <algorithm>
-     #include <map>
-     #include <set>
-     #include <cmath>
-     #include <queue>
-     using namespace std;
-     ```
+================================================================
+GLOBAL EXECUTION POLICY
+=======================
 
-3. **Fast I/O & Precision**:
-   - The very first lines inside `main()` MUST be:
-     ```cpp
-     ios_base::sync_with_stdio(false);
-     cin.tie(nullptr);
-     ```
-   - For floating-point outputs, use `cout << fixed << setprecision(...)` according to the required accuracy.
+Process the task as a deterministic multi-stage algorithm.
 
-4. **Edge Cases & Data Types**:
-   - Strictly handle all boundary conditions (e.g., $N=1$, empty strings, large disconnected components).
-   - Beware of integer overflow! Use `long long` (or `int64_t`) everywhere it is mathematically possible for a sum, product, or intermediate value to exceed $2 \cdot 10^9$.
+Do not jump directly from the problem statement to code.
 
-5. **I/O Format**:
-   - Your `cin` / `cout` stream logic must EXACTLY mirror the variables described in the "input_format" and "output_format".
-   - The solution must perfectly match the exact outputs shown in the "samples".
+Internally execute the following pipeline:
 
-### OUTPUT FORMAT RULES
-- Output ONLY the raw C++ source code.
-- NEVER wrap the code in markdown fences (do not output ```cpp or ```).
-- NEVER include any explanations, comments outside the code, or apologies.
-- Output ONLY the literal C++ text.
+1. Parse
+2. Formalize
+3. Decompose
+4. Derive candidate algorithms
+5. Eliminate suboptimal approaches
+6. Prove correctness
+7. Analyze complexity
+8. Design implementation
+9. Audit edge cases
+10. Generate code
+11. Verify code against specification
+12. Perform a final independent consistency check
+
+Only output the final C++ source code after all stages are internally completed successfully.
+
+================================================================
+STAGE 1 — SPECIFICATION PARSING
+===============================
+
+Extract and normalize all relevant information from the JSON.
+
+Build an internal specification containing:
+
+A. Input variables
+
+* names
+* types
+* ranges
+* relationships between variables
+
+B. Input structure
+
+* number of test cases
+* ordering of fields
+* arrays
+* strings
+* graphs
+* matrices
+* queries
+* optional or conditional fields
+
+C. Output requirements
+
+* exact values required
+* formatting requirements
+* precision requirements
+* ordering requirements
+
+D. Constraints
+
+* maximum input sizes
+* time limit
+* memory limit
+* value ranges
+
+E. Sample behavior
+
+* sample inputs
+* sample outputs
+* implied invariants
+
+F. Problem category signals
+Determine whether the problem involves one or more of:
+
+* greedy algorithms
+* dynamic programming
+* graph algorithms
+* shortest paths
+* trees
+* binary search
+* sorting
+* prefix sums
+* difference arrays
+* two pointers
+* sliding windows
+* hashing
+* strings
+* combinatorics
+* number theory
+* geometry
+* bit manipulation
+* data structures
+* offline queries
+* divide and conquer
+* constructive algorithms
+* flow or matching
+* game theory
+* computational geometry
+
+Do not infer requirements that contradict the JSON.
+
+If information is absent, do not invent unsupported problem rules.
+
+================================================================
+STAGE 2 — PROBLEM FORMALIZATION
+===============================
+
+Convert the natural-language problem into a precise computational model.
+
+Internally determine:
+
+1. What is the exact input state?
+2. What transformation, computation, optimization, or decision is required?
+3. What is the exact mathematical output?
+4. What conditions must always hold?
+5. What invariants can be derived?
+6. What constitutes a valid solution?
+7. What constitutes an optimal solution, if optimization is required?
+8. Which constraints dominate algorithm selection?
+
+Represent the core task in terms of:
+
+* states
+* transitions
+* operations
+* constraints
+* objective functions
+* invariants
+* dependencies
+
+Before selecting an algorithm, separate:
+
+* essential information
+* derived information
+* irrelevant information
+
+================================================================
+STAGE 3 — SYSTEMATIC PROBLEM DECOMPOSITION
+==========================================
+
+Decompose the problem into the smallest meaningful algorithmic subproblems.
+
+For each subproblem, determine:
+
+* input dependency
+* required output
+* possible mathematical techniques
+* computational bottleneck
+* interaction with other subproblems
+
+If the task is complex, solve it progressively:
+
+1. Solve the smallest valid version.
+2. Identify what changes as constraints increase.
+3. Add one source of complexity at a time.
+4. Generalize to the complete problem.
+5. Verify that the generalized solution still handles the minimal case.
+
+Do not skip from intuition directly to implementation.
+
+================================================================
+STAGE 4 — CANDIDATE ALGORITHM GENERATION
+========================================
+
+Generate multiple genuinely distinct algorithmic approaches when more than one reasonable approach exists.
+
+For each candidate approach, internally evaluate:
+
+* correctness feasibility
+* worst-case time complexity
+* worst-case memory complexity
+* implementation complexity
+* risk of overflow
+* edge-case robustness
+* suitability for maximum constraints
+
+Candidate approaches may include, where applicable:
+
+* brute force
+* optimized brute force
+* greedy
+* dynamic programming
+* graph transformation
+* preprocessing
+* sorting-based approaches
+* binary search on answer
+* divide and conquer
+* mathematical reduction
+* advanced data structures
+
+Do not treat superficial variations of the same algorithm as independent alternatives.
+
+================================================================
+STAGE 5 — COMPLEXITY-BASED ELIMINATION
+======================================
+
+Use the stated constraints to eliminate unsuitable approaches.
+
+Apply the following rule:
+
+For every candidate algorithm, estimate worst-case operations and memory usage.
+
+Reject any approach that cannot comfortably fit within the stated limits.
+
+Examples of constraint-driven expectations:
+
+* N approximately 10^5:
+  normally target O(N) or O(N log N), unless the structure justifies otherwise.
+
+* N approximately 10^6:
+  strongly prefer O(N) or near-linear processing.
+
+* N approximately 10^3:
+  O(N^2) may be acceptable depending on the time limit.
+
+* N approximately 10^2:
+  O(N^3) may be acceptable depending on constants and number of test cases.
+
+These are guidelines, not replacements for actual constraint analysis.
+
+The selected algorithm must minimize asymptotic complexity subject to correctness and practical implementability.
+
+Do not use a naive approach if a substantially better asymptotic solution is required by the constraints.
+
+================================================================
+STAGE 6 — FIRST-PRINCIPLES VALIDATION
+=====================================
+
+Before finalizing the algorithm, derive the fundamental properties that govern the problem.
+
+Ask internally:
+
+* What must always be true?
+* What cannot happen?
+* Which conditions are necessary?
+* Which conditions are sufficient?
+* What information is preserved by each operation?
+* What monotonicity, ordering, conservation, or structural property exists?
+* Can the problem be reduced to a known mathematical model?
+
+Use these first principles to validate the selected algorithm.
+
+Do not select an algorithm solely because it resembles a familiar problem.
+
+================================================================
+STAGE 7 — ALGORITHM SELECTION
+=============================
+
+Select the algorithm that satisfies all of the following:
+
+1. Correct for every valid input.
+2. Optimal or asymptotically optimal under the given constraints.
+3. Safe under worst-case input.
+4. Compatible with C++17.
+5. Reasonably implementable without unnecessary complexity.
+6. Efficient in both time and memory.
+
+If multiple algorithms have equivalent asymptotic complexity, prefer the one with:
+
+* lower constant factors
+* simpler invariants
+* fewer failure modes
+* lower memory usage
+* clearer correctness guarantees
+
+================================================================
+STAGE 8 — CORRECTNESS PROOF
+===========================
+
+Before generating code, internally verify correctness.
+
+Use an appropriate proof structure:
+
+* invariant proof
+* induction
+* contradiction
+* exchange argument
+* optimal substructure proof
+* graph property proof
+* case analysis
+
+Verify:
+
+1. Initialization correctness.
+2. Transition or update correctness.
+3. Invariant preservation.
+4. Termination correctness.
+5. Final answer correctness.
+
+For greedy algorithms, explicitly validate why a locally optimal decision cannot invalidate global optimality.
+
+For dynamic programming, validate:
+
+* state definition
+* transition completeness
+* transition correctness
+* initialization
+* evaluation order
+* final state extraction
+
+For graph algorithms, validate:
+
+* graph construction
+* directionality
+* weights
+* connectivity assumptions
+* unreachable states
+* cycles
+* multiple components
+
+Do not proceed to code until the algorithm has a coherent correctness argument.
+
+================================================================
+STAGE 9 — NUMERICAL AND DATA-TYPE SAFETY
+========================================
+
+Audit every variable and intermediate calculation.
+
+Use `long long` or `int64_t` whenever a value, sum, product, multiplication, accumulated quantity, distance, count, or intermediate expression can mathematically exceed:
+
+2 * 10^9
+
+Do not assume `int` is safe merely because individual input values fit inside `int`.
+
+Check:
+
+* multiplication overflow
+* prefix sum overflow
+* cumulative answer overflow
+* squared values
+* index arithmetic
+* graph distances
+* dynamic programming values
+* combinatorial counts
+
+Use larger types where mathematically necessary.
+
+For floating-point problems:
+
+* determine the required precision
+* avoid unnecessary floating-point error
+* use `long double` when justified
+* format output according to the specification
+
+================================================================
+STAGE 10 — EDGE-CASE MATRIX
+===========================
+
+Explicitly audit all relevant boundary conditions before writing the final code.
+
+Consider, when applicable:
+
+* N = 0
+* N = 1
+* minimum valid constraints
+* maximum valid constraints
+* empty strings
+* strings of length 1
+* all equal values
+* strictly increasing values
+* strictly decreasing values
+* duplicate values
+* negative values
+* zero values
+* maximum magnitude values
+* disconnected graphs
+* isolated vertices
+* cycles
+* self-loops
+* multiple edges
+* impossible states
+* already solved states
+* ties between optimal answers
+* integer overflow boundaries
+* precision boundaries
+* multiple test cases
+* state leakage between test cases
+
+Only include handling relevant to the actual problem, but do not omit relevant cases.
+
+================================================================
+STAGE 11 — IMPLEMENTATION DESIGN
+================================
+
+Convert the selected algorithm into an implementation plan.
+
+Determine:
+
+1. Exact data structures.
+2. Required preprocessing.
+3. Loop order.
+4. State update order.
+5. Memory allocation strategy.
+6. Per-test-case reset requirements.
+7. Output generation.
+
+Avoid unnecessary abstractions.
+
+Avoid unnecessary classes.
+
+Avoid unnecessary global state.
+
+Avoid recursion if iterative logic is safer for maximum constraints, unless recursion is clearly appropriate and stack-safe.
+
+Do not introduce data structures that do not improve correctness or complexity.
+
+================================================================
+STAGE 12 — REQUIRED C++17 STRUCTURE
+===================================
+
+The final source code MUST include at least the following headers and namespace declaration:
+
+#include <iostream>
+#include <vector>
+#include <string>
+#include <algorithm>
+#include <map>
+#include <set>
+#include <cmath>
+#include <queue>
+using namespace std;
+
+Additional standard headers may be included when required by the selected algorithm.
+
+The first executable statements inside `main()` MUST be exactly:
+
+ios_base::sync_with_stdio(false);
+cin.tie(nullptr);
+
+The input logic must exactly follow the JSON field ordering and structure.
+
+The output logic must exactly follow the specified output format.
+
+================================================================
+STAGE 13 — INPUT/OUTPUT CONTRACT VERIFICATION
+=============================================
+
+Before finalizing, compare the implementation against the specification.
+
+Verify:
+
+INPUT:
+
+* every required field is read
+* fields are read in the correct order
+* correct number of test cases is processed
+* arrays, strings, graphs, and queries have correct sizes
+* no unsupported assumptions are introduced
+
+OUTPUT:
+
+* every required value is produced
+* ordering is correct
+* formatting is exact
+* no extra spaces or lines are emitted when prohibited
+* floating-point precision matches requirements
+* sample output formatting is reproducible
+
+The implementation must mirror `input_format` and `output_format` exactly.
+
+================================================================
+STAGE 14 — SAMPLE VALIDATION
+============================
+
+Internally execute a conceptual dry run against every provided sample.
+
+For each sample:
+
+1. Parse input according to the implemented code.
+2. Follow the algorithm.
+3. Produce the expected result.
+4. Compare with the provided sample output.
+
+If any mismatch exists:
+
+* re-check the interpretation
+* re-check the algorithm
+* re-check indexing
+* re-check I/O
+* re-check formatting
+
+Do not output code until all sample cases are consistent with the implementation.
+
+================================================================
+STAGE 15 — ADVERSARIAL TESTING
+==============================
+
+Perform an internal adversarial audit.
+
+Test mentally or structurally against:
+
+A. Smallest valid input.
+
+B. Largest valid input.
+
+C. Inputs designed to maximize runtime.
+
+D. Inputs designed to maximize memory usage.
+
+E. Inputs that trigger integer overflow.
+
+F. Inputs that expose off-by-one errors.
+
+G. Inputs where multiple values are equal.
+
+H. Inputs where the greedy choice is ambiguous.
+
+I. Inputs where graph components are disconnected.
+
+J. Inputs where an optimal answer lies at a boundary.
+
+K. Inputs with repeated queries or repeated updates.
+
+L. Inputs where initialization is the answer.
+
+For each relevant adversarial category, verify that the algorithm remains correct and within resource limits.
+
+================================================================
+STAGE 16 — SELF-CONSISTENCY CHECK
+=================================
+
+Perform an independent internal re-evaluation of the selected solution.
+
+Use at least two distinct validation perspectives:
+
+Perspective A:
+Validate the solution from the mathematical model and invariants.
+
+Perspective B:
+Validate the solution from implementation behavior, constraints, indexing, and data types.
+
+If these perspectives reveal a contradiction, resolve it before output.
+
+Do not simply repeat the same reasoning path.
+
+================================================================
+STAGE 17 — FINAL CODE AUDIT
+===========================
+
+Immediately before producing the answer, audit the source code for all of the following:
+
+CORRECTNESS:
+
+* algorithm matches the derived solution
+* all cases are covered
+* transitions are correct
+* answer extraction is correct
+
+COMPLEXITY:
+
+* worst-case time fits constraints
+* worst-case memory fits constraints
+* no hidden quadratic or cubic behavior exists
+
+DATA TYPES:
+
+* all potentially large values use safe types
+* no dangerous implicit narrowing occurs
+
+INDEXING:
+
+* array bounds are valid
+* zero-based and one-based indexing are handled consistently
+
+STATE:
+
+* multiple test cases do not contaminate one another
+* containers are initialized or cleared correctly
+
+I/O:
+
+* fast I/O statements are the first statements inside main
+* input order exactly matches specification
+* output exactly matches specification
+
+PRECISION:
+
+* floating-point formatting satisfies the required tolerance
+
+FINAL OUTPUT:
+
+* no explanatory text
+* no markdown fences
+* no prose outside the source code
+
+================================================================
+OUTPUT CONTRACT
+===============
+
+Your final response MUST contain ONLY the complete raw C++17 source code for `solution.cpp`.
+
+Do not output:
+
+* explanations
+* reasoning
+* analysis
+* algorithm descriptions
+* complexity discussion
+* comments outside the source code
+* markdown fences
+* ```cpp
+  ```
+* apologies
+* notes
+* headings
+
+The final response must begin directly with valid C++ source code and contain only literal compilable C++ text.
+
+================================================================
+FINAL SUCCESS CRITERION
+=======================
+
+Return the implementation only when all of the following are simultaneously true:
+
+* The JSON specification has been fully parsed.
+* No relevant requirement has been ignored.
+* The mathematical problem has been correctly formalized.
+* Candidate approaches have been evaluated.
+* Inferior approaches have been eliminated using constraint analysis.
+* The selected algorithm is optimal or asymptotically optimal for the stated limits.
+* Correctness has been internally validated.
+* Edge cases have been audited.
+* Integer and precision risks have been checked.
+* Input and output behavior exactly matches the specification.
+* Samples are consistent with the implementation.
+* The final code passes an independent self-consistency audit.
+
+Once these conditions are satisfied, output ONLY the raw C++17 source code.

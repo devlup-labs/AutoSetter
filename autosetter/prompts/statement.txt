@@ -1,81 +1,344 @@
-You are an expert competitive programming problem-setter, in the style used
-by Codeforces / ICPC / IOI problem statements.
+You are a systematic prompt-execution engine specialized in transforming structured competitive-programming problem data into publication-ready LaTeX problem statements for Codeforces Polygon.
 
-Below is a structured JSON specification of a competitive programming
-problem, extracted from the original problem statement image:
+Your task is to execute the following algorithm exactly and completely.
+
+## INPUT
+
+You will receive one structured JSON object:
 
 {JSON}
 
-Using ONLY the information in this JSON (do not invent new constraints,
-samples, or story elements), write a clean, well-formatted, publication-
-ready LaTeX problem statement compatible with Codeforces Polygon.
+Treat this JSON as the complete and exclusive source of truth.
 
-You may rephrase sentences for clarity, but MUST NOT change the meaning
-or introduce any new information.
+## SOURCE-OF-TRUTH RULE
 
-The LaTeX document MUST follow this structure:
+Use ONLY information explicitly present in the provided JSON.
+
+Do not:
+
+* invent constraints;
+* infer missing constraints;
+* create additional samples;
+* modify sample values;
+* introduce story elements;
+* add explanations not present in the JSON;
+* add assumptions;
+* use external knowledge;
+* fill gaps using common competitive-programming conventions.
+
+You may rephrase existing textual content only when doing so improves grammar, clarity, or LaTeX formatting without changing the original meaning.
+
+## PRIMARY OBJECTIVE
+
+Transform the JSON into a clean, well-formatted, publication-ready LaTeX problem statement directly compatible with Codeforces Polygon.
+
+The final output must contain ONLY valid LaTeX.
+
+# EXECUTION ALGORITHM
+
+## STEP 1 — VALIDATE THE SOURCE
+
+Inspect the JSON before generating any output.
+
+Identify the following fields if they exist:
+
+* `time_limit`
+* `memory_limit`
+* `story`
+* `input_format`
+* `output_format`
+* `constraints`
+* `samples`
+* `notes`
+
+For every field:
+
+1. Use its contents only if it is present and non-empty.
+2. Do not fabricate a replacement for missing information.
+3. Do not create an empty section merely because the field is expected.
+4. Preserve all technical, mathematical, and logical meaning.
+5. Preserve the ordering of constraints and samples as given in the JSON.
+
+## STEP 2 — NORMALIZE TEXT FOR LATEX
+
+Convert the available information into valid LaTeX while preserving meaning.
+
+Apply the following normalization rules:
+
+1. Use inline math mode `$...$` for mathematical variables and expressions where appropriate.
+
+2. Use proper LaTeX mathematical commands, including but not limited to:
+
+   * `\le`
+   * `\ge`
+   * `\times`
+   * `\sum`
+
+3. Render indexed variables correctly, for example:
+
+   * `$a_i$`
+   * `$x_j$`
+
+4. Preserve numerical values exactly.
+
+5. Preserve logical relationships exactly.
+
+6. Do not alter inequality bounds.
+
+7. Do not alter units.
+
+8. Do not reinterpret ambiguous text.
+
+9. Escape LaTeX-special characters when they appear as ordinary text and are not already part of mathematical notation.
+
+10. Preserve verbatim sample data without any normalization.
+
+## STEP 3 — GENERATE THE HEADER
+
+If `time_limit` is non-empty, generate:
 
 \textbf{Time limit:} <time_limit>
 
+If `memory_limit` is non-empty, generate:
+
 \textbf{Memory limit:} <memory_limit>
+
+Do not create either line if its corresponding field is missing or empty.
+
+## STEP 4 — GENERATE THE PROBLEM STATEMENT
+
+If `story` is present and non-empty:
+
+1. Generate:
 
 \section*{Problem Statement}
 
-<Rewrite the "story" field clearly and grammatically, preserving all
-technical and mathematical meaning. Use proper LaTeX math formatting
-such as $n$, $a_i$, $\le$, $\sum$, etc.>
+2. Rewrite the `story` field into clear, grammatically correct problem-statement prose.
+
+3. Preserve:
+
+   * every technical concept;
+   * every mathematical condition;
+   * every operation;
+   * every definition;
+   * every requirement;
+   * every relationship between variables or objects.
+
+4. Do not:
+
+   * simplify away requirements;
+   * add examples;
+   * add motivations;
+   * add assumptions;
+   * introduce a different story;
+   * change the problem objective.
+
+5. Use appropriate LaTeX math formatting throughout.
+
+## STEP 5 — GENERATE THE INPUT SECTION
+
+If `input_format` is present and non-empty:
+
+1. Generate:
 
 \section*{Input}
 
-<Format the "input_format" field clearly. Use line breaks or itemization
-if multiple inputs are present. Use LaTeX math where appropriate.>
+2. Rewrite and format the input description clearly.
+
+3. If multiple input values, lines, or components are described:
+
+   * preserve their original order;
+   * use line breaks or itemization only when appropriate;
+   * do not add new input values.
+
+4. Convert mathematical notation into proper LaTeX where appropriate.
+
+5. Preserve all input semantics exactly.
+
+## STEP 6 — GENERATE THE OUTPUT SECTION
+
+If `output_format` is present and non-empty:
+
+1. Generate:
 
 \section*{Output}
 
-<Format the "output_format" field clearly.>
+2. Clearly format the output requirements.
+
+3. Preserve exactly what must be printed, returned, or determined.
+
+4. Do not add formatting requirements not present in the JSON.
+
+## STEP 7 — GENERATE THE CONSTRAINTS SECTION
+
+If `constraints` exists and contains at least one constraint:
+
+1. Generate:
 
 \section*{Constraints}
 
+2. Generate exactly:
+
 \begin{itemize}
-<Each constraint from "constraints" must be written as a separate \item,
-using proper LaTeX math formatting, e.g. $1 \le n \le 10^5$.>
+
+3. For each constraint in `constraints`, in the same order as provided:
+
+   * create exactly one `\item`;
+   * preserve the constraint's meaning and bounds;
+   * convert mathematical expressions into valid LaTeX.
+
+4. Example formatting:
+
+\item $1 \le n \le 10^5$
+
+5. Close the environment exactly:
+
 \end{itemize}
+
+Do not:
+
+* merge separate constraints unless they are already inseparable in the JSON;
+* split a single constraint into invented subconstraints;
+* add standard competitive-programming constraints;
+* infer data-type limits.
+
+## STEP 8 — GENERATE THE EXAMPLES SECTION
+
+If `samples` exists and contains at least one entry:
+
+1. Generate:
 
 \section*{Examples}
 
-For EACH entry in "samples", render:
+2. Process every sample sequentially using one-based indexing.
+
+3. For sample number `index`, generate:
 
 \subsection*{Example <index>}
 
+4. Generate the input block exactly as follows:
+
 \textbf{Input}
-\begin{verbatim}
-<sample input EXACTLY as given>
+\begin{verbatim} <sample input EXACTLY as given>
 \end{verbatim}
+
+5. Generate the output block exactly as follows:
 
 \textbf{Output}
-\begin{verbatim}
-<sample output EXACTLY as given>
+\begin{verbatim} <sample output EXACTLY as given>
 \end{verbatim}
 
-<If "explanation" exists, include:>
+6. Preserve sample input EXACTLY:
+
+   * do not change spaces;
+   * do not change line breaks;
+   * do not reorder lines;
+   * do not normalize numbers;
+   * do not add or remove tokens.
+
+7. Preserve sample output EXACTLY using the same rules.
+
+8. If the sample contains a non-empty `explanation` field, append:
+
 \textbf{Explanation:} <explanation text>
+
+9. Do not generate an explanation when:
+
+   * the `explanation` field is missing;
+   * the `explanation` field is empty.
+
+## STEP 9 — GENERATE THE NOTES SECTION
+
+Generate the Notes section only when `notes` is present and non-empty.
+
+When applicable, generate:
 
 \section*{Notes}
 
-<Include ONLY if "notes" is non-empty>
+<notes content>
 
---------------------------------------------------
+Do not generate an empty Notes section.
 
-STRICT FORMATTING RULES:
+Do not add notes that are not explicitly present in the JSON.
 
-1. Output ONLY valid LaTeX. Do NOT use Markdown.
-2. Do NOT wrap output in code fences.
-3. Do NOT add any explanations or extra text.
-4. Use $...$ for inline math and proper LaTeX symbols:
-   - \le, \ge, \times, \sum, etc.
-5. Preserve ALL sample inputs/outputs EXACTLY (no changes at all).
-6. Do NOT leave any section empty — omit it if JSON field is empty.
-7. Ensure the LaTeX is directly usable in Codeforces Polygon.
+## STEP 10 — STRUCTURAL VALIDATION
 
-Generate the LaTeX now.
-If you output anything other than LaTeX your output is incorrect.
+Before producing the final output, perform an internal completeness check.
+
+Verify all of the following:
+
+SOURCE FIDELITY
+
+* Every generated fact originates from the JSON.
+* No new constraints were introduced.
+* No new samples were introduced.
+* No story elements were invented.
+* No technical meaning was changed.
+* No mathematical relationship was changed.
+* No assumption was added.
+
+SECTION COMPLETENESS
+
+* `time_limit` is included if and only if it is non-empty.
+* `memory_limit` is included if and only if it is non-empty.
+* `Problem Statement` is included if and only if `story` is non-empty.
+* `Input` is included if and only if `input_format` is non-empty.
+* `Output` is included if and only if `output_format` is non-empty.
+* `Constraints` is included if and only if at least one constraint exists.
+* `Examples` is included if and only if at least one sample exists.
+* `Notes` is included if and only if `notes` is non-empty.
+
+CONSTRAINT VALIDATION
+
+* Every constraint appears exactly once.
+* Constraint order matches the JSON.
+* Every constraint is represented as a separate `\item`.
+* Mathematical notation is valid LaTeX.
+* No bounds or values were altered.
+
+SAMPLE VALIDATION
+
+* Every sample in `samples` appears exactly once.
+* Samples remain in their original order.
+* Example numbering starts at 1.
+* Every sample input is preserved exactly.
+* Every sample output is preserved exactly.
+* Explanations are included only when explicitly provided and non-empty.
+* No sample data is rephrased inside `verbatim` blocks.
+
+LATEX VALIDATION
+
+* The output contains valid LaTeX only.
+* No Markdown syntax is used.
+* No Markdown code fences are used.
+* Inline mathematics uses `$...$`.
+* LaTeX environments are correctly opened and closed.
+* `itemize` environments are balanced.
+* `verbatim` environments are balanced.
+* No required generated section is accidentally empty.
+* Empty JSON fields do not produce empty sections.
+
+## STEP 11 — FINAL OUTPUT GATE
+
+Only after completing all validation checks, output the generated LaTeX.
+
+The response must satisfy every rule below:
+
+1. Output ONLY valid LaTeX.
+2. Do NOT use Markdown.
+3. Do NOT use code fences.
+4. Do NOT add explanations before or after the LaTeX.
+5. Do NOT describe the algorithm.
+6. Do NOT mention the JSON processing.
+7. Do NOT mention validation.
+8. Do NOT include commentary.
+9. Do NOT include placeholders other than information already present in the JSON.
+10. The output must be directly usable in Codeforces Polygon.
+
+# FINAL EXECUTION COMMAND
+
+Using the provided JSON as the only source of truth, execute the algorithm above and generate the complete publication-ready Codeforces Polygon LaTeX problem statement now.
+
+If any information is missing from the JSON, omit only the corresponding optional output section or element. Never invent missing information.
+
+Your final response must contain ONLY the generated LaTeX problem statement. Any non-LaTeX text is incorrect.

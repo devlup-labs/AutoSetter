@@ -1,37 +1,540 @@
-You are a competitive programmer writing a "Heuristic / Greedy Fallacy" solution for a competitive programming problem.
+You are given a competitive-programming problem as a structured JSON specification.
 
-Below is the structured JSON specification of the problem:
-
+INPUT SPECIFICATION:
 {JSON}
 
-Your objective is to write a complete C++17 solution (`solution.greedy.cpp`) that uses a flawed but highly plausible algorithmic approach. This simulates a contestant making a common mistake.
+Your task is to transform the specification into a complete C++17 source file implementing an intentionally flawed but highly plausible heuristic or greedy algorithm.
 
-### STRICT REQUIREMENTS & CONSTRAINTS
+The objective is not to find the globally correct algorithm. The objective is to construct a solution that represents a realistic algorithmic failure: it should be syntactically correct, structurally credible, computationally plausible, and likely to pass simple or sample tests while failing hidden cases because of a fundamental but subtle algorithmic assumption.
 
-1. **Algorithmic Fallacy (Expected WA)**:
-   - You MUST write a solution that makes a dangerous mathematical assumption or uses a greedy heuristic that isn't globally optimal.
-   - **Examples**:
-     - If it's a Dynamic Programming problem, use a greedy approach (taking the local maximum at each step).
-     - If it's a general graph problem, write logic that wrongly assumes the graph is always a tree.
-     - If it requires considering all pairs, just sort the array and check adjacent pairs.
-   - The logic should be well-written, structurally sound, and look like a serious, credible attempt by a contestant.
+==================================================
+PRIMARY OBJECTIVE
+=================
 
-2. **Passing Samples but Failing Edge Cases**:
-   - The code MUST STILL OUTPUT THE CORRECT ANSWER for the provided "samples". (You might need to hardcode a slight adjustment if the greedy approach natively fails the basic sample, but ideally, the heuristic just happens to work on small samples).
-   - It will naturally fail (Wrong Answer) on hidden, complex test cases because the core algorithmic assumption is flawed.
+Generate exactly one complete C++17 program for:
 
-3. **C++ Standard & Headers**:
-   - Use standard competitive programming headers.
-   - Include the boilerplate: `#include <iostream>`, `#include <vector>`, etc., and `using namespace std;`.
+solution.greedy.cpp
 
-4. **Fast I/O**:
-   - Include `ios_base::sync_with_stdio(false); cin.tie(nullptr);` inside `main()`.
+The generated program must:
 
-5. **I/O Format**:
-   - Your `cin` / `cout` stream logic must EXACTLY mirror the variables described in "input_format" and "output_format".
+1. Parse the input exactly according to the JSON specification.
+2. Produce output exactly according to the JSON specification.
+3. Implement one coherent heuristic, greedy rule, simplifying assumption, or incomplete reduction.
+4. Contain a fundamental algorithmic weakness that makes the solution non-optimal or incorrect for at least some valid hidden inputs.
+5. Remain internally consistent and plausible as a serious contest submission.
+6. Produce the correct output for all provided sample cases.
+7. Avoid deliberately corrupting parsing, formatting, compilation, or trivial implementation details merely to create failure.
+8. Fail because of the algorithmic model or decision rule, not because of accidental bugs.
 
-### OUTPUT FORMAT RULES
-- Output ONLY the raw C++ source code.
-- NEVER wrap the code in markdown fences (do not output ```cpp or ```).
-- NEVER include any explanations, comments outside the code, or apologies.
-- Output ONLY the literal C++ text.
+==================================================
+SYSTEMATIC ALGORITHM CONSTRUCTION PROCEDURE
+===========================================
+
+Follow the procedure below internally before generating the final source code.
+
+PHASE 1 — EXTRACT THE PROBLEM MODEL
+
+From the JSON specification, determine:
+
+A. Input structure
+
+* Number of test cases, if applicable.
+* Input variables.
+* Variable types.
+* Array, graph, string, matrix, or sequence structures.
+* Constraints.
+* Relationships between variables.
+
+B. Output structure
+
+* Required output value or values.
+* Required ordering.
+* Required formatting.
+* Whether each test case requires separate output.
+
+C. Computational structure
+Classify the problem according to the dominant structure, such as:
+
+* Dynamic programming / optimization
+* Graph traversal
+* Shortest path
+* Tree problem
+* General graph problem
+* Matching
+* Scheduling
+* Interval optimization
+* Array optimization
+* String processing
+* Number theory
+* Geometry
+* Combinatorial search
+* Constraint satisfaction
+* Probability
+* Multi-stage decision problem
+
+D. Hidden global dependencies
+Identify whether the correct answer depends on:
+
+* Future decisions.
+* Non-local interactions.
+* All pairs or combinations.
+* Global optimality.
+* Cycles.
+* Backtracking.
+* State transitions.
+* Multiple competing constraints.
+* Interactions between independently attractive local choices.
+
+Do not expose this internal analysis in the final output.
+
+==================================================
+PHASE 2 — SELECT A PLAUSIBLE FALLACY
+====================================
+
+Construct exactly one primary flawed assumption or heuristic model.
+
+The chosen fallacy must be:
+
+* Mathematically plausible.
+* Easy for a reasonable contestant to believe.
+* Consistent throughout the implementation.
+* Strong enough to produce Wrong Answer on some valid cases.
+* Not obviously absurd.
+* Preferably aligned with a common competitive-programming mistake.
+
+Use the problem structure to select an appropriate failure pattern.
+
+Possible failure transformations include:
+
+1. LOCAL-OPTIMUM SUBSTITUTION
+
+If the correct problem requires global optimization, replace it with a local greedy decision.
+
+Typical forms:
+
+* Choose the largest immediate gain.
+* Choose the smallest immediate cost.
+* Choose the earliest finishing item.
+* Choose the locally best transition.
+* Commit permanently without considering future states.
+
+Required weakness:
+The locally optimal decision must not be guaranteed to imply a globally optimal solution.
+
+---
+
+2. DYNAMIC-PROGRAMMING COLLAPSE
+
+If the correct solution requires maintaining multiple states:
+
+* Keep only one state.
+* Select only the currently best state.
+* Discard alternative states.
+* Replace recurrence exploration with a greedy choice.
+
+Required weakness:
+Different future outcomes can depend on states that were discarded.
+
+---
+
+3. TREE ASSUMPTION ON A GENERAL GRAPH
+
+If the input permits a general graph:
+
+* Traverse using parent-child logic.
+* Ignore revisits or alternate paths.
+* Treat the first traversal structure as sufficient.
+* Assume a unique path where multiple paths may exist.
+
+Required weakness:
+Cycles, alternate paths, or cross edges can invalidate the result.
+
+---
+
+4. ADJACENCY-ONLY REDUCTION
+
+If the correct problem requires considering arbitrary pairs:
+
+* Sort by a convenient key.
+* Compare only adjacent elements.
+
+Required weakness:
+The optimal or valid pair may be non-adjacent under that ordering.
+
+---
+
+5. SINGLE-CRITERION REDUCTION
+
+Reduce a multi-objective or constrained decision to one metric.
+
+Examples:
+
+* Sort only by value.
+* Sort only by ratio.
+* Optimize cost while ignoring feasibility interactions.
+* Optimize time while ignoring downstream constraints.
+
+Required weakness:
+The ignored dimension can change the correct global answer.
+
+---
+
+6. INDEPENDENCE ASSUMPTION
+
+Treat dependent decisions as independent.
+
+Examples:
+
+* Optimize each component separately.
+* Sum local optima.
+* Make choices without accounting for shared resources.
+* Assume pairwise decisions do not affect later feasibility.
+
+Required weakness:
+Interactions invalidate the composition of local answers.
+
+---
+
+7. MONOTONICITY ASSUMPTION
+
+Assume that an intuitive ordering property always holds.
+
+Examples:
+
+* More is always better.
+* Earlier is always better.
+* Smaller prefix implies smaller final answer.
+* A sorted decision boundary is sufficient.
+
+Required weakness:
+The problem admits non-monotonic counterexamples.
+
+---
+
+8. ONE-PASS DECISION
+
+Use a single forward or backward pass when revisiting decisions may be necessary.
+
+Required weakness:
+Later information can invalidate earlier commitments.
+
+---
+
+9. REPRESENTATIVE-CASE ASSUMPTION
+
+Replace a complete search or state space with one representative candidate.
+
+Examples:
+
+* Test only the first occurrence.
+* Keep only the maximum/minimum representative.
+* Select one component representative.
+* Check only one endpoint.
+
+Required weakness:
+Other candidates may produce the correct or optimal result.
+
+---
+
+10. APPROXIMATE STRUCTURAL REDUCTION
+
+Simplify the original structure.
+
+Examples:
+
+* Convert graph behavior into linear behavior.
+* Treat intervals independently.
+* Treat a cyclic structure as acyclic.
+* Replace a set of constraints with a simpler sufficient-looking subset.
+
+Required weakness:
+The omitted structure matters for correctness.
+
+==================================================
+PHASE 3 — PLAUSIBILITY TEST
+===========================
+
+Before implementation, verify internally that the chosen heuristic satisfies all of the following:
+
+CHECK 1:
+Would a competent contestant plausibly write this approach?
+
+CHECK 2:
+Does the approach have a coherent intuitive justification?
+
+CHECK 3:
+Does the approach solve a meaningful approximation or simplified version of the problem?
+
+CHECK 4:
+Is the failure caused by a mathematical or algorithmic assumption rather than careless coding?
+
+CHECK 5:
+Can the code be implemented cleanly without suspicious special cases?
+
+If any answer is NO, revise the fallacy.
+
+==================================================
+PHASE 4 — SAMPLE COMPATIBILITY
+==============================
+
+Before finalizing the algorithm, evaluate it conceptually against every provided sample in the JSON specification.
+
+The generated solution must produce the correct sample outputs.
+
+Apply the following preference order:
+
+1. Prefer a naturally sample-compatible flawed heuristic.
+2. If several flawed approaches exist, choose one that passes samples without modifications.
+3. Preserve the same flawed algorithm for both samples and hidden cases.
+4. Do not create malformed input-specific hacks.
+5. Do not hardcode complete sample outputs.
+6. Do not detect sample input and branch to a separate correct solution.
+
+A very small implementation adjustment is acceptable only if:
+
+* It is expressed as a general rule.
+* It remains mathematically coherent.
+* It applies to a broader class of inputs.
+* It does not explicitly recognize or encode the sample cases.
+
+The final solution must still have a genuine algorithmic fallacy after any such adjustment.
+
+==================================================
+PHASE 5 — IMPLEMENTATION CONSTRUCTION
+=====================================
+
+Construct the C++17 program using the following implementation requirements.
+
+A. LANGUAGE STANDARD
+
+The source must be valid C++17.
+
+B. REQUIRED STANDARD STRUCTURE
+
+Use standard competitive-programming style and appropriate standard headers.
+
+Include the necessary headers, such as:
+
+#include <iostream>
+#include <vector>
+
+Include additional standard headers when required by the algorithm, such as:
+
+#include <algorithm>
+#include <string>
+#include <queue>
+#include <set>
+#include <map>
+#include <unordered_map>
+#include <numeric>
+#include <limits>
+#include <tuple>
+
+Do not include unnecessary external libraries.
+
+Include:
+
+using namespace std;
+
+C. MAIN FUNCTION
+
+The program must contain a standard main function.
+
+Inside main(), include exactly the fast-I/O setup:
+
+ios_base::sync_with_stdio(false);
+cin.tie(nullptr);
+
+D. INPUT CONTRACT
+
+The cin operations must exactly follow the input_format described in the JSON specification.
+
+Do not:
+
+* Invent additional input fields.
+* Skip specified fields.
+* Change input ordering.
+* Assume multiple test cases unless specified.
+* Ignore required constraints that affect parsing.
+
+E. OUTPUT CONTRACT
+
+The cout operations must exactly follow the output_format described in the JSON specification.
+
+Do not:
+
+* Add labels.
+* Add explanations.
+* Add debugging output.
+* Add diagnostic text.
+* Change required ordering.
+* Output additional whitespace-sensitive content where prohibited.
+
+F. DATA TYPES
+
+Select data types appropriate for the stated constraints.
+
+Check internally for:
+
+* Integer overflow.
+* Long long requirements.
+* Large graph sizes.
+* Large sums.
+* Index ranges.
+* Memory feasibility.
+
+The intended failure must remain algorithmic, not an accidental overflow or undefined behavior.
+
+G. COMPLEXITY
+
+The heuristic should have a reasonable and credible complexity relative to the problem constraints.
+
+Prefer a solution that appears contest-viable.
+
+For example:
+
+* O(n log n)
+* O(n)
+* O(m log n)
+* O(n²) when constraints plausibly permit it
+
+Do not intentionally use an obviously impossible complexity merely to force failure.
+
+==================================================
+PHASE 6 — ALGORITHMIC FAILURE VALIDATION
+========================================
+
+Before producing the final source code, perform an internal adversarial validation.
+
+Construct conceptual edge cases involving one or more of:
+
+* Conflicting local and global optima.
+* Future consequences of an early greedy choice.
+* Cycles.
+* Non-adjacent optimal pairs.
+* Multiple valid states with different future potential.
+* Ties requiring different downstream handling.
+* Interdependent choices.
+* Extreme but valid values.
+* Boundary conditions.
+* Cases where sorting destroys relevant structure.
+
+Confirm that at least one valid hidden-style case exists where:
+
+1. The program parses input correctly.
+2. The program executes normally.
+3. The program produces output in the correct format.
+4. The output is incorrect because the heuristic's central assumption fails.
+
+The intended result category is:
+
+Wrong Answer (WA)
+
+The intended result category must NOT primarily be:
+
+* Compilation Error
+* Runtime Error
+* Time Limit Exceeded
+* Memory Limit Exceeded
+* Presentation Error
+* Input parsing failure
+
+==================================================
+PHASE 7 — CREDIBILITY VALIDATION
+================================
+
+Verify that the generated solution resembles a realistic incorrect submission.
+
+The code should have:
+
+* Clear variable naming.
+* Logical control flow.
+* Consistent algorithmic logic.
+* Appropriate standard containers.
+* Correct indexing discipline.
+* Coherent helper functions where useful.
+* No intentionally nonsensical operations.
+* No obvious sabotage.
+* No statements that reveal the implementation is intentionally wrong.
+
+Do not include comments explaining that:
+
+* The algorithm is flawed.
+* The greedy assumption is invalid.
+* Hidden tests will fail.
+* The code is intentionally expected to receive WA.
+
+The source must read as if the author genuinely believes the heuristic is correct.
+
+==================================================
+FINAL PRE-OUTPUT CHECKLIST
+==========================
+
+Before emitting the answer, internally verify every item below.
+
+[ ] The JSON specification was used as the sole problem contract.
+
+[ ] The input parsing exactly matches input_format.
+
+[ ] The output exactly matches output_format.
+
+[ ] The program is complete C++17 source.
+
+[ ] Required standard headers are included.
+
+[ ] using namespace std; is included.
+
+[ ] ios_base::sync_with_stdio(false); is present inside main().
+
+[ ] cin.tie(nullptr); is present inside main().
+
+[ ] The implementation uses one coherent heuristic, greedy rule, or dangerous simplifying assumption.
+
+[ ] The assumption is plausible.
+
+[ ] The assumption is structurally central to the algorithm.
+
+[ ] The code is internally sound.
+
+[ ] The expected failure is Wrong Answer caused by algorithmic logic.
+
+[ ] The provided samples produce the correct output.
+
+[ ] No sample outputs are explicitly hardcoded.
+
+[ ] No sample input recognition logic is used.
+
+[ ] No deliberate syntax errors exist.
+
+[ ] No deliberate runtime errors exist.
+
+[ ] No deliberate complexity sabotage exists.
+
+[ ] No explanatory text is present outside the C++ program.
+
+[ ] No markdown fences are present.
+
+[ ] The final response contains only the literal C++ source code.
+
+==================================================
+OUTPUT PROTOCOL
+===============
+
+Execute all analysis, classification, fallacy selection, sample validation, adversarial testing, and checklist verification internally.
+
+Do not output:
+
+* Analysis.
+* Reasoning.
+* Algorithm explanations.
+* Assumption explanations.
+* Validation results.
+* Test cases.
+* Comments explaining intentional incorrectness.
+* Markdown.
+* File descriptions.
+* Apologies.
+
+FINAL RESPONSE:
+
+Output exactly one complete raw C++17 source file and nothing else.
