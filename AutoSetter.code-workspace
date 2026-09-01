@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "AutoSetter",
+			"path": "."
+		},
+		{
+			"name": "sandbox",
+			"path": "../sandbox"
+		}
+	],
+	"settings": {}
+}
