@@ -108,7 +108,7 @@ class Packager:
         _log("Packaging testlib files...")
         files_dir = self.package_dir / "files"
         files_dir.mkdir(exist_ok=True)
-        for name in ("validator.cpp", "generator.cpp", "checker.cpp"):
+        for name in ("validator.cpp", "generator.py", "checker.cpp"):
             src = self.generated_dir / name
             if src.exists():
                 shutil.copy2(src, files_dir / name)

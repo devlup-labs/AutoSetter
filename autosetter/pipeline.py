@@ -21,6 +21,7 @@ Verifies:
 from __future__ import annotations
 
 import json
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -218,7 +219,7 @@ class TestPipeline:
     ARTIFACTS = {
         "solution": ("solution.cpp", False),
         "validator": ("validator.cpp", True),
-        "generator": ("generator.cpp", True),
+        "generator": ("generator.py", False),
         "checker": ("checker.cpp", True),
         "solution_greedy": ("solution.greedy.cpp", False),
         "solution_brute": ("solution.brute.cpp", False),
@@ -392,6 +393,11 @@ class TestPipeline:
                 self._log(f"  ⚠️  {name}: source file missing ({filename})")
                 continue
 
+            if source.suffix == ".py":
+                setattr(comp, name, True)
+                self._log(f"  ✅ {name}: ready (python script)")
+                continue
+
             try:
                 self.sandbox.compile_file(
                     source,
@@ -556,9 +562,9 @@ class TestPipeline:
 
     def _generate_test(self, seed: str) -> str:
         """Run the generator with a seed to produce test input."""
-        generator_bin = self.generated_dir / "generator"
+        generator_script = self.generated_dir / "generator.py"
         result = self.sandbox.run_binary(
-            generator_bin, args=[seed], timeout=self.time_limit
+            sys.executable, args=[str(generator_script), seed], timeout=self.time_limit
         )
         if result.status != "success":
             raise SandboxError(f"Generator failed (seed={seed}): {result.stderr}")

@@ -1,43 +1,39 @@
-You are an expert competitive programming problem-setter specializing in writing robust, reproducible test-case generators using testlib.h (the standard library used by Codeforces Polygon and similar judge systems).
+You are an expert competitive programming problem-setter specializing in writing robust, constraint-driven test-case generators using the Z3 SMT solver in Python.
 
 Below is the structured JSON specification of the problem:
 
 {JSON}
 
-Your task: write a complete, compilable `generator.cpp` that produces a single random (but always VALID per "constraints") test case for this problem, printed to stdout in exactly the format described by "input_format" and "samples".
+Your task: write a complete, executable `generator.py` script that produces a single valid test case for this problem, printed to stdout exactly in the format described by "input_format" and "samples".
 
-REQUIREMENTS & BEHAVIOR:
-1. Always include:
-   #include "testlib.h"
-   #include <iostream>
-   #include <string>
-   #include <vector>
-   #include <algorithm>
-   using namespace std;
-2. Initialize `main` with `registerGen(argc, argv, 1);` as the first statement.
-3. Use testlib's random engine ONLY:
-   - For integers: `rnd.next(min_val, max_val)`
-   - For 64-bit integers: `rnd.next(min_ll, max_ll)`
-   - For floating-point: `rnd.next(min_d, max_d)`
-   - For random strings: NEVER use testlib regex generation like `rnd.next("[a-z.*]{1,20}")` because it crashes on special characters. ALWAYS generate strings manually using a `for` loop and picking characters randomly with `rnd.next('a', 'z')` or `rnd.any(...)`.
-   - For shuffling/permutations: `rnd.shuffle(vec.begin(), vec.end())`
-   - STRICTLY FORBIDDEN: Do NOT use `rand()`, `srand()`, `<random>`, `std::mt19937`.
-4. NO HARDCODED STATIC SAMPLES:
-   - Always generate realistic random valid data matching the constraints. Never simply hardcode the problem statement's sample string or array.
-5. Command-Line Arguments & Edge Cases:
-   - Safely read parameters from `argv` with fallback defaults using `opt<T>("param", default_value)`.
-   - Support `string type = opt<string>("type", "rand");` to produce stress edge cases:
-     - `type == "min"`: produce minimum allowed bounds.
-     - `type == "max"`: produce maximum allowed bounds.
-     - `type == "rand"` (or default): produce uniform random valid test cases.
-6. Exact Formatting & Whitespace (CRITICAL):
+REQUIREMENTS & BEHAVIOR (Constraint-Driven Algorithmic Prompting):
+1. Always import Z3 and sys:
+   import sys
+   import z3
+
+2. Explicit Generation Pipeline:
+   - MODEL: Define a machine-readable representation of problem constraints using Z3 variables (Int, BitVec, Array, etc. depending on bounds to avoid timeouts).
+   - ENCODE: Translate constraints extracted from "constraints" into Z3 expressions.
+   - SOLVE: Ask Z3 for satisfying assignments (`s = z3.Solver()`, `s.check()`).
+   - CONSTRUCT & DIVERSIFY: Convert Z3 models directly into concrete test inputs. Use the seed parameter to diversify results.
+
+3. Command-Line Arguments & Randomization:
+   - The script MUST accept a random seed via `sys.argv[1]`.
+   - Use `z3.set_param('smt.random_seed', int(sys.argv[1]))` to ensure the Z3 solver produces different models across runs.
+   - You can also use `random.seed(int(sys.argv[1]))` if you need to shuffle or randomize arrays AFTER generation, but prefer Z3 for constructing valid values.
+
+4. Never Rely on Validator:
+   - Use Z3 to construct valid tests; do not generate random tests and then filter them.
+   - Ensure you handle the solver results explicitly: if SAT, extract the model; if UNSAT, raise an error indicating the constraints are impossible; if UNKNOWN, raise an error reporting the reason.
+
+5. Exact Formatting & Whitespace (CRITICAL):
    - Strictly match the line and token layout specified in "input_format" and "samples".
    - TEST CASE COUNT: If the problem has `t` test cases, you MUST explicitly output `t` followed by a newline before printing the actual test cases.
-   - NO TRAILING SPACES: Never print a space at the end of a line. When printing elements in a loop (like arrays or matrices), you MUST use conditional logic (e.g., `if (i < n - 1) cout << " ";`) to ensure the very last element is immediately followed by a newline, NOT a space.
+   - NO TRAILING SPACES: Never print a space at the end of a line.
    - Terminate the final output with a newline `\n`.
-7. The code must compile cleanly under `g++ -std=c++17 -O2`.
+   - Read the model variables correctly using `model[var].as_long()` for integers.
 
 OUTPUT RULES:
-- Output ONLY the complete raw C++ source code for generator.cpp.
-- Do NOT wrap in markdown code fences (no ```cpp).
-- Do NOT include any commentary or explanation outside the C++ code.
+- Output ONLY the complete raw Python source code for generator.py.
+- Do NOT wrap in markdown code fences (no ```python).
+- Do NOT include any commentary or explanation outside the Python code.

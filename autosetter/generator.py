@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Import configuration defaults used by both generation backends.
+# Import configuration defaults
 # ─────────────────────────────────────────────────────────────────────────────
 from autosetter.config import (
     DEFAULT_MAX_RETRIES,     # Max retry attempts on C++ syntax failure
@@ -28,13 +28,12 @@ from autosetter.config import (
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Import the EXISTING Ollama client (used for artifacts NOT handled by HF).
-# This import is UNCHANGED from the original code.
+# Import the Ollama client
 # ─────────────────────────────────────────────────────────────────────────────
 from autosetter.llm import OllamaCallError, OllamaClient
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Import prompt template utilities (shared by both backends).
+# Import prompt template utilities
 # ─────────────────────────────────────────────────────────────────────────────
 from autosetter.prompts import PromptError, load_and_render_prompt
 
@@ -98,9 +97,9 @@ ARTIFACTS: List[ArtifactSpec] = [
     ArtifactSpec(
         name="generator",
         prompt_template="generator.txt",
-        output_filename="generator.cpp",
-        is_cpp=True,
-        is_testlib=True,
+        output_filename="generator.py",
+        is_cpp=False,
+        is_testlib=False,
         strip_code_fence=True,
     ),
     ArtifactSpec(
@@ -157,7 +156,7 @@ def strip_code_fence(text: str) -> str:
     """
     Extract clean C++ code or LaTeX/Markdown content from LLM response.
 
-    Both the Ollama and HuggingFace models may wrap their output in markdown
+    Both the Ollama and other models may wrap their output in markdown
     code fences (```cpp ... ``` or ```latex ... ```). This function strips
     those fences and returns only the content inside.
 

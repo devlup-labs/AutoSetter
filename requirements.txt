@@ -8,15 +8,8 @@
 ollama>=0.4.0
 Pillow>=10.0.0
 PyMuPDF>=1.24.0
+z3-solver>=4.12.0
 
-# HuggingFace Second Model (fine-tuned Qwen 7B for Codeforces artifacts)
-#
-# torch        - PyTorch tensor operations and GPU memory management
-# transformers - HuggingFace Transformers for AutoModelForCausalLM + AutoTokenizer
-# accelerate   - automatic device mapping (multi-GPU, mixed-precision)
-torch>=2.0.0
-transformers>=4.40.0
-accelerate>=0.30.0
 
 # Development / Testing
 pytest>=8.0.0
