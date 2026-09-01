@@ -1,0 +1,7 @@
+requests
+python-dotenv
+tqdm
+qdrant-client
+sentence-transformers
+pydantic
+torch
