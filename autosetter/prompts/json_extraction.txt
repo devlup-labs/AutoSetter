@@ -1,73 +1,545 @@
-You are an expert competitive programming problem-setter and OCR specialist.
+You will receive one or more images containing a competitive programming problem statement. The images may represent multiple pages and must be processed in their provided order.
 
-You will be shown one or more images containing a competitive programming
-problem statement (it may span multiple pages/images, in order). Carefully
-read every part of the image(s), including any small print, tables, and
-sample input/output blocks.
+Your objective is to transform the complete visual problem statement into one syntactically valid JSON object with a fixed schema.
 
-Your task: extract and structure the FULL problem into a single JSON object
-with EXACTLY the following top-level keys (no more, no fewer):
+PROCESS THE INPUT USING THE FOLLOWING ALGORITHM.
+
+================================================================
+
+1. INPUT INGESTION AND IMAGE ORDER
+   ================================================================
+
+2. Treat all provided images as one ordered document.
+
+3. Process the images sequentially in the order provided.
+
+4. Inspect every visible region of every image.
+
+5. Do not ignore:
+
+   * Small print
+   * Headers and footers
+   * Tables
+   * Mathematical expressions
+   * Constraints
+   * Input/output descriptions
+   * Sample input/output blocks
+   * Explanations
+   * Notes
+   * Subtasks
+   * Partial scoring information
+   * Time limits
+   * Memory limits
+   * Any text relevant to the problem definition
+
+6. Merge information spanning multiple images into a single coherent problem representation.
+
+================================================================
+2. EXTRACTION PIPELINE
+======================
+
+Execute the following stages internally and sequentially.
+
+STAGE A — OCR EXTRACTION
+
+Extract all readable text and structural information from the images.
+
+Preserve:
+
+* Numbers
+* Inequalities
+* Variable names
+* Mathematical notation
+* Ordering
+* Sample formatting
+* Units
+* Table relationships
+* Logical conditions
+
+If text is partially unreadable:
+
+* Do not silently invent the missing content.
+* Preserve only what can be reliably determined.
+* Record uncertainty or illegibility in the "notes" field.
+
+STAGE B — DOCUMENT SEGMENTATION
+
+Classify extracted information into the following categories:
+
+1. Problem title
+2. Narrative/problem description
+3. Input specification
+4. Output specification
+5. Constraints
+6. Sample cases
+7. Sample explanations
+8. Time limit
+9. Memory limit
+10. Additional notes
+11. Subtasks or scoring rules
+12. Edge cases or clarifications
+
+Combine fragmented information belonging to the same category, even when it appears across different images.
+
+STAGE C — FORMAT DETECTION
+
+Determine whether the source problem uses:
+
+A. Standard Competitive Programming format, or
+
+B. Leetcode-style format.
+
+Use the following decision procedure.
+
+CLASSIFY AS STANDARD COMPETITIVE PROGRAMMING FORMAT IF:
+
+* The input explicitly describes the input stream.
+* A testcase count is explicitly present when multiple testcases are intended.
+* Array, string, or matrix dimensions are explicitly represented or inferable from the stated input format.
+* The sample format already follows conventional competitive programming input/output structure.
+
+CLASSIFY AS LEETCODE-STYLE FORMAT IF:
+
+* Function parameters are presented instead of a complete input stream.
+* Arrays, strings, or matrices are passed directly as arguments without explicit input dimensions.
+* No testcase count is defined.
+* Examples are presented as independent calls such as:
+  Input: nums = [...]
+  Output: ...
+* The problem statement describes a function signature rather than standard input/output.
+
+================================================================
+3. STANDARD COMPETITIVE PROGRAMMING PROCESSING
+==============================================
+
+If the source is already in standard competitive programming format:
+
+1. Preserve the original input structure.
+2. Do not add a testcase count unless one is explicitly present.
+3. Do not invent dimensions.
+4. Transcribe all visible constraints precisely.
+5. Preserve sample input/output formatting exactly as presented.
+6. Do not merge separate samples unless the source itself combines them.
+7. Extract all additional notes and clarifications.
+
+================================================================
+4. LEETCODE-STYLE TO COMPETITIVE PROGRAMMING TRANSLATION
+========================================================
+
+If the source is Leetcode-style, convert the problem into standard competitive programming format.
+
+Apply all of the following transformations.
+
+STEP 1 — TESTCASE COUNT
+
+The first input line MUST contain:
+
+t
+
+where t is the number of test cases.
+
+STEP 2 — TESTCASE STRUCTURE
+
+For each testcase:
+
+1. Identify every array, string, matrix, or other variable-length structure.
+2. Add explicit dimensions before the associated data.
+
+Use the following conventions where applicable:
+
+* Array of length n:
+  n
+  followed by the array elements.
+
+* String of length n:
+  n
+  followed by the string.
+
+* Matrix with m rows and n columns:
+  m n
+  followed by the matrix data.
+
+* Multiple variable-sized structures:
+  Include all required dimensions explicitly and in an order that makes the testcase unambiguous.
+
+STEP 3 — INPUT FORMAT REWRITE
+
+Rewrite "input_format" so that it explicitly describes:
+
+1. Reading integer t.
+2. Repeating the testcase-reading procedure exactly t times.
+3. Reading every required dimension.
+4. Reading the corresponding data.
+
+The resulting description must define a complete standard input stream.
+
+STEP 4 — CONSTRAINT EXTENSION
+
+Preserve every constraint explicitly visible in the source.
+
+For variables introduced during conversion, such as t, n, or m:
+
+1. Add reasonable competitive-programming constraints.
+2. Ensure the constraints are sufficient to define a realistic and implementable input format.
+3. Add aggregate constraints when appropriate.
+
+Typical examples include:
+
+1 <= t <= 10^4
+
+1 <= n <= 2 * 10^5
+
+1 <= m <= 2 * 10^5
+
+sum of n over all testcases <= 2 * 10^5
+
+Do not alter or simplify original source constraints.
+
+Clearly distinguish inferred constraints from source-derived constraints by documenting the inference in "notes".
+
+STEP 5 — SAMPLE TRANSLATION
+
+Convert all visible Leetcode examples into competitive programming samples.
+
+Apply the following algorithm:
+
+1. Count the total number of independent examples.
+2. Set t equal to that number.
+3. Create ONE combined sample object.
+4. Construct the combined input:
+
+   * First line: t
+   * For each example:
+
+     * Print required dimensions.
+     * Print the corresponding data.
+5. Construct the combined output:
+
+   * One result per testcase.
+   * Separate testcase outputs using newline characters.
+6. Remove labels such as:
+
+   * "Input:"
+   * "Output:"
+7. Combine all testcase explanations into one "explanation" string.
+8. Preserve the meaning of every example.
+
+================================================================
+5. FIELD CONSTRUCTION ALGORITHM
+===============================
+
+Construct exactly one JSON object with EXACTLY these top-level keys and no others:
 
 {
-    "title": "",
-    "story": "",
-    "input_format": "",
-    "output_format": "",
-    "constraints": "",
-    "samples": [
-        {
-            "input": "",
-            "output": "",
-            "explanation": ""
-        }
-    ],
-    "time_limit": "",
-    "memory_limit": "",
-    "notes": ""
+"title": "",
+"story": "",
+"input_format": "",
+"output_format": "",
+"constraints": "",
+"samples": [
+{
+"input": "",
+"output": "",
+"explanation": ""
+}
+],
+"time_limit": "",
+"memory_limit": "",
+"notes": ""
 }
 
-Field-by-field instructions:
-- "title": The problem's title exactly as written. If no explicit title is
-  visible, infer a short, descriptive title from the problem content.
-- "story": The full narrative/description of the problem, in your own
-  faithful transcription (preserve mathematical notation using plain text
-  or LaTeX-like notation, e.g. "n^2", "a_i", "1 <= n <= 10^5").
-- "input_format": The exact description of how input is structured/formatted.
-  CRITICAL LEETCODE TRANSLATION: If the problem is in a Leetcode-style format (where array/matrix sizes are hidden, or it lacks a number of testcases `t`), you MUST translate it into standard Competitive Programming format!
-  1. The first line of input MUST be an integer `t` (the number of testcases).
-  2. For each testcase, any arrays, strings, or matrices MUST be preceded by their dimensions (e.g., `n` for an array of size n, or `m n` for an m x n matrix).
-  3. Rewrite the input_format string to explicitly mention reading `t`, then looping `t` times to read `n`, `m`, and the data.
-- "output_format": The exact description of how output must be structured/formatted.
-- "constraints": All numeric/logical constraints on the input, transcribed
-  precisely (do not round or simplify bounds). 
-  CRITICAL: If you added `t`, `n`, or `m` during Leetcode translation, you MUST invent reasonable competitive programming constraints for them and append them to this list (e.g., `1 <= t <= 10^4`, `1 <= n <= 2 * 10^5`, `sum of n over all testcases <= 2 * 10^5`).
-- "samples": An array of sample test cases.
-  CRITICAL LEETCODE TRANSLATION: If you translated the format to standard CP format (adding `t`, `n`, `m`), you MUST apply this translation to the samples too!
-  - Combine ALL individual Leetcode examples from the image into ONE single CP sample object.
-  - "input": The combined input string. The very first line MUST be `t` (the number of testcases). Then, for each testcase, print the array/string/matrix dimensions (like `n` or `m n`) followed by the data. STRIP any "Input:" or "Output:" labels.
-  - "output": The combined output string for all testcases, separated by newlines. STRIP any "Input:" or "Output:" labels.
-  - "explanation": Combined explanation text for all testcases.
-  If the problem was ALREADY in standard CP format, just transcribe the samples exactly as they appear.
-- "time_limit": The time limit exactly as stated (e.g. "2 seconds"). If not
-  stated in the image, use a sensible competitive-programming default such
-  as "1 second" or "2 seconds" and note that it was inferred inside "notes".
-- "memory_limit": The memory limit exactly as stated (e.g. "256 megabytes").
-  If not stated, infer a sensible default (e.g. "256 megabytes") and note
-  that it was inferred inside "notes".
-- "notes": Any additional remarks, edge cases, subtasks, partial scoring
-  rules, or clarifications visible in the image that don't fit the other
-  fields. Also use this field to flag anything you inferred rather than
-  read directly (e.g. inferred limits), or anything illegible in the image.
+Populate each field using the following rules.
 
-STRICT OUTPUT RULES:
-1. Respond with ONLY the JSON object. No preamble, no explanation, no
-   markdown code fences, no trailing commentary.
-2. The JSON must be syntactically valid (proper quoting, no trailing
-   commas, no comments).
-3. Every value must be a string, except "samples" which must be an array
-   of objects as shown above.
-4. Do not omit any of the required keys, even if a field is not present in
-   the image -- in that case, use an empty string "" (or an empty array []
-   for "samples" if truly no samples are visible).
-5. Do not fabricate problem content that is not supported by the image;
-   transcribe faithfully.
+---
+
+## "title"
+
+1. If an explicit title is visible, reproduce it exactly.
+2. If no explicit title is visible, infer a short descriptive title based only on the extracted problem content.
+3. Do not add marketing language or unrelated wording.
+
+---
+
+## "story"
+
+Include the complete problem narrative and description.
+
+Requirements:
+
+1. Preserve all problem-defining information.
+2. Faithfully transcribe the source content.
+3. Do not omit conditions, definitions, objectives, or relationships.
+4. Preserve mathematical notation using plain text or LaTeX-like notation where appropriate.
+
+Examples:
+
+n^2
+
+a_i
+
+1 <= n <= 10^5
+
+5. Do not fabricate information unsupported by the images.
+6. Combine description fragments appearing across multiple images.
+
+---
+
+## "input_format"
+
+If the source is standard CP format:
+
+* Faithfully describe the original input structure.
+
+If the source is Leetcode-style:
+
+* Apply the complete translation algorithm defined in Section 4.
+* Explicitly describe reading t.
+* Explicitly describe looping through t testcases.
+* Explicitly describe dimensions and associated data.
+
+The resulting input format must be sufficient for an independent programmer to parse the input without relying on hidden function parameters.
+
+---
+
+## "output_format"
+
+1. Faithfully describe how output must be produced.
+2. Preserve ordering and formatting requirements.
+3. Do not add requirements not supported by the source.
+4. If the source uses one answer per testcase after CP conversion, state that clearly.
+
+---
+
+## "constraints"
+
+1. Extract every numeric constraint.
+2. Extract every logical constraint.
+3. Preserve exact bounds.
+4. Do not round values.
+5. Do not simplify inequalities.
+6. Do not discard special conditions.
+7. Preserve constraints that appear in tables, notes, captions, or separate sections.
+
+If Leetcode-style conversion introduced t, n, m, or other dimensions:
+
+1. Add reasonable CP constraints.
+2. Add aggregate constraints when needed.
+3. Preserve all original constraints.
+4. Record that introduced constraints were inferred in "notes".
+
+---
+
+## "samples"
+
+The value must be an array of objects.
+
+Each object must contain exactly:
+
+{
+"input": "",
+"output": "",
+"explanation": ""
+}
+
+For standard CP problems:
+
+* Transcribe samples as they appear.
+
+For translated Leetcode-style problems:
+
+* Combine ALL visible individual examples into ONE CP sample object.
+* First line of combined input must be t.
+* Include required dimensions for every testcase.
+* Remove "Input:" and "Output:" labels.
+* Put testcase outputs on separate lines.
+* Combine all explanations.
+
+If no samples are visible:
+
+"samples": []
+
+---
+
+## "time_limit"
+
+1. If explicitly visible, reproduce the time limit exactly.
+2. Preserve the unit as stated.
+3. Examples:
+
+   * "1 second"
+   * "2 seconds"
+
+If no time limit is visible:
+
+1. Infer a sensible competitive programming default such as "1 second" or "2 seconds".
+2. State explicitly in "notes" that the value was inferred rather than read from the image.
+
+---
+
+## "memory_limit"
+
+1. If explicitly visible, reproduce the memory limit exactly.
+2. Preserve the unit as stated.
+3. Example:
+
+   * "256 megabytes"
+
+If no memory limit is visible:
+
+1. Infer a sensible default such as "256 megabytes".
+2. State explicitly in "notes" that the value was inferred rather than read from the image.
+
+---
+
+## "notes"
+
+Include all information that does not fit naturally into another field, including:
+
+* Additional remarks
+* Edge cases
+* Clarifications
+* Subtasks
+* Partial scoring rules
+* Special conditions
+* Information inferred during processing
+* Inferred time limits
+* Inferred memory limits
+* Inferred CP constraints
+* OCR uncertainty
+* Partially illegible text
+
+Do not silently hide uncertainty.
+
+================================================================
+6. NON-FABRICATION RULE
+=======================
+
+Apply the following evidence policy to every extracted fact:
+
+IF the information is directly visible and readable:
+Transcribe it faithfully.
+
+ELSE IF the information is logically required by the mandated
+Leetcode-to-CP conversion:
+Introduce the minimum necessary information and mark it as inferred
+in "notes".
+
+ELSE:
+Do not fabricate it.
+
+Do not invent:
+
+* Problem conditions
+* Algorithms
+* Constraints unrelated to the conversion
+* Sample data
+* Explanations
+* Time limits or memory limits without marking them as inferred
+* Missing mathematical conditions
+
+================================================================
+7. CONSISTENCY VALIDATION ALGORITHM
+===================================
+
+Before producing the final output, internally validate the result.
+
+CHECK 1 — KEY VALIDATION
+
+Verify that the JSON object contains exactly these nine top-level keys:
+
+title
+story
+input_format
+output_format
+constraints
+samples
+time_limit
+memory_limit
+notes
+
+Reject any extra top-level key.
+
+CHECK 2 — TYPE VALIDATION
+
+Verify:
+
+* Every top-level value is a string except "samples".
+* "samples" is an array.
+* Every sample item is an object.
+* Every sample object contains:
+
+  * "input" as a string
+  * "output" as a string
+  * "explanation" as a string
+
+CHECK 3 — COMPLETENESS VALIDATION
+
+Compare the final structured data against all processed images.
+
+Verify that no visible problem-defining information was omitted, including:
+
+* Title
+* Description
+* Input details
+* Output details
+* Constraints
+* Samples
+* Explanations
+* Limits
+* Notes
+* Subtasks
+* Scoring rules
+
+CHECK 4 — LEETCODE CONVERSION VALIDATION
+
+If the source was classified as Leetcode-style, verify all of the following:
+
+* Input begins with t.
+* Every testcase has explicit dimensions where needed.
+* The input format describes t and testcase iteration.
+* Samples use the translated CP format.
+* All individual examples are represented in the combined sample.
+* Output contains one result per testcase.
+* Added constraints are documented in notes.
+
+CHECK 5 — SOURCE FIDELITY VALIDATION
+
+For every extracted statement:
+
+* Confirm it is supported by the images, OR
+* Confirm it was required by the Leetcode-to-CP conversion and documented as inferred.
+
+Remove unsupported content.
+
+CHECK 6 — JSON SYNTAX VALIDATION
+
+Verify:
+
+* Valid JSON syntax.
+* Properly escaped quotation marks.
+* No trailing commas.
+* No comments.
+* Correct bracket matching.
+* Correct array/object nesting.
+
+================================================================
+8. FINAL OUTPUT PROTOCOL
+========================
+
+After all extraction, classification, transformation, construction, and validation steps are complete:
+
+1. Output ONLY the final JSON object.
+2. Do not include a preamble.
+3. Do not include an explanation.
+4. Do not include markdown.
+5. Do not use code fences.
+6. Do not include validation commentary.
+7. Do not include text before or after the JSON object.
+8. Do not expose intermediate reasoning, OCR workflow, classification process, or internal validation steps.
+
+If a required field is absent from the source:
+
+* Use "" for string fields.
+* Use [] for "samples" if no samples are visible.
+
+The final response must therefore be a single, syntactically valid JSON object that conforms exactly to the required schema and faithfully represents the complete content of the provided images.

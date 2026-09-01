@@ -1,37 +1,487 @@
-You are a competitive programmer writing an "Over-Engineered" solution for a competitive programming problem.
-
-Below is the structured JSON specification of the problem:
+You are given a competitive programming problem as a structured JSON specification:
 
 {JSON}
 
-Your objective is to write a complete C++17 solution (`solution.heavy.cpp`) that uses heavier data structures or algorithms than necessary. This simulates a contestant who uses advanced "heavy machinery" when a simple trick would do.
+Your task is to transform this specification into a complete C++17 source file named `solution.heavy.cpp`.
 
-### STRICT REQUIREMENTS & CONSTRAINTS
+The objective is not to find the simplest or most efficient solution. Instead, construct a mathematically correct solution using deliberately heavier algorithmic machinery than the problem fundamentally requires.
 
-1. **Algorithmic Approach (Expected Slow AC or TLE)**:
-   - You MUST solve the problem correctly, but use a suboptimal algorithmic paradigm.
-   - **Examples**:
-     - If the problem can be solved with a simple $O(N)$ linear scan, use a Segment Tree, Binary Indexed Tree, or Binary Search over the answer yielding $O(N \log N)$.
-     - If it can be solved with a basic BFS, use Dijkstra's algorithm or Bellman-Ford.
-     - If it can be solved with $O(1)$ math, use Binary Search.
-   - The solution must compute the 100% correct answer for all possible valid test cases, but it will have a much larger constant factor or an extra $O(\log N)$ overhead compared to the intended solution.
+# SYSTEM OBJECTIVE
 
-2. **Mathematical Correctness**:
-   - The logic MUST be completely flawless. 
-   - It must perfectly pass all provided "samples" and theoretically pass all maximum test cases (though it might get a Time Limit Exceeded due to the heavy overhead).
+Given the problem specification, execute the following algorithmic pipeline:
 
-3. **C++ Standard & Headers**:
-   - Use standard competitive programming headers.
-   - Include the boilerplate: `#include <iostream>`, `#include <vector>`, etc., and `using namespace std;`.
+INPUT JSON
+→ Parse problem requirements
+→ Infer the simplest likely correct approach
+→ Identify one or more unnecessarily heavy but correct alternatives
+→ Select a valid over-engineered approach
+→ Validate correctness and complexity
+→ Generate C++17 implementation
+→ Verify exact I/O conformance
+→ Perform final consistency checks
+→ Output raw source code only
 
-4. **Fast I/O**:
-   - Include `ios_base::sync_with_stdio(false); cin.tie(nullptr);` inside `main()`.
+The generated program must compute the correct answer for every valid input, even if its unnecessary overhead makes it slower than the intended solution or potentially causes TLE under strict limits.
 
-5. **I/O Format**:
-   - Your `cin` / `cout` stream logic must EXACTLY mirror the variables described in "input_format" and "output_format".
+Correctness is mandatory. Over-engineering is intentional. Simplicity and optimal asymptotic performance are not optimization objectives.
 
-### OUTPUT FORMAT RULES
-- Output ONLY the raw C++ source code.
-- NEVER wrap the code in markdown fences (do not output ```cpp or ```).
-- NEVER include any explanations, comments outside the code, or apologies.
-- Output ONLY the literal C++ text.
+---
+
+# PHASE 1 — PARSE THE PROBLEM SPECIFICATION
+
+Extract and explicitly determine the following from `{JSON}`:
+
+1. Problem objective.
+2. Input variables.
+3. Input order.
+4. Input constraints.
+5. Output variables.
+6. Output format.
+7. Number of test cases, if applicable.
+8. Mathematical properties of the problem.
+9. Graph, array, string, geometry, number theory, DP, or other structural properties.
+10. Required correctness conditions.
+11. Sample cases and their expected behavior, if provided.
+12. Edge cases implied by constraints.
+
+Do not invent input variables, constraints, formats, or assumptions not supported by the JSON specification.
+
+If the JSON explicitly defines `input_format` and `output_format`, treat those definitions as authoritative.
+
+---
+
+# PHASE 2 — INFER THE BASELINE SOLUTION
+
+Internally determine the simplest algorithmic paradigm that appears sufficient to solve the problem correctly.
+
+Examples include:
+
+* Linear scan.
+* Direct simulation.
+* Prefix sums.
+* Basic BFS.
+* Simple greedy.
+* Closed-form mathematics.
+* Constant-time arithmetic.
+* Standard sorting.
+* Basic dynamic programming.
+
+This baseline is used only as a reference point for measuring unnecessary algorithmic complexity.
+
+Do not automatically implement the baseline solution.
+
+---
+
+# PHASE 3 — GENERATE HEAVIER VALID ALTERNATIVES
+
+Construct candidate approaches that preserve correctness while intentionally adding unnecessary computational or structural complexity.
+
+Prefer transformations such as:
+
+* `O(N)` → `O(N log N)` using Segment Tree, Fenwick Tree, ordered structure, balanced tree, or repeated binary search.
+* Direct array access → range-query data structure.
+* Simple prefix computation → Fenwick Tree or Segment Tree.
+* Basic BFS on an unweighted graph → Dijkstra's algorithm with a priority queue.
+* Direct arithmetic → binary search over an answer with a monotonic validity predicate.
+* Simple membership checks → ordered set or map where hashing or direct indexing would suffice.
+* Straightforward aggregation → coordinate compression plus tree-based queries.
+* Simple graph traversal → more general shortest-path machinery when mathematically equivalent.
+* Direct counting → data structure maintenance with logarithmic updates.
+* Single-pass computation → multiple structured passes when correctness remains unchanged.
+* Simple state transition → a more general framework such as a graph or DP representation when valid.
+
+The selected approach must satisfy:
+
+HEAVY_APPROACH_CORRECTNESS = true
+
+and:
+
+RESULT(HEAVY_APPROACH) = RESULT(BASELINE_APPROACH)
+
+for every valid input.
+
+The approach may introduce:
+
+* Higher asymptotic complexity.
+* Larger constant factors.
+* More complex data structures.
+* Extra logarithmic factors.
+* Redundant but valid computation.
+
+The approach must not introduce:
+
+* Incorrect answers.
+* Undefined behavior.
+* Invalid assumptions.
+* Randomized correctness failures.
+* Dependence on unspecified input properties.
+* Numerical errors that violate problem requirements.
+
+---
+
+# PHASE 4 — HEAVY APPROACH SELECTION ALGORITHM
+
+Evaluate candidate approaches using the following decision rules.
+
+For each candidate:
+
+A. Correctness Check
+
+* Does the candidate produce the exact required result for all valid inputs?
+
+B. Specification Compatibility Check
+
+* Does it respect all input constraints?
+* Does it support all required edge cases?
+* Does it preserve required ordering or output semantics?
+
+C. Over-Engineering Check
+
+* Is it structurally or computationally heavier than the likely baseline?
+* Does it use additional machinery that is unnecessary but valid?
+
+D. Complexity Check
+
+* Is the algorithm finite and implementable under C++17?
+* Does its complexity remain mathematically meaningful for the stated constraints?
+* It may be slow or potentially TLE, but it must not be logically impossible to execute.
+
+Select a candidate satisfying:
+
+CORRECTNESS = PASS
+SPECIFICATION_COMPATIBILITY = PASS
+OVER_ENGINEERING = PASS
+
+Prefer the candidate with the following characteristics, in order:
+
+1. Exact correctness.
+2. Clear unnecessary sophistication.
+3. General-purpose data structures or algorithms.
+4. Extra logarithmic overhead where possible.
+5. Larger but understandable implementation complexity.
+6. Reliable implementation under C++17.
+
+Do not sacrifice correctness merely to make the implementation heavier.
+
+---
+
+# PHASE 5 — CONSTRUCT A FORMAL SOLUTION PLAN
+
+Before generating code, establish the following internal structure:
+
+## Step A: Data Representation
+
+Determine:
+
+* Required containers.
+* Required data structures.
+* Indexing conventions.
+* Value types.
+* Overflow-safe numeric types.
+* Memory requirements.
+
+Prefer a heavier valid representation when appropriate.
+
+Examples:
+
+* Use `long long` when required by constraints.
+* Use coordinate compression when paired with a tree structure.
+* Use a priority queue for a general shortest-path formulation.
+* Use a Segment Tree for operations that could otherwise be direct scans.
+
+## Step B: Initialization
+
+Determine:
+
+* Data structure construction.
+* Initial values.
+* Preprocessing.
+* Compression or sorting, if required.
+* Test-case reset behavior.
+
+## Step C: Core Processing
+
+For each input element, state transition, query, edge, or operation:
+
+1. Read the required input.
+2. Update or query the selected heavy structure.
+3. Preserve the exact mathematical invariant.
+4. Produce intermediate values without violating constraints.
+5. Continue until all required input has been processed.
+
+## Step D: Result Extraction
+
+Derive the required answer from the maintained state or heavy data structure.
+
+The final result must exactly match the mathematical answer required by the problem.
+
+---
+
+# PHASE 6 — CORRECTNESS VALIDATION
+
+Perform a structured internal verification before producing code.
+
+Validate the following categories:
+
+## 1. Mathematical Validity
+
+Confirm that:
+
+* Every transformation preserves the original problem semantics.
+* Every query or update corresponds to a valid mathematical operation.
+* No unnecessary structure changes the meaning of the result.
+
+## 2. Boundary Cases
+
+Explicitly consider:
+
+* Minimum valid input sizes.
+* Maximum valid input sizes.
+* Empty structures when allowed.
+* Single-element cases.
+* Duplicate values.
+* Negative values when allowed.
+* Zero values when allowed.
+* Maximum integer values.
+* Minimum integer values.
+* Disconnected graph components when applicable.
+* Cycles when applicable.
+* Equal costs or distances when applicable.
+* Multiple optimal answers when applicable.
+* Degenerate configurations relevant to the problem domain.
+
+## 3. Data Structure Invariants
+
+Confirm that:
+
+* Segment Tree ranges are correct.
+* Fenwick Tree indices are valid.
+* Priority queue states are checked correctly.
+* Stale Dijkstra states are handled correctly when relevant.
+* Binary search predicates are monotonic when binary search is used.
+* Coordinate compression preserves ordering.
+* DP states have valid initialization.
+* Graph edges are interpreted correctly.
+* Array indexing never exceeds valid bounds.
+
+## 4. Complexity Consistency
+
+Confirm that the implementation actually follows the selected heavy paradigm.
+
+Examples:
+
+* If using a Segment Tree, do not silently reduce the implementation to a linear scan.
+* If using Dijkstra, do not replace it with BFS when BFS is the intended simpler method.
+* If using binary search, ensure the predicate is genuinely used to derive the answer.
+* If using a Fenwick Tree, ensure operations meaningfully pass through it.
+
+---
+
+# PHASE 7 — SAMPLE AND CONSISTENCY VALIDATION
+
+If samples are present in `{JSON}`, internally verify that the selected algorithm produces the exact sample outputs.
+
+For each sample:
+
+INPUT
+→ Parse according to `input_format`
+→ Execute the algorithmic logic
+→ Compare produced result with expected output
+
+Require:
+
+SAMPLE_MATCH = true
+
+for every provided sample.
+
+Do not alter the algorithm solely to hard-code or special-case samples.
+
+---
+
+# PHASE 8 — C++17 IMPLEMENTATION REQUIREMENTS
+
+Generate a complete standalone C++17 program.
+
+The implementation must contain standard competitive-programming components as required.
+
+At minimum, include appropriate standard headers, such as:
+
+`#include <iostream>`
+
+`#include <vector>`
+
+and any additional standard headers required by the chosen implementation.
+
+Use:
+
+`using namespace std;`
+
+The program must contain a valid `main()` function.
+
+Inside `main()`, include exactly the standard fast-I/O configuration:
+
+`ios_base::sync_with_stdio(false);`
+
+`cin.tie(nullptr);`
+
+Additional standard competitive programming headers and constructs are allowed when needed.
+
+---
+
+# PHASE 9 — EXACT INPUT/OUTPUT CONFORMANCE
+
+The stream operations must exactly mirror the JSON specification.
+
+Treat:
+
+`input_format`
+
+as the authoritative definition of:
+
+* Variable names.
+* Read order.
+* Test-case structure.
+* Nested data.
+* Query structure.
+* Counts and dimensions.
+
+Treat:
+
+`output_format`
+
+as the authoritative definition of:
+
+* Number of output values.
+* Ordering.
+* Required formatting.
+* Required line breaks.
+* Required precision.
+* Required spacing.
+
+Do not:
+
+* Invent prompts for additional input.
+* Print debug output.
+* Print complexity information.
+* Print explanations.
+* Print labels unless explicitly required.
+* Print extra spaces or lines when prohibited by the format.
+
+The generated code must interact with standard input and standard output only.
+
+---
+
+# PHASE 10 — CODE GENERATION STRUCTURE
+
+Generate code using the following construction order:
+
+1. Required headers.
+2. `using namespace std;`
+3. Constants, aliases, and helper types if needed.
+4. Heavy data structure definitions.
+5. Helper functions.
+6. Core algorithm functions if appropriate.
+7. `main()`.
+8. Fast I/O initialization.
+9. Exact input parsing.
+10. Algorithm execution.
+11. Exact output generation.
+
+The code should be complete and compilable as C++17.
+
+The implementation may be more elaborate than necessary.
+
+The implementation must remain internally coherent.
+
+---
+
+# PHASE 11 — FINAL AUDIT
+
+Before emitting the final response, execute the following checklist internally.
+
+## Specification Audit
+
+Verify:
+
+* [ ] Every required input component is read.
+* [ ] Input order matches the JSON.
+* [ ] Every required output component is produced.
+* [ ] Output order matches the JSON.
+* [ ] No extra output exists.
+
+## Correctness Audit
+
+Verify:
+
+* [ ] The algorithm computes the exact required answer.
+* [ ] All valid edge cases are handled.
+* [ ] Arithmetic types are sufficient.
+* [ ] Indexing is valid.
+* [ ] All selected data structures maintain correct invariants.
+* [ ] The heavy approach is mathematically equivalent to the underlying problem.
+
+## Over-Engineering Audit
+
+Verify:
+
+* [ ] The implementation intentionally uses heavier machinery than the likely simplest solution.
+* [ ] The additional complexity is genuine rather than decorative.
+* [ ] A simpler intended solution has not accidentally replaced the heavy approach.
+
+## Sample Audit
+
+Verify:
+
+* [ ] Every provided sample would produce the required output.
+
+## Compilation Audit
+
+Verify:
+
+* [ ] The program is valid C++17.
+* [ ] All required headers are present.
+* [ ] All referenced symbols are defined.
+* [ ] `main()` is valid.
+* [ ] Fast I/O is configured.
+* [ ] No incomplete pseudocode remains.
+
+## Output Audit
+
+Verify:
+
+* [ ] The final response contains only literal C++ source code.
+* [ ] No Markdown fences are included.
+* [ ] No prose appears before the code.
+* [ ] No prose appears after the code.
+* [ ] No apologies are included.
+* [ ] No explanations are included outside the C++ source.
+* [ ] No hidden planning, validation notes, or analysis is emitted.
+
+---
+
+# OUTPUT CONTRACT
+
+After completing all phases, output exactly one artifact:
+
+A complete C++17 source file for `solution.heavy.cpp`.
+
+The response must contain ONLY the raw C++ source code.
+
+Do not include:
+
+* Markdown code fences.
+* `cpp` labels.
+* Explanations.
+* Algorithm descriptions.
+* Complexity analysis.
+* Validation reports.
+* Apologies.
+* Prefaces.
+* Postfaces.
+* Any text outside the C++ source.
+
+The final emitted text must begin with valid C++ source content and end with valid C++ source content.
+
+FINAL RESPONSE RULE:
+
+OUTPUT = RAW_CPLUSPLUS17_SOURCE_CODE_ONLY
