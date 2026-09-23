@@ -98,3 +98,4 @@ class Config:
             prompts_dir=PROMPTS_DIR,
             out_dir=DEFAULT_OUT_DIR,
         )
+
