@@ -50,14 +50,9 @@ def test_generate_all_artifacts(tmp_path: Path):
         progress_callback=messages.append,
     )
 
-    assert len(results) == 5
+    assert len(results) == len(ARTIFACTS)
     for spec in ARTIFACTS:
         assert spec.name in results
         artifact_path = results[spec.name]
         assert artifact_path.exists()
-
-    assert any("Generating statement" in m for m in messages)
-    assert any("Generating validator" in m for m in messages)
-    assert any("Generating generator" in m for m in messages)
-    assert any("Generating solution" in m for m in messages)
-    assert any("Generating checker" in m for m in messages)
+        assert any(f"Generating {spec.name}" in m for m in messages)

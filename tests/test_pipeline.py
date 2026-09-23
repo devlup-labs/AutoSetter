@@ -38,7 +38,10 @@ def build_pipeline(
     generated = tmp_path / "generated"
     generated.mkdir(parents=True, exist_ok=True)
     (generated / "validator.cpp").write_text(validator)
-    (generated / "generator.cpp").write_text(generator)
+    if "import " in generator or "sys." in generator:
+        (generated / "generator.py").write_text(generator)
+    else:
+        (generated / "generator.cpp").write_text(generator)
     (generated / "solution.cpp").write_text(solution)
     (generated / "checker.cpp").write_text(checker)
 
@@ -140,3 +143,22 @@ def test_missing_samples_leaves_validator_uncorroborated(tmp_path: Path):
     assert not report.validator_trusted
     assert not report.all_passed
     assert "No samples extracted" in report.diagnosis
+
+
+GENERATOR_PYTHON = """import random
+import sys
+
+seed = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+random.seed(seed)
+print(random.randint(1, 100))
+"""
+
+
+def test_pipeline_with_python_generator(tmp_path: Path):
+    report = build_pipeline(tmp_path, generator=GENERATOR_PYTHON).run()
+
+    assert report.all_passed
+    assert report.validator_trusted
+    assert report.checker_trusted
+    assert report.compilation.generator
+    assert report.passed_tests == report.total_tests == 3

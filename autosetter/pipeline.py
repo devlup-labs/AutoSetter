@@ -21,6 +21,7 @@ Verifies:
 from __future__ import annotations
 
 import json
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -218,7 +219,7 @@ class TestPipeline:
     ARTIFACTS = {
         "solution": ("solution.cpp", False),
         "validator": ("validator.cpp", True),
-        "generator": ("generator.cpp", True),
+        "generator": ("generator.py", False),
         "checker": ("checker.cpp", True),
         "solution_greedy": ("solution.greedy.cpp", False),
         "solution_brute": ("solution.brute.cpp", False),
@@ -388,8 +389,27 @@ class TestPipeline:
         for name, (filename, needs_testlib) in self.ARTIFACTS.items():
             source = self.generated_dir / filename
             if not source.exists():
-                comp.errors[name] = f"Source file not found: {filename}"
-                self._log(f"  ⚠️  {name}: source file missing ({filename})")
+                if name == "generator":
+                    alt_source = self.generated_dir / "generator.cpp"
+                    if alt_source.exists():
+                        source = alt_source
+                        filename = "generator.cpp"
+                        needs_testlib = True
+                    else:
+                        comp.errors[name] = f"Source file not found: {filename}"
+                        self._log(f"  ⚠️  {name}: source file missing ({filename})")
+                        continue
+                elif name.startswith("solution_"):
+                    # Deliberately flawed solutions are optional
+                    continue
+                else:
+                    comp.errors[name] = f"Source file not found: {filename}"
+                    self._log(f"  ⚠️  {name}: source file missing ({filename})")
+                    continue
+
+            if source.suffix == ".py":
+                setattr(comp, name, True)
+                self._log(f"  ✅ {name}: ready (python script)")
                 continue
 
             try:
@@ -437,9 +457,6 @@ class TestPipeline:
                 except Exception as e_note:
                     self._log(f"  ⚠️  Failed to write sample failure note for sample {index}: {e_note}")
 
-            checks.append(
-                SampleCheck(index=index, accepted=accepted, message=message)
-            )
             checks.append(
                 SampleCheck(index=index, accepted=accepted, message=message)
             )
@@ -556,10 +573,16 @@ class TestPipeline:
 
     def _generate_test(self, seed: str) -> str:
         """Run the generator with a seed to produce test input."""
-        generator_bin = self.generated_dir / "generator"
-        result = self.sandbox.run_binary(
-            generator_bin, args=[seed], timeout=self.time_limit
-        )
+        generator_script = self.generated_dir / "generator.py"
+        if generator_script.exists():
+            result = self.sandbox.run_binary(
+                sys.executable, args=[str(generator_script), seed], timeout=self.time_limit
+            )
+        else:
+            generator_bin = self.generated_dir / "generator"
+            result = self.sandbox.run_binary(
+                generator_bin, args=[seed], timeout=self.time_limit
+            )
         if result.status != "success":
             raise SandboxError(f"Generator failed (seed={seed}): {result.stderr}")
         return result.stdout

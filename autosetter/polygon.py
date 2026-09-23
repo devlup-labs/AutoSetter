@@ -216,8 +216,21 @@ def upload_problem_package(
         )
 
     # 5. Upload Generator
-    generator_path = pkg / "files" / "generator.cpp"
-    if generator_path.exists():
+    generator_py = pkg / "files" / "generator.py"
+    generator_cpp = pkg / "files" / "generator.cpp"
+    if generator_py.exists():
+        _log("▶ Uploading generator.py...")
+        api.problem_call(
+            "problem.saveFile",
+            problem_id,
+            {
+                "type": "source",
+                "name": "generator.py",
+                "file": generator_py.read_text(encoding="utf-8"),
+                "sourceType": "python.3",
+            },
+        )
+    elif generator_cpp.exists():
         _log("▶ Uploading generator.cpp...")
         api.problem_call(
             "problem.saveFile",
@@ -225,7 +238,7 @@ def upload_problem_package(
             {
                 "type": "source",
                 "name": "generator.cpp",
-                "file": generator_path.read_text(encoding="utf-8"),
+                "file": generator_cpp.read_text(encoding="utf-8"),
                 "sourceType": cpp_type,
             },
         )

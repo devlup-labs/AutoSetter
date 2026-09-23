@@ -73,6 +73,7 @@ def test_generate_from_image_end_to_end(tmp_path: Path, monkeypatch, stub_client
     # Stub Ollama responses
     canned_replies = {
         "OCR specialist": "```json\n" + json.dumps(SAMPLE_PROBLEM) + "\n```",
+        "competitive programming problem statement": "```json\n" + json.dumps(SAMPLE_PROBLEM) + "\n```",
     }
     client = stub_client(
         replies=canned_replies,
