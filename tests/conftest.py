@@ -27,6 +27,10 @@ class StubOllamaClient:
         self.default = default
         self.prompts: List[str] = []
 
+    def check_connection(self, required_models: Optional[List[str]] = None) -> List[str]:
+        """Stub connection check always succeeds unless configured to fail."""
+        return []
+
     def _reply_for(self, prompt: str) -> str:
         self.prompts.append(prompt)
         for marker, reply in self.replies.items():

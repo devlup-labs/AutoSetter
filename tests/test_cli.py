@@ -34,6 +34,7 @@ def test_build_arg_parser_defaults():
     parser = build_arg_parser()
     args = parser.parse_args(["problem.png"])
     assert args.image_path == "problem.png"
+    assert args.num_ctx == 16384
     assert args.num_tests == 10
     assert args.skip_validation is False
 
@@ -44,6 +45,7 @@ def test_build_arg_parser_overrides():
         "statement.pdf",
         "--vision-model", "qwen2.5vl:7b",
         "--text-model", "qwen2.5-coder:7b",
+        "--num-ctx", "32768",
         "--num-tests", "20",
         "--skip-validation",
         "--out-dir", "custom_out",
@@ -51,6 +53,7 @@ def test_build_arg_parser_overrides():
     assert args.image_path == "statement.pdf"
     assert args.vision_model == "qwen2.5vl:7b"
     assert args.text_model == "qwen2.5-coder:7b"
+    assert args.num_ctx == 32768
     assert args.num_tests == 20
     assert args.skip_validation is True
     assert args.out_dir == "custom_out"
@@ -96,3 +99,20 @@ def test_generate_from_image_end_to_end(tmp_path: Path, monkeypatch, stub_client
 def test_cli_main_entry_point_error_exit_code(tmp_path: Path, monkeypatch):
     ret = main(["non_existent_file.png"])
     assert ret == 1
+
+
+def test_generate_from_image_connection_failure(tmp_path: Path, monkeypatch, stub_client):
+    img_path = tmp_path / "problem.png"
+    img = Image.new("RGB", (50, 50), color="white")
+    img.save(img_path, format="PNG")
+
+    from autosetter.llm import OllamaCallError
+    client = stub_client()
+    def failing_check(*args, **kwargs):
+        raise OllamaCallError("Cannot connect to Ollama server at 'https://example.com'")
+    client.check_connection = failing_check
+    monkeypatch.setattr("autosetter.cli.OllamaClient", lambda **kwargs: client)
+
+    with pytest.raises(AutoSetterError) as excinfo:
+        generate_from_image(image_path=img_path, out_dir=tmp_path / "out")
+    assert "Cannot connect to Ollama server" in str(excinfo.value)

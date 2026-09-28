@@ -50,6 +50,9 @@ print("--------------------------\n")
 ### Step 2: Run this on your local terminal
 
 ```bash
+# Activate virtual environment
+source .venv/bin/activate
+
 # 1. Clean previous run outputs
 rm -rf out
 
@@ -59,7 +62,7 @@ export AUTOSETTER_VISION_MODEL="qwen2.5vl:7b"
 export AUTOSETTER_TEXT_MODEL="qwen2.5-coder:7b"
 
 # 3. Execute the pipeline
-python3 app.py statement.png
+python app.py statement.png
 ```
 
 ## Clean 4-Folder Repository Structure

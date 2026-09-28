@@ -17,7 +17,12 @@ import ollama
 # pyrefly: ignore [missing-import]
 from ollama import Client
 
-from autosetter.config import DEFAULT_OLLAMA_HOST, DEFAULT_VISION_MODEL
+from autosetter.config import (
+    DEFAULT_NUM_CTX,
+    DEFAULT_OLLAMA_HOST,
+    DEFAULT_REQUEST_TIMEOUT,
+    DEFAULT_VISION_MODEL,
+)
 
 
 class OllamaCallError(Exception):
@@ -35,22 +40,51 @@ class OllamaClient:
     default_model : str
         Default model name if not overridden per call.
     request_timeout : Optional[float]
-        Optional timeout in seconds for underlying HTTP requests.
+        Optional timeout in seconds for underlying HTTP requests (default: 300.0).
+    num_ctx : int
+        Context window token size for inference calls (default: 16384).
     """
 
     def __init__(
         self,
         host: str = DEFAULT_OLLAMA_HOST,
         default_model: str = DEFAULT_VISION_MODEL,
-        request_timeout: Optional[float] = None,
+        request_timeout: Optional[float] = DEFAULT_REQUEST_TIMEOUT,
+        num_ctx: int = DEFAULT_NUM_CTX,
     ) -> None:
         self.host = host
         self.default_model = default_model
+        self.num_ctx = num_ctx
+        self.request_timeout = request_timeout
         client_kwargs: dict[str, Any] = {"host": self.host}
         if request_timeout is not None:
             client_kwargs["timeout"] = request_timeout
 
         self._client: Client = ollama.Client(**client_kwargs)
+
+    def check_connection(self, required_models: Optional[List[str]] = None) -> List[str]:
+        """
+        Verify that the Ollama server is accessible and reachable.
+        If required_models is given, verifies whether expected models are listed.
+        Returns the list of available model names.
+        """
+        try:
+            resp = self._client.list()
+            available: List[str] = []
+            if hasattr(resp, "models"):
+                available = [m.model for m in resp.models if hasattr(m, "model")]
+            elif isinstance(resp, dict) and "models" in resp:
+                available = [m.get("model") or m.get("name", "") for m in resp["models"]]
+            return available
+        except Exception as exc:
+            raise OllamaCallError(
+                f"Cannot connect to Ollama server at '{self.host}'.\n"
+                f"If using Google Colab with Cloudflare Tunnel:\n"
+                f"  1. Verify your Colab notebook is actively running.\n"
+                f"  2. Confirm the cloudflared tunnel is active.\n"
+                f"  3. Set OLLAMA_HOST to the fresh trycloudflare.com URL.\n"
+                f"Details: {exc}"
+            ) from exc
 
     def chat_with_images(
         self,
@@ -83,6 +117,10 @@ class OllamaClient:
 
         chosen_model = model or self.default_model
 
+        options: dict[str, Any] = {"temperature": temperature}
+        if self.num_ctx:
+            options["num_ctx"] = self.num_ctx
+
         try:
             response = self._client.chat(
                 model=chosen_model,
@@ -93,7 +131,7 @@ class OllamaClient:
                         "images": images_base64,
                     }
                 ],
-                options={"temperature": temperature},
+                options=options,
             )
         except Exception as exc:
             raise OllamaCallError(
@@ -127,11 +165,15 @@ class OllamaClient:
         """
         chosen_model = model or self.default_model
 
+        options: dict[str, Any] = {"temperature": temperature}
+        if self.num_ctx:
+            options["num_ctx"] = self.num_ctx
+
         try:
             response = self._client.chat(
                 model=chosen_model,
                 messages=[{"role": "user", "content": prompt}],
-                options={"temperature": temperature},
+                options=options,
             )
         except Exception as exc:
             raise OllamaCallError(

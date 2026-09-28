@@ -6,6 +6,19 @@ AI-powered automated competitive programming problem packaging engine.
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# Auto-discover project .venv site-packages if dependencies are not in current environment
+try:
+    import ollama  # noqa: F401
+except ImportError:
+    _venv_site = Path(__file__).resolve().parent.parent / ".venv" / "lib"
+    for _site_packages in _venv_site.glob("python*/site-packages"):
+        if _site_packages.is_dir() and str(_site_packages) not in sys.path:
+            sys.path.insert(0, str(_site_packages))
+            break
+
 __version__ = "0.2.0"
 
 from autosetter.cli import (

@@ -33,12 +33,14 @@ TESTLIB_URL = "https://raw.githubusercontent.com/MikeMirzayanov/testlib/master/t
 # ---------------------------------------------------------------------------
 # Default Constants & Environment Variable Overrides
 # ---------------------------------------------------------------------------
-DEFAULT_VISION_MODEL = os.environ.get("AUTOSETTER_VISION_MODEL", "qwen3-vl:32b")
-DEFAULT_TEXT_MODEL = os.environ.get("AUTOSETTER_TEXT_MODEL", "Qwen3-Coder-Next:latest")
+DEFAULT_VISION_MODEL = os.environ.get("AUTOSETTER_VISION_MODEL", "qwen2.5vl:7b")
+DEFAULT_TEXT_MODEL = os.environ.get("AUTOSETTER_TEXT_MODEL", "qwen2.5-coder:7b")
 DEFAULT_OLLAMA_HOST = (
     os.environ.get("OLLAMA_HOST")
     or os.environ.get("AUTOSETTER_OLLAMA_HOST", "http://localhost:11434")
 )
+DEFAULT_NUM_CTX = int(os.environ.get("AUTOSETTER_NUM_CTX", "16384"))
+DEFAULT_REQUEST_TIMEOUT = float(os.environ.get("AUTOSETTER_REQUEST_TIMEOUT", "300.0"))
 
 
 
@@ -79,6 +81,8 @@ class Config:
     vision_model: str = DEFAULT_VISION_MODEL
     text_model: str = DEFAULT_TEXT_MODEL
     ollama_host: str = DEFAULT_OLLAMA_HOST
+    num_ctx: int = DEFAULT_NUM_CTX
+    request_timeout: float = DEFAULT_REQUEST_TIMEOUT
     num_tests: int = DEFAULT_NUM_TESTS
     max_retries: int = DEFAULT_MAX_RETRIES
     execution_timeout: int = DEFAULT_EXECUTION_TIMEOUT
@@ -97,6 +101,8 @@ class Config:
             vision_model=DEFAULT_VISION_MODEL,
             text_model=DEFAULT_TEXT_MODEL,
             ollama_host=DEFAULT_OLLAMA_HOST,
+            num_ctx=DEFAULT_NUM_CTX,
+            request_timeout=DEFAULT_REQUEST_TIMEOUT,
             num_tests=DEFAULT_NUM_TESTS,
             max_retries=DEFAULT_MAX_RETRIES,
             execution_timeout=DEFAULT_EXECUTION_TIMEOUT,

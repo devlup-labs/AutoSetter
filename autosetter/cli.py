@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Callable, List, Optional
 
 from autosetter.config import (
+    DEFAULT_NUM_CTX,
     DEFAULT_NUM_TESTS,
     DEFAULT_OLLAMA_HOST,
     DEFAULT_OUT_DIR,
@@ -90,6 +91,7 @@ def generate_from_image(
     vision_model: str = DEFAULT_VISION_MODEL,
     text_model: str = DEFAULT_TEXT_MODEL,
     ollama_host: str = DEFAULT_OLLAMA_HOST,
+    num_ctx: int = DEFAULT_NUM_CTX,
     num_tests: int = DEFAULT_NUM_TESTS,
     skip_validation: bool = False,
     out_dir: str | Path = DEFAULT_OUT_DIR,
@@ -109,6 +111,8 @@ def generate_from_image(
         Ollama text model name (e.g. 'qwen2.5-coder:7b') — for text/code artifacts.
     ollama_host : str
         Base URL for the Ollama daemon.
+    num_ctx : int
+        Ollama context window token size.
     num_tests : int
         Number of test cases to generate and validate.
     skip_validation : bool
@@ -135,13 +139,36 @@ def generate_from_image(
     problem_json_path = output_root / "problem.json"
     prompts_dir_path = Path(prompts_dir)
 
-    # ── Instantiate the Ollama client ──
-    client = OllamaClient(host=ollama_host, default_model=vision_model)
-
     # 1. Image Intake (UNCHANGED)
     logger_fn("Loading image...")
     if not input_image_path.exists():
         raise AutoSetterError(f"Input file not found: {input_image_path}")
+
+    # ── Instantiate the Ollama client ──
+    client = OllamaClient(host=ollama_host, default_model=vision_model, num_ctx=num_ctx)
+
+    # Pre-flight connectivity check
+    logger_fn(f"Connecting to Ollama host at {ollama_host}...")
+    try:
+        available_models = client.check_connection(required_models=[vision_model, text_model])
+        if available_models:
+            missing = [
+                m for m in [vision_model, text_model]
+                if not any(m == a or m.split(":")[0] == a.split(":")[0] for a in available_models)
+            ]
+            if missing:
+                if "localhost" in ollama_host or "127.0.0.1" in ollama_host:
+                    logger_fn(
+                        f"⚠️  Notice: Model(s) {missing} not found on local Ollama ({available_models}).\n"
+                        f"    If you are using Google Colab, set your Cloudflare tunnel:\n"
+                        f"    export OLLAMA_HOST=\"https://YOUR-URL.trycloudflare.com\""
+                    )
+                else:
+                    logger_fn(
+                        f"⚠️  Notice: Model(s) {missing} not listed on Ollama host. Available: {available_models}"
+                    )
+    except OllamaCallError as exc:
+        raise AutoSetterError(str(exc)) from exc
 
     # 2. Vision Extraction -> problem.json (UNCHANGED — uses 1st model via Ollama)
     logger_fn("Generating JSON specification...")
@@ -323,6 +350,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help=f"Ollama server URL (default: {DEFAULT_OLLAMA_HOST}).",
     )
     parser.add_argument(
+        "--num-ctx",
+        type=int,
+        default=DEFAULT_NUM_CTX,
+        help=f"Ollama context window token size (default: {DEFAULT_NUM_CTX}).",
+    )
+    parser.add_argument(
         "--num-tests",
         type=int,
         default=DEFAULT_NUM_TESTS,
@@ -366,6 +399,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             vision_model=args.vision_model,
             text_model=args.text_model,
             ollama_host=args.host,
+            num_ctx=args.num_ctx,
             num_tests=args.num_tests,
             skip_validation=args.skip_validation,
             out_dir=args.out_dir,
