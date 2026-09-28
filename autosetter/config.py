@@ -37,7 +37,7 @@ DEFAULT_VISION_MODEL = os.environ.get("AUTOSETTER_VISION_MODEL", "qwen3-vl:32b")
 DEFAULT_TEXT_MODEL = os.environ.get("AUTOSETTER_TEXT_MODEL", "Qwen3-Coder-Next")
 DEFAULT_OLLAMA_HOST = (
     os.environ.get("OLLAMA_HOST")
-    or os.environ.get("AUTOSETTER_OLLAMA_HOST", "http://172.31.18.230:11434")
+    or os.environ.get("AUTOSETTER_OLLAMA_HOST", "http://localhost:11434")
 )
 
 
