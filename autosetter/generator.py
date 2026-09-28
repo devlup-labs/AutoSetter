@@ -37,6 +37,15 @@ from autosetter.llm import OllamaCallError, OllamaClient
 # ─────────────────────────────────────────────────────────────────────────────
 from autosetter.prompts import PromptError, load_and_render_prompt
 
+from autosetter.extractor import JSONExtractionError, parse_model_json
+from autosetter.testgen import (
+    SpecError,
+    TestGenError,
+    check_samples,
+    generate_test,
+    load_spec,
+)
+
 
 # =============================================================================
 # Exception Classes
@@ -71,6 +80,7 @@ class ArtifactSpec:
     is_cpp: bool = False           # True if the artifact is C++ source code
     is_testlib: bool = False       # True if the artifact requires testlib.h
     strip_code_fence: bool = True  # True to strip ```...``` code fences from LLM output
+    is_test_spec: bool = False     # True for the Z3 test spec (JSON, checked against samples)
 
 
 ARTIFACTS: List[ArtifactSpec] = [
@@ -92,15 +102,17 @@ ARTIFACTS: List[ArtifactSpec] = [
         is_testlib=True,
         strip_code_fence=True,
     ),
-    # ── Ollama-routed artifact: Test case generator (UNCHANGED) ──
-    # This artifact continues to use the existing Ollama backend.
+    # ── Test generator: a declarative input spec that autosetter.testgen
+    # turns into tests with Z3. Named "generator" so validation feedback and
+    # self-healing target it like any other generator. ──
     ArtifactSpec(
         name="generator",
-        prompt_template="generator.txt",
-        output_filename="generator.py",
+        prompt_template="test_spec.txt",
+        output_filename="test_spec.json",
         is_cpp=False,
         is_testlib=False,
-        strip_code_fence=True,
+        strip_code_fence=False,
+        is_test_spec=True,
     ),
     ArtifactSpec(
         name="solution",
@@ -269,6 +281,42 @@ def check_cpp_syntax(code: str, include_dir: Path) -> Tuple[bool, str]:
         return (False, str(exc))
 
 
+def prepare_test_spec(raw_reply: str, json_payload: str) -> Tuple[str, str]:
+    """
+    Parse and verify a model-written test spec.
+
+    Returns (content_to_write, error). The spec must be valid, accept every
+    official sample input, and generate the smallest and largest tests
+    (seeds 1 and 2) without error. `error` is empty on success.
+    """
+    try:
+        data = parse_model_json(raw_reply)
+    except JSONExtractionError as exc:
+        return raw_reply.strip() + "\n", f"The reply is not a JSON object: {str(exc)[:500]}"
+
+    content = json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+    try:
+        test_spec = load_spec(data)
+    except SpecError as exc:
+        return content, f"The spec is invalid:\n{exc}"
+
+    samples = (json.loads(json_payload) or {}).get("samples") or []
+    problems = check_samples(test_spec, samples)
+    if problems:
+        return content, (
+            "The spec rejects the problem's official sample input(s), so it does not "
+            "describe the input correctly:\n" + "\n".join(f"- {p}" for p in problems)
+        )
+
+    for seed in (1, 2):
+        try:
+            generate_test(test_spec, seed)
+        except TestGenError as exc:
+            return content, f"Generating a test from the spec failed (seed {seed}):\n{exc}"
+
+    return content, ""
+
+
 # =============================================================================
 # Single Artifact Generation — Ollama Backend (UNCHANGED LOGIC)
 # =============================================================================
@@ -316,6 +364,7 @@ def generate_single_artifact(
         )
 
     last_error = ""
+    base_prompt = current_prompt
 
     # ── Retry loop: generate → check syntax → repair if needed ──
     for attempt in range(max_retries + 1):
@@ -330,6 +379,19 @@ def generate_single_artifact(
             raise CodeGenerationError(
                 f"Ollama text inference failed while generating '{spec.name}': {exc}"
             ) from exc
+
+        # ── Test spec: validate against the schema and the official samples ──
+        if spec.is_test_spec:
+            content, last_error = prepare_test_spec(raw_reply, json_payload)
+            if not last_error:
+                break
+            current_prompt = (
+                f"{base_prompt}\n\n=========================================\n"
+                f"Your previous test spec was rejected:\n{last_error[:2000]}\n\n"
+                f"--- PREVIOUS SPEC ---\n{content.strip()[:4000]}\n\n"
+                "Fix every problem listed above. Output ONLY the corrected JSON spec."
+            )
+            continue
 
         # ── Post-process: strip code fences and sanitize C++ headers ──
         content = strip_code_fence(raw_reply) if spec.strip_code_fence else raw_reply

@@ -255,6 +255,8 @@ class SandboxLocalClient:
                 f"Compilation failed for {source.name}:\n{result.stderr}"
             )
 
+        if not out_binary.exists() and out_binary.with_suffix(".exe").exists():
+            return out_binary.with_suffix(".exe")
         return out_binary
 
     def run_binary(
@@ -266,6 +268,9 @@ class SandboxLocalClient:
     ) -> ExecutionResult:
         """Execute a compiled binary with optional stdin, args, and timeout."""
         binary = Path(binary_path)
+        if not binary.exists() and binary.with_suffix(".exe").exists():
+            # On Windows, g++ appends .exe to the -o path we pass it.
+            binary = binary.with_suffix(".exe")
         if not binary.exists():
             raise SandboxError(f"Binary not found: {binary}")
 

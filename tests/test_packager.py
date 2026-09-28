@@ -64,6 +64,24 @@ def test_complete_pairs_are_packaged(tmp_path: Path):
     assert manifest["ready_for_release"] is True
 
 
+def test_z3_generated_tests_ship_as_files(tmp_path: Path):
+    generated, tests = make_dirs(tmp_path)
+    (generated / "generator.cpp").unlink()
+    (generated / "test_spec.json").write_text("{}")
+    for i in (1, 2):
+        (tests / f"{i:03d}.in").write_text("5\n")
+        (tests / f"{i:03d}.ans").write_text("10\n")
+    write_report(tests, test_cases=[{"index": 1, "seed": "1"}, {"index": 2, "seed": "2"}])
+
+    manifest = build(tmp_path)
+
+    # Polygon cannot run Z3, so the tests must not be left to a generator script.
+    assert manifest["packaged_tests"] == 2
+    assert manifest["ready_for_release"] is True
+    assert "files/test_spec.json" in [f.replace("\\", "/") for f in manifest["files"]]
+    assert not (tmp_path / "package" / "script").exists()
+
+
 def test_input_without_an_answer_is_excluded(tmp_path: Path):
     _, tests = make_dirs(tmp_path)
     (tests / "001.in").write_text("5\n")

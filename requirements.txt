@@ -4,6 +4,7 @@
 #                text chat calls against the local Ollama server)
 # Pillow       - image loading/validation/normalization for png/jpg/jpeg
 # PyMuPDF      - offline PDF -> image rasterization (imported as `fitz`)
+# z3-solver    - SMT solver behind test generation (autosetter/testgen)
 
 ollama>=0.4.0
 Pillow>=10.0.0

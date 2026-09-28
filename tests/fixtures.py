@@ -99,3 +99,18 @@ int main(int argc, char* argv[]) {
 """
 
 SAMPLES = [{"input": "5\n", "output": "10\n", "explanation": ""}]
+
+# Z3 test specs for the same problem (see autosetter.testgen).
+TEST_SPEC = {
+    "multi_test": None,
+    "variables": [{"name": "n", "type": "int", "min": 1, "max": 100}],
+    "constraints": [],
+    "global_constraints": [],
+    "layout": [["n"]],
+}
+
+# Claims n >= 10, which the official sample (n = 5) contradicts.
+TEST_SPEC_REJECTS_SAMPLE = {
+    **TEST_SPEC,
+    "variables": [{"name": "n", "type": "int", "min": 10, "max": 100}],
+}

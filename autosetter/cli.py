@@ -228,7 +228,15 @@ def generate_from_image(
                     # Analyze failure for next iteration
                     targets = []
                     feedback_context = {}
-                    
+
+                    # Files that failed to build (including an unusable test spec)
+                    for name, error in test_report.compilation.errors.items():
+                        if name in ("validator", "generator", "solution", "checker"):
+                            targets.append(name)
+                            feedback_context[name] = (
+                                f"Your file could not be used by the pipeline:\n{error[:2000]}"
+                            )
+
                     if "validator rejects official samples" in test_report.diagnosis:
                         targets.append("validator")
                         feedback_context["validator"] = "The validator you generated rejected the official problem samples provided in the problem description."

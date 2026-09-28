@@ -11,7 +11,7 @@ package/
 │   └── solution.cpp      # Reference solution
 ├── files/
 │   ├── validator.cpp     # Input validator (testlib.h)
-│   ├── generator.cpp     # Test generator (testlib.h)
+│   ├── test_spec.json    # Z3 test spec (or generator.py / generator.cpp)
 │   ├── checker.cpp       # Output checker (testlib.h)
 │   └── testlib.h         # Bundled testlib header
 ├── tests/
@@ -108,15 +108,20 @@ class Packager:
         _log("Packaging testlib files...")
         files_dir = self.package_dir / "files"
         files_dir.mkdir(exist_ok=True)
-        gen_found = False
-        for gen_name in ("generator.py", "generator.cpp"):
+        gen_found = ""
+        for gen_name in ("test_spec.json", "generator.py", "generator.cpp"):
             gen_src = self.generated_dir / gen_name
             if gen_src.exists():
                 shutil.copy2(gen_src, files_dir / gen_name)
-                gen_found = True
+                gen_found = gen_name
                 break
         if not gen_found:
-            _log("  ⚠️  generator.py / generator.cpp not found, skipping")
+            _log("  ⚠️  test_spec.json / generator.py / generator.cpp not found, skipping")
+
+        # Only a testlib C++ generator can be re-run by Polygon from a script.
+        # Z3 (test_spec.json) and Python generators need libraries Polygon does
+        # not have, so their tests ship as files.
+        uses_script = gen_found == "generator.cpp"
 
         for name in ("validator.cpp", "checker.cpp"):
             src = self.generated_dir / name
@@ -143,7 +148,7 @@ class Packager:
 
         generated_indices = set()
         report_src = self.tests_dir / "validation_report.json"
-        if report_src.exists():
+        if uses_script and report_src.exists():
             try:
                 report_data = json.loads(report_src.read_text(encoding="utf-8"))
                 for tc in report_data.get("test_cases", []):
@@ -182,10 +187,12 @@ class Packager:
             _log("  ⚠️  Package contains no tests")
 
         # 7. Generate script file for Polygon (if tests were generated)
-        _log("Generating test script...")
         script_content = ""
         report_src = self.tests_dir / "validation_report.json"
-        if report_src.exists():
+        if not uses_script:
+            _log("Tests are shipped as files (no Polygon generator script).")
+        elif report_src.exists():
+            _log("Generating test script...")
             try:
                 report_data = json.loads(report_src.read_text(encoding="utf-8"))
                 for tc in report_data.get("test_cases", []):
@@ -196,7 +203,7 @@ class Packager:
         
         if script_content:
             (self.package_dir / "script").write_text(script_content, encoding="utf-8")
-        else:
+        elif uses_script:
             _log("  ⚠️  Could not generate script, missing validation report or test_cases")
 
         # 8. Generate manifest.json

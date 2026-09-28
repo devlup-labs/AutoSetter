@@ -47,6 +47,7 @@ The repository adopts responsibility-based modular organization:
 | [`prompts.py`](file:///Users/shreshthdhimole/AutoSetter/autosetter/prompts.py) | Template loader and safe `{JSON}` substitution without string format hazards. |
 | [`extractor.py`](file:///Users/shreshthdhimole/AutoSetter/autosetter/extractor.py) | Extraction of `problem.json` via VLM, markdown code fence stripping, schema validation. |
 | [`generator.py`](file:///Users/shreshthdhimole/AutoSetter/autosetter/generator.py) | Downstream generation orchestrator for statement markdown and testlib C++ code. |
+| `testgen/` | Z3 test generation from `test_spec.json`: spec validation, Z3 integer solving per seed strategy, array/string/tree/graph builders, sample checking. |
 | [`sandbox.py`](file:///Users/shreshthdhimole/AutoSetter/autosetter/sandbox.py) | C++ compilation and execution backends (host `g++` and Docker+NsJail HTTP). |
 | [`pipeline.py`](file:///Users/shreshthdhimole/AutoSetter/autosetter/pipeline.py) | Test generation, validation, jury answer solving, attribution, and checker probing. |
 | [`packager.py`](file:///Users/shreshthdhimole/AutoSetter/autosetter/packager.py) | Assembly of release bundle, test pairing, and manifest creation. |
@@ -70,7 +71,7 @@ The repository adopts responsibility-based modular organization:
 - Serializes `problem.json` and renders five specialized prompt templates:
   1. `statement.txt` ➔ `generated/statement.md`
   2. `validator.txt` ➔ `generated/validator.cpp` (uses `testlib.h`)
-  3. `generator.txt` ➔ `generated/generator.cpp` (uses `testlib.h`)
+  3. `test_spec.txt` ➔ `generated/test_spec.json` (input spec for the Z3 test generator in `autosetter/testgen/`; checked against the official samples and retried with the errors if it rejects them)
   4. `solution.txt` ➔ `generated/solution.cpp` (optimal C++17 solution)
   5. `checker.txt` ➔ `generated/checker.cpp` (uses `testlib.h`)
 - Runs text inference against a local coding model (`qwen2.5-coder:7b`).
