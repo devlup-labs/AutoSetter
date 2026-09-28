@@ -4,6 +4,7 @@ Pipeline integration tests verifying attribution, ground-truth sample checks, an
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 import pytest
 
@@ -19,6 +20,8 @@ from tests.fixtures import (
     GENERATOR_OUT_OF_RANGE,
     SAMPLES,
     SOLUTION,
+    TEST_SPEC,
+    TEST_SPEC_REJECTS_SAMPLE,
     VALIDATOR,
 )
 
@@ -34,9 +37,12 @@ def build_pipeline(
     checker: str = CHECKER,
     samples=None,
     num_tests: int = 3,
+    test_spec=None,
 ) -> TestPipeline:
     generated = tmp_path / "generated"
     generated.mkdir(parents=True, exist_ok=True)
+    if test_spec is not None:
+        (generated / "test_spec.json").write_text(json.dumps(test_spec))
     (generated / "validator.cpp").write_text(validator)
     if "import " in generator or "sys." in generator:
         (generated / "generator.py").write_text(generator)
@@ -102,6 +108,8 @@ def test_out_of_range_generator_blames_generator(tmp_path: Path):
     assert report.passed_tests == 0
     assert not report.all_passed
     assert all("generator is the file at fault" in tc.error for tc in report.test_cases)
+    assert "None of the 3 generated tests is usable" in report.diagnosis
+    assert "generator is the file at fault" in report.diagnosis
 
 
 def test_broken_validator_blames_validator(tmp_path: Path):
@@ -162,3 +170,28 @@ def test_pipeline_with_python_generator(tmp_path: Path):
     assert report.checker_trusted
     assert report.compilation.generator
     assert report.passed_tests == report.total_tests == 3
+
+
+def test_pipeline_with_z3_test_spec(tmp_path: Path):
+    # The spec is preferred over the generator.cpp written alongside it; the
+    # out-of-range C++ generator would fail every test if it were used.
+    report = build_pipeline(
+        tmp_path, test_spec=TEST_SPEC, generator=GENERATOR_OUT_OF_RANGE, num_tests=5
+    ).run()
+
+    assert report.all_passed, report.diagnosis
+    assert report.passed_tests == report.total_tests == 5
+    assert [tc.strategy for tc in report.test_cases] == ["min", "max", "random", "small", "near_max"]
+    tests = tmp_path / "tests"
+    assert (tests / "001.in").read_text() == "1\n"      # "min" strategy
+    assert (tests / "002.in").read_text() == "100\n"    # "max" strategy
+    assert (tests / "002.ans").read_text().strip() == "200"
+
+
+def test_test_spec_rejecting_official_sample_is_unusable(tmp_path: Path):
+    report = build_pipeline(tmp_path, test_spec=TEST_SPEC_REJECTS_SAMPLE).run()
+
+    assert not report.compilation.generator
+    assert "rejects official samples" in report.compilation.errors["generator"]
+    assert "test_spec.json is unusable" in report.diagnosis
+    assert not report.all_passed

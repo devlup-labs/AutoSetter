@@ -53,6 +53,12 @@ DEFAULT_MAX_RETRIES = int(os.environ.get("AUTOSETTER_MAX_RETRIES", "3"))
 DEFAULT_EXECUTION_TIMEOUT = int(os.environ.get("AUTOSETTER_TIMEOUT", "5"))
 DEFAULT_COMPILE_TIMEOUT = int(os.environ.get("AUTOSETTER_COMPILE_TIMEOUT", "60"))
 
+# Z3 test generation (autosetter.testgen)
+# Per solver call; one test makes a few calls per integer variable.
+Z3_TIMEOUT_MS = int(os.environ.get("AUTOSETTER_Z3_TIMEOUT_MS", "10000"))
+# Most test cases packed into one multi-test input file (each adds solver variables).
+Z3_MAX_CASES = int(os.environ.get("AUTOSETTER_Z3_MAX_CASES", "30"))
+
 # Vision / Image Processing
 PDF_RENDER_DPI = int(os.environ.get("AUTOSETTER_PDF_DPI", "200"))
 SUPPORTED_RASTER_EXTENSIONS = {".png", ".jpg", ".jpeg"}

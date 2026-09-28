@@ -1,0 +1,120 @@
+You are an expert competitive-programming problem setter. Your job is to describe the INPUT FORMAT and INPUT CONSTRAINTS of a problem as a JSON "test spec". A Z3-based test generator will read your spec and build valid test inputs from it, and it will also parse the problem's official sample inputs with your spec, so the spec must describe the input exactly.
+
+You do NOT write code. You do NOT solve the problem. You output one JSON object.
+
+PROBLEM SPECIFICATION:
+{JSON}
+
+====================================================================
+OUTPUT FORMAT
+====================================================================
+
+Output ONLY a JSON object with these keys (no comments, no markdown, no prose):
+
+{
+  "multi_test": null  OR  {"count": "<name>", "min": <int>, "max": <int>},
+  "variables": [ <variable>, ... ],
+  "constraints": [ "<expression>", ... ],
+  "global_constraints": [ "<expression>", ... ],
+  "layout": [ [ "<name>", ... ], ... ]
+}
+
+- "multi_test": use it when the first line of the input is the number of test cases (t). "count" is its name, "min"/"max" its bounds. The count is printed automatically on the first line; do NOT list it in "variables" or "layout". Everything else describes ONE test case.
+- "variables": every value in one test case, in the order they are read.
+- "constraints": extra per-test-case conditions between integer variables, e.g. "k <= n", "a + b <= n", "n % 2 == 0".
+- "global_constraints": conditions across ALL test cases of a file. Wrap per-test variables in sum(...), e.g. "sum(n) <= 200000" for "the sum of n over all test cases does not exceed 2*10^5". Use [] if there are none.
+- "layout": the lines of ONE test case, top to bottom. Each line is a list of variable names printed on that line, separated by spaces.
+
+====================================================================
+VARIABLE TYPES
+====================================================================
+
+Every variable has "name" (a plain identifier) and "type". Bounds, lengths and sizes are integers or expressions over INTEGER variables declared EARLIER (and the multi_test count).
+
+1. Integer
+   {"name": "n", "type": "int", "min": 1, "max": 200000}
+
+2. Array of integers (printed space-separated on one line)
+   {"name": "a", "type": "array", "length": "n", "min": 1, "max": 1000000000}
+   Optional: "distinct": true, "order": "ascending" | "descending" | "non_decreasing" | "non_increasing"
+
+3. Permutation of 1..length (printed on one line)
+   {"name": "p", "type": "permutation", "length": "n"}
+   Optional: "indexing": 0 for a permutation of 0..length-1
+
+4. String (one token, no spaces)
+   {"name": "s", "type": "string", "length": "n", "alphabet": "a-z"}
+   "alphabet" lists allowed characters; ranges allowed: "a-z", "01", "a-zA-Z0-9", "()".
+
+5. Matrix / grid (one row per line; must be alone on its layout line)
+   Integers: {"name": "g", "type": "matrix", "rows": "n", "cols": "m", "min": 0, "max": 9}
+   Characters (each row printed as one string): {"name": "g", "type": "matrix", "rows": "n", "cols": "m", "alphabet": ".#"}
+
+6. Rows: a list of lines with a fixed number of integers each, such as queries or segments (one row per line; must be alone on its layout line)
+   {"name": "queries", "type": "rows", "count": "q",
+    "fields": [ {"name": "l", "min": 1, "max": "n"}, {"name": "r", "min": "l", "max": "n"} ]}
+   A field's bounds may use integer variables and EARLIER fields of the same row.
+
+7. Tree on "nodes" vertices (must be alone on its layout line)
+   {"name": "tree", "type": "tree", "nodes": "n", "format": "edges"}
+   "format": "edges" = n-1 lines "u v"; "parents" = one line p_2 ... p_n (parent of each vertex 2..n, each smaller than the vertex).
+   Optional: "indexing": 0, "weight": {"min": 1, "max": 1000000000} (edges become "u v w").
+
+8. Graph (m lines "u v"; must be alone on its layout line)
+   {"name": "g", "type": "graph", "nodes": "n", "edges": "m",
+    "directed": false, "connected": false, "self_loops": false, "multi_edges": false}
+   Optional: "indexing": 0, "weight": {"min": 1, "max": 1000000000}.
+   Put the edge-count limits in "min"/"max" of m, e.g. a connected simple graph needs "min": "n - 1", "max": "min(200000, n*(n-1)//2)".
+
+====================================================================
+EXPRESSIONS
+====================================================================
+
+Integers and + - * // % **, comparisons (< <= > >= == !=, chains like "1 <= k <= n"), and / or / not, and min(...), max(...), abs(...). Write 10^9 as 1000000000 or "10**9". Do not use variables that are not integers declared earlier.
+
+====================================================================
+RULES
+====================================================================
+
+1. Copy every bound EXACTLY from the constraints. Do not shrink them.
+2. Every variable must appear exactly once in "layout".
+3. A size (length, rows, cols, count, nodes, edges) may only use integers printed EARLIER in the layout.
+4. The official sample inputs MUST be valid under your spec: parse each sample in your head token by token and confirm every value is within its bounds.
+5. If the input has several test cases but no count line, or another format this schema cannot express, describe the closest faithful format; never invent values that are not in the input.
+6. Do not describe the OUTPUT.
+
+====================================================================
+EXAMPLES
+====================================================================
+
+Problem: first line t (1 <= t <= 10^4). Each test: a line with n and k (1 <= k <= n <= 2*10^5), then n integers a_i (1 <= a_i <= 10^9). Sum of n over all tests <= 2*10^5.
+{
+  "multi_test": {"count": "t", "min": 1, "max": 10000},
+  "variables": [
+    {"name": "n", "type": "int", "min": 1, "max": 200000},
+    {"name": "k", "type": "int", "min": 1, "max": "n"},
+    {"name": "a", "type": "array", "length": "n", "min": 1, "max": 1000000000}
+  ],
+  "constraints": [],
+  "global_constraints": ["sum(n) <= 200000"],
+  "layout": [["n", "k"], ["a"]]
+}
+
+Problem: n vertices and m edges of a connected undirected graph without loops or multiple edges (2 <= n <= 10^5, n-1 <= m <= 2*10^5), edges "u v w" with 1 <= w <= 10^9; then q queries (1 <= q <= 10^5), each "l r" with 1 <= l <= r <= n.
+{
+  "multi_test": null,
+  "variables": [
+    {"name": "n", "type": "int", "min": 2, "max": 100000},
+    {"name": "m", "type": "int", "min": "n - 1", "max": "min(200000, n*(n-1)//2)"},
+    {"name": "edges", "type": "graph", "nodes": "n", "edges": "m", "connected": true,
+     "weight": {"min": 1, "max": 1000000000}},
+    {"name": "q", "type": "int", "min": 1, "max": 100000},
+    {"name": "queries", "type": "rows", "count": "q",
+     "fields": [{"name": "l", "min": 1, "max": "n"}, {"name": "r", "min": "l", "max": "n"}]}
+  ],
+  "constraints": [],
+  "global_constraints": [],
+  "layout": [["n", "m"], ["edges"], ["q"], ["queries"]]
+}
+
+Now output the JSON test spec for the problem above.

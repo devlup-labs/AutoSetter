@@ -29,6 +29,19 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from autosetter.config import DEFAULT_EXECUTION_TIMEOUT, DEFAULT_NUM_TESTS
 from autosetter.sandbox import ExecutionResult, SandboxError, SandboxLocalClient
+from autosetter.testgen import (
+    SpecError,
+    TestGenError,
+    TestSpec,
+    check_samples,
+    generate_test,
+    load_spec_file,
+    strategy_for,
+)
+
+# The Z3 test spec written by the generator stage; preferred over a
+# generator.py / generator.cpp program when present.
+TEST_SPEC_FILENAME = "test_spec.json"
 
 
 class PipelineError(Exception):
@@ -57,6 +70,7 @@ class TestCase:
 
     index: int
     seed: str
+    strategy: str = ""
     input_data: str = ""
     expected_output: str = ""
     generator_ok: bool = False
@@ -181,6 +195,7 @@ class TestReport:
                 {
                     "index": tc.index,
                     "seed": tc.seed,
+                    "strategy": tc.strategy,
                     "generator_ok": tc.generator_ok,
                     "validator_ok": tc.validator_ok,
                     "solution_ok": tc.solution_ok,
@@ -243,6 +258,7 @@ class TestPipeline:
         self.time_limit = time_limit
         self._log = progress_callback or (lambda msg: None)
         self.samples = samples or []
+        self._test_spec: Optional[TestSpec] = None
 
     def run(self) -> TestReport:
         """Execute the full validation pipeline."""
@@ -256,11 +272,13 @@ class TestPipeline:
 
         if not report.compilation.solution:
             self._log("❌ Solution failed to compile — cannot validate.")
+            report.diagnosis = self._diagnose(report)
             report.duration_ms = int((time.monotonic() - start) * 1000)
             return report
 
         if not report.compilation.generator:
             self._log("❌ Generator failed to compile — cannot produce tests.")
+            report.diagnosis = self._diagnose(report)
             report.duration_ms = int((time.monotonic() - start) * 1000)
             return report
 
@@ -289,7 +307,11 @@ class TestPipeline:
         self._log(f"Running {self.num_tests} test cases...")
         for i in range(1, self.num_tests + 1):
             seed = str(i)
-            tc = TestCase(index=i, seed=seed)
+            tc = TestCase(
+                index=i,
+                seed=seed,
+                strategy=strategy_for(i) if self._test_spec else "",
+            )
 
             try:
                 # Generate test input
@@ -387,6 +409,8 @@ class TestPipeline:
         """Compile each generated C++ artifact."""
         comp = CompilationReport()
         for name, (filename, needs_testlib) in self.ARTIFACTS.items():
+            if name == "generator" and self._load_test_spec(comp):
+                continue
             source = self.generated_dir / filename
             if not source.exists():
                 if name == "generator":
@@ -431,6 +455,42 @@ class TestPipeline:
                 self._log(f"  ❌ {name}: compilation failed – see {error_path.name}")
 
         return comp
+
+    def _load_test_spec(self, comp: CompilationReport) -> bool:
+        """
+        Load test_spec.json as the generator, if there is one.
+
+        The spec plays the role the generator's compilation plays for C++: it
+        must load, and it must accept the official samples -- a spec that
+        rejects a known-good input would produce tests for a different problem.
+        Returns False when no spec exists, so a generator program is used.
+        """
+        spec_path = self.generated_dir / TEST_SPEC_FILENAME
+        if not spec_path.exists():
+            return False
+
+        try:
+            spec = load_spec_file(spec_path)
+            problems = check_samples(spec, self.samples)
+            if problems:
+                raise SpecError(
+                    "the test spec rejects official samples:\n"
+                    + "\n".join(f"- {p}" for p in problems)
+                )
+        except SpecError as exc:
+            comp.errors["generator"] = f"Invalid {TEST_SPEC_FILENAME}: {exc}"
+            error_path = self.generated_dir / "generator_compile_error.txt"
+            try:
+                error_path.write_text(comp.errors["generator"], encoding="utf-8")
+            except OSError as e_write:
+                self._log(f"  ⚠️  Failed to write error note for generator: {e_write}")
+            self._log(f"  ❌ generator: {TEST_SPEC_FILENAME} is unusable – see {error_path.name}")
+            return True
+
+        self._test_spec = spec
+        comp.generator = True
+        self._log(f"  ✅ generator: {TEST_SPEC_FILENAME} loaded (Z3 test generation)")
+        return True
 
     def _check_samples(self) -> List[SampleCheck]:
         """Validate official problem samples using the validator."""
@@ -540,6 +600,8 @@ class TestPipeline:
         if not report.compilation.solution:
             return "The solution does not compile; nothing downstream can be trusted."
         if not report.compilation.generator:
+            if (self.generated_dir / TEST_SPEC_FILENAME).exists():
+                return f"The generator's {TEST_SPEC_FILENAME} is unusable, so there are no tests."
             return "The generator does not compile, so there are no tests."
         if not report.compilation.validator:
             return "The validator does not compile, so inputs were never validated."
@@ -554,6 +616,12 @@ class TestPipeline:
             )
         if not report.compilation.checker:
             return "The checker does not compile, so outputs were never judged."
+        if report.total_tests and not report.passed_tests:
+            first_error = next((tc.error for tc in report.test_cases if tc.error), "")
+            return (
+                f"None of the {report.total_tests} generated tests is usable, so the "
+                f"checker could not be probed. First failure: {first_error}"
+            ).strip()
         if not report.checker_trusted:
             accepted = [
                 p.name
@@ -573,6 +641,12 @@ class TestPipeline:
 
     def _generate_test(self, seed: str) -> str:
         """Run the generator with a seed to produce test input."""
+        if self._test_spec is not None:
+            try:
+                return generate_test(self._test_spec, int(seed)).text
+            except TestGenError as exc:
+                raise SandboxError(f"Generator failed (seed={seed}): {exc}") from exc
+
         generator_script = self.generated_dir / "generator.py"
         if generator_script.exists():
             result = self.sandbox.run_binary(
