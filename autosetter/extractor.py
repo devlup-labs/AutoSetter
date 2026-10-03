@@ -20,7 +20,7 @@ from typing import Any, Dict, List
 
 from autosetter.config import DEFAULT_VISION_MODEL, PROMPTS_DIR
 from autosetter.llm import OllamaCallError, OllamaClient
-from autosetter.prompts import PromptError, load_prompt_template
+from autosetter.prompts import PromptError, load_and_render_prompt
 from autosetter.vision import ImageParsingError, load_image_as_base64
 
 logger = logging.getLogger(__name__)
@@ -49,16 +49,22 @@ class JSONExtractionError(Exception):
     """Raised when problem.json extraction, parsing, or schema validation fails."""
 
 
-def strip_markdown_code_fences(raw_text: str) -> str:
-    """
-    Remove leading/trailing ``` or ```json markdown code fences if present.
-    """
-    text = raw_text.strip()
-    fence_pattern = re.compile(r"^```(?:json)?\s*(.*?)\s*```$", re.DOTALL)
-    match = fence_pattern.match(text)
+def strip_code_fence(text: str) -> str:
+    """Extract clean code or JSON content from LLM response."""
+    stripped = text.strip()
+    fence_pattern = re.compile(r"```(?:cpp|c\+\+|c|latex|tex|markdown|md|json)?\s*\n(.*?)\n```", re.DOTALL | re.IGNORECASE)
+    match = fence_pattern.search(stripped)
     if match:
-        return match.group(1).strip()
-    return text
+        return match.group(1).strip() + "\n"
+    generic = re.compile(r"```\s*\n(.*?)\n```", re.DOTALL)
+    match = generic.search(stripped)
+    if match:
+        return match.group(1).strip() + "\n"
+    if stripped.startswith("```") and stripped.endswith("```"):
+        lines = stripped.splitlines()
+        if len(lines) >= 2:
+            return "\n".join(lines[1:-1]).strip() + "\n"
+    return stripped + "\n"
 
 
 def extract_first_json_object(text: str, raw_text: str) -> str:
@@ -82,7 +88,7 @@ def extract_first_json_object(text: str, raw_text: str) -> str:
 
 def parse_model_json(raw_text: str) -> Dict[str, Any]:
     """Parse model text output into a dictionary with fallback strategies."""
-    cleaned = strip_markdown_code_fences(raw_text)
+    cleaned = strip_code_fence(raw_text)
 
     try:
         return json.loads(cleaned)
@@ -189,8 +195,8 @@ def generate_problem_json(
         raise JSONExtractionError(f"Failed to load input image: {exc}") from exc
 
     try:
-        extraction_prompt = load_prompt_template(
-            JSON_EXTRACTION_TEMPLATE, prompts_dir=prompts_dir
+        extraction_prompt = load_and_render_prompt(
+            JSON_EXTRACTION_TEMPLATE, "", prompts_dir=prompts_dir
         )
     except PromptError as exc:
         raise JSONExtractionError(str(exc)) from exc

@@ -14,6 +14,3 @@ z3-solver>=4.12.0
 
 # Development / Testing
 pytest>=8.0.0
-# AutoSetter dependencies
-#
-# ollama       - official Ollama Python client used for both vision and

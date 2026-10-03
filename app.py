@@ -22,17 +22,11 @@ import os
 import sys
 from pathlib import Path
 
-# Auto-discover project virtualenv if ollama is not available in current environment
-_venv_python = Path(__file__).resolve().parent / ".venv" / "bin" / "python3"
-if _venv_python.exists() and sys.executable != str(_venv_python):
-    try:
-        import ollama  # noqa: F401
-    except ImportError:
-        os.execv(str(_venv_python), [str(_venv_python)] + sys.argv)
+from autosetter.config import ensure_venv
+ensure_venv()
 
 from autosetter.cli import (
     AutoSetterError,
-    AutoSetupError,
     PipelineResult,
     generate_from_image,
     main,
@@ -43,7 +37,6 @@ __all__ = [
     "generate_from_image",
     "PipelineResult",
     "AutoSetterError",
-    "AutoSetupError",
 ]
 
 if __name__ == "__main__":

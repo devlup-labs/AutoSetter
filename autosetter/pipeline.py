@@ -48,8 +48,7 @@ class PipelineError(Exception):
     """Raised when an unrecoverable failure occurs during validation."""
 
 
-# Backwards compatibility alias
-TestPipelineError = PipelineError
+
 
 CHECKER_VERDICTS = {0: "ok", 1: "wa", 2: "pe", 3: "fail"}
 

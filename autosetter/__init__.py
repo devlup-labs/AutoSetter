@@ -23,7 +23,6 @@ __version__ = "0.2.0"
 
 from autosetter.cli import (
     AutoSetterError,
-    AutoSetupError,
     PipelineResult,
     generate_from_image,
     main,
@@ -37,7 +36,6 @@ from autosetter.extractor import (
 from autosetter.generator import (
     ArtifactSpec,
     CodeGenerationError,
-    FileGenerationError,
     generate_all_artifacts,
 )
 
@@ -47,7 +45,6 @@ from autosetter.pipeline import (
     PipelineError,
     TestCase,
     TestPipeline,
-    TestPipelineError,
     TestReport,
 )
 from autosetter.polygon import (
@@ -58,7 +55,6 @@ from autosetter.polygon import (
 from autosetter.sandbox import (
     ExecutionResult,
     SandboxError,
-    SandboxHTTPClient,
     SandboxLocalClient,
     ensure_testlib,
     refresh_vendored_testlib,
@@ -71,7 +67,6 @@ __all__ = [
     "generate_from_image",
     "PipelineResult",
     "AutoSetterError",
-    "AutoSetupError",
     "Config",
     "OllamaClient",
     "OllamaCallError",
@@ -83,9 +78,7 @@ __all__ = [
     "generate_all_artifacts",
     "ArtifactSpec",
     "CodeGenerationError",
-    "FileGenerationError",
     "SandboxLocalClient",
-    "SandboxHTTPClient",
     "SandboxError",
     "ExecutionResult",
     "ensure_testlib",
@@ -94,7 +87,6 @@ __all__ = [
     "TestReport",
     "TestCase",
     "PipelineError",
-    "TestPipelineError",
     "Packager",
     "PackagerError",
     "PolygonClient",

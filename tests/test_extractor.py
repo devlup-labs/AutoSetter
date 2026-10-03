@@ -13,7 +13,7 @@ from autosetter.extractor import (
     generate_problem_json,
     parse_model_json,
     save_problem_json,
-    strip_markdown_code_fences,
+    strip_code_fence,
     validate_schema,
 )
 from tests.conftest import StubOllamaClient
@@ -47,7 +47,7 @@ def test_model_replies_parsed_across_wrapper_formats(raw: str):
 
 def test_strip_markdown_fences():
     fenced = "```json\n{\"a\": 1}\n```"
-    assert strip_markdown_code_fences(fenced) == "{\"a\": 1}"
+    assert strip_code_fence(fenced) == "{\"a\": 1}\n"
 
 
 def test_unparseable_reply_reports_model_text():

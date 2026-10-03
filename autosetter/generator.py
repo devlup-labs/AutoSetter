@@ -37,7 +37,7 @@ from autosetter.llm import OllamaCallError, OllamaClient
 # ─────────────────────────────────────────────────────────────────────────────
 from autosetter.prompts import PromptError, load_and_render_prompt
 
-from autosetter.extractor import JSONExtractionError, parse_model_json
+from autosetter.extractor import JSONExtractionError, parse_model_json, strip_code_fence
 from autosetter.testgen import (
     SpecError,
     TestGenError,
@@ -56,8 +56,7 @@ class CodeGenerationError(Exception):
     """Raised when generating or saving downstream code/markdown artifacts fails."""
 
 
-# Backwards compatibility alias
-FileGenerationError = CodeGenerationError
+
 
 
 # =============================================================================
@@ -163,47 +162,6 @@ ARTIFACTS: List[ArtifactSpec] = [
 # Text Processing Utilities
 # =============================================================================
 
-
-def strip_code_fence(text: str) -> str:
-    """
-    Extract clean C++ code or LaTeX/Markdown content from LLM response.
-
-    Both the Ollama and other models may wrap their output in markdown
-    code fences (```cpp ... ``` or ```latex ... ```). This function strips
-    those fences and returns only the content inside.
-
-    Handles:
-    - Code inside ```cpp ... ``` or ```c++ ... ``` or ``` ... ```
-    - LaTeX files wrapped in ```latex ... ``` or ```tex ... ```
-    - Markdown files wrapped in ```markdown ... ```
-    - Leading/trailing conversational text (e.g. '### Explanation')
-    - Raw un-fenced code.
-    """
-    stripped = text.strip()
-
-    # 1. Look for tagged code block (cpp, c++, c, latex, tex, markdown, md)
-    fence_pattern = re.compile(
-        r"```(?:cpp|c\+\+|c|latex|tex|markdown|md)?\s*\n(.*?)\n```",
-        re.DOTALL | re.IGNORECASE,
-    )
-    match = fence_pattern.search(stripped)
-    if match:
-        return match.group(1).strip() + "\n"
-
-    # 2. Look for any triple backtick block (language tag unrecognized or absent)
-    generic_pattern = re.compile(r"```\s*\n(.*?)\n```", re.DOTALL)
-    match = generic_pattern.search(stripped)
-    if match:
-        return match.group(1).strip() + "\n"
-
-    # 3. If the entire text starts and ends with ```
-    if stripped.startswith("```") and stripped.endswith("```"):
-        lines = stripped.splitlines()
-        if len(lines) >= 2:
-            return "\n".join(lines[1:-1]).strip() + "\n"
-
-    # 4. Return as-is if no fences found
-    return stripped + "\n"
 
 
 def sanitize_cpp_code(code: str, is_testlib: bool = True) -> str:

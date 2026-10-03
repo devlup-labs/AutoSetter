@@ -51,8 +51,7 @@ class AutoSetterError(Exception):
     """Top-level error class for pipeline failures in AutoSetter."""
 
 
-# Backwards compatibility alias
-AutoSetupError = AutoSetterError
+
 
 
 @dataclass

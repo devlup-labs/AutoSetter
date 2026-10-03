@@ -102,65 +102,6 @@ def refresh_vendored_testlib() -> Path:
 
 
 # ---------------------------------------------------------------------------
-# HTTP Sandbox Client (Docker + NsJail Server)
-# ---------------------------------------------------------------------------
-
-class SandboxHTTPClient:
-    """
-    Communicates with the sandbox Express server running Docker + NsJail workers.
-    """
-
-    def __init__(self, base_url: str = "http://localhost:3000") -> None:
-        self.base_url = base_url.rstrip("/")
-
-    def is_available(self) -> bool:
-        """Check if the sandbox HTTP server is running and healthy."""
-        try:
-            req = urllib.request.Request(f"{self.base_url}/api/health")
-            with urllib.request.urlopen(req, timeout=3) as resp:
-                return resp.status == 200
-        except Exception:
-            return False
-
-    def execute(
-        self,
-        code: str,
-        stdin: str = "",
-        time_limit: int = 5,
-    ) -> ExecutionResult:
-        """Submit code for compilation and sandboxed execution."""
-        payload = json.dumps({
-            "code": code,
-            "language": "cpp",
-            "stdin": stdin,
-            "timeLimit": time_limit,
-        }).encode("utf-8")
-
-        req = urllib.request.Request(
-            f"{self.base_url}/api/execute",
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-
-        try:
-            with urllib.request.urlopen(req, timeout=time_limit + 30) as resp:
-                data = json.loads(resp.read().decode("utf-8"))
-        except Exception as exc:
-            raise SandboxError(f"Sandbox HTTP call failed: {exc}") from exc
-
-        return ExecutionResult(
-            status=data.get("status", "error"),
-            stdout=data.get("stdout", ""),
-            stderr=data.get("stderr", ""),
-            exit_code=data.get("exitCode", -1),
-            compile_time_ms=data.get("compileTimeMs", 0),
-            execute_time_ms=data.get("executeTimeMs", 0),
-            total_time_ms=data.get("totalTimeMs", 0),
-        )
-
-
-# ---------------------------------------------------------------------------
 # Local Subprocess Sandbox Client (Host g++)
 # ---------------------------------------------------------------------------
 

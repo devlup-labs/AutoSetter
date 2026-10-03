@@ -12,6 +12,16 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+def ensure_venv(args=None):
+    """Auto-discover project virtualenv if ollama is not available in current environment."""
+    import sys
+    venv_python = Path(__file__).resolve().parent.parent / ".venv" / "bin" / "python3"
+    if venv_python.exists() and sys.executable != str(venv_python):
+        try:
+            import ollama  # noqa: F401
+        except ImportError:
+            os.execv(str(venv_python), [str(venv_python)] + (args or sys.argv))
+
 # ---------------------------------------------------------------------------
 # Project Paths
 # ---------------------------------------------------------------------------
@@ -97,17 +107,5 @@ class Config:
     @classmethod
     def from_env(cls) -> Config:
         """Create a Config object populated from environment variables."""
-        return cls(
-            vision_model=DEFAULT_VISION_MODEL,
-            text_model=DEFAULT_TEXT_MODEL,
-            ollama_host=DEFAULT_OLLAMA_HOST,
-            num_ctx=DEFAULT_NUM_CTX,
-            request_timeout=DEFAULT_REQUEST_TIMEOUT,
-            num_tests=DEFAULT_NUM_TESTS,
-            max_retries=DEFAULT_MAX_RETRIES,
-            execution_timeout=DEFAULT_EXECUTION_TIMEOUT,
-            compile_timeout=DEFAULT_COMPILE_TIMEOUT,
-            prompts_dir=PROMPTS_DIR,
-            out_dir=DEFAULT_OUT_DIR,
-        )
+        return cls()
 

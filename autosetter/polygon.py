@@ -23,10 +23,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-try:
-    import requests
-except ImportError:  # pragma: no cover
-    requests = None  # type: ignore
+import urllib.parse
+import urllib.request
 
 from autosetter.config import (
     POLYGON_API_KEY,
@@ -68,12 +66,6 @@ class PolygonClient:
         Execute an authenticated POST request against the Polygon API.
         Computes the required apiSig using HMAC-SHA512.
         """
-        if requests is None:
-            raise PolygonAPIError(
-                "The 'requests' package is required for Polygon API operations. "
-                "Run: pip install requests"
-            )
-
         if not self.api_key or not self.secret:
             raise PolygonAPIError(
                 "Polygon API key and secret are required. "
@@ -93,9 +85,13 @@ class PolygonClient:
 
         endpoint = self.base_url + method
         try:
-            response = requests.post(endpoint, data=p, timeout=30)
-            response.raise_for_status()
-            body = response.json()
+            req = urllib.request.Request(
+                endpoint,
+                data=urllib.parse.urlencode(p).encode("utf-8"),
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=30) as response:
+                body = json.loads(response.read().decode("utf-8"))
         except Exception as exc:
             raise PolygonAPIError(f"Polygon HTTP request failed for {method}: {exc}") from exc
 
