@@ -6,9 +6,10 @@ Command-line interface and end-to-end pipeline driver for AutoSetter.
 Executes:
 1. Intake: Read statement image/PDF.
 2. Extraction: Extract and validate `problem.json` via Qwen vision model (1st model — UNCHANGED).
-3. Generation: Produce artifacts via Ollama (validator.cpp, generator.cpp, solution.cpp, etc.)
-4. Validation: Sandboxed compilation, sample verification, test case generation, and checker probing.
-5. Packaging: Assemble release package bundle with manifest.
+3. Similarity: Look up similar existing problems in the vector database (optional).
+4. Generation: Produce artifacts via Ollama (validator.cpp, generator.cpp, solution.cpp, etc.)
+5. Validation: Sandboxed compilation, sample verification, test case generation, and checker probing.
+6. Packaging: Assemble release package bundle with manifest.
 """
 
 from __future__ import annotations
@@ -18,9 +19,9 @@ import json
 import logging
 import os
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from autosetter.config import (
     DEFAULT_NUM_TESTS,
@@ -29,6 +30,8 @@ from autosetter.config import (
     DEFAULT_TEXT_MODEL,
     DEFAULT_VISION_MODEL,
     PROMPTS_DIR,
+    SIMILARITY_ENABLED,
+    SIMILARITY_TOP_K,
 )
 from autosetter.extractor import (
     JSONExtractionError,
@@ -41,6 +44,11 @@ from autosetter.llm import OllamaCallError, OllamaClient
 from autosetter.packager import Packager, PackagerError
 from autosetter.pipeline import PipelineError, TestPipeline, TestReport
 from autosetter.sandbox import SandboxError, SandboxLocalClient, ensure_testlib
+from autosetter.similarity import (
+    SimilaritySearchError,
+    find_similar_problems,
+    save_similar_problems,
+)
 from autosetter.vision import ImageParsingError
 
 logger = logging.getLogger(__name__)
@@ -62,6 +70,7 @@ class PipelineResult:
     package_dir: Path
     report: Optional[TestReport] = None
     validation_error: str = ""
+    similar_problems: List[Dict[str, Any]] = field(default_factory=list)
 
     @property
     def ready_for_release(self) -> bool:
@@ -95,6 +104,8 @@ def generate_from_image(
     out_dir: str | Path = DEFAULT_OUT_DIR,
     prompts_dir: str | Path = PROMPTS_DIR,
     progress_callback: Optional[Callable[[str], None]] = None,
+    similarity_check: bool = SIMILARITY_ENABLED,
+    similar_k: int = SIMILARITY_TOP_K,
 ) -> PipelineResult:
     """
     Execute the end-to-end AutoSetter problem packaging pipeline.
@@ -119,6 +130,10 @@ def generate_from_image(
         Directory containing prompt templates.
     progress_callback : Optional[Callable[[str], None]]
         Progress reporting callback.
+    similarity_check : bool
+        If True, look up similar existing problems in the vector database (Qdrant).
+    similar_k : int
+        Number of similar problems to return.
 
     Returns
     -------
@@ -162,6 +177,18 @@ def generate_from_image(
         save_problem_json(problem_data, problem_json_path)
     except JSONExtractionError as exc:
         raise AutoSetterError(f"Failed to save problem.json: {exc}") from exc
+
+    # 3b. Similar-problem lookup in the vector database (optional, never fatal)
+    similar_problems: List[Dict[str, Any]] = []
+    if similarity_check:
+        logger_fn("Searching vector database for similar problems...")
+        try:
+            similar_problems = find_similar_problems(problem_data, k=similar_k)
+            save_similar_problems(similar_problems, output_root / "similar_problems.json")
+            for match in similar_problems:
+                logger_fn(f"  {match['score']:.4f}  {match['title']}  {match['url'] or 'N/A'}")
+        except SimilaritySearchError as exc:
+            logger_fn(f"⚠️  Similar-problem search skipped: {exc}")
 
     # 4. Generate Downstream Artifacts & Validation Loop
     test_report = None
@@ -287,6 +314,7 @@ def generate_from_image(
         package_dir=package_dir,
         report=test_report,
         validation_error=validation_error,
+        similar_problems=similar_problems,
     )
 
 
@@ -335,6 +363,18 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Skip sandbox compilation and validation stage.",
     )
     parser.add_argument(
+        "--no-similarity",
+        action="store_true",
+        default=not SIMILARITY_ENABLED,
+        help="Skip the similar-problem search in the vector database.",
+    )
+    parser.add_argument(
+        "--similar-k",
+        type=int,
+        default=SIMILARITY_TOP_K,
+        help=f"Number of similar problems to retrieve (default: {SIMILARITY_TOP_K}).",
+    )
+    parser.add_argument(
         "--out-dir",
         type=str,
         default=str(DEFAULT_OUT_DIR),
@@ -369,6 +409,8 @@ def main(argv: Optional[List[str]] = None) -> int:
             num_tests=args.num_tests,
             skip_validation=args.skip_validation,
             out_dir=args.out_dir,
+            similarity_check=not args.no_similarity,
+            similar_k=args.similar_k,
         )
     except AutoSetterError as exc:
         print(f"Error: {exc}", file=sys.stderr)
@@ -379,6 +421,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     print(f"\nArtifacts written to: {result.generated_dir}")
     print(f"Package assembled at: {result.package_dir}")
+    if result.similar_problems:
+        print("Similar existing problems:")
+        for match in result.similar_problems:
+            print(f"  {match['score']:.4f}  {match['title']}  {match['url'] or 'N/A'}")
 
     if result.ready_for_release:
         print(f"Ready for release — {result.summary}")

@@ -32,7 +32,7 @@ EMBEDDING_BATCH_SIZE = int(os.getenv("EMBEDDING_BATCH_SIZE", "32"))
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "competitive_programming_problems")
 QDRANT_BATCH_SIZE = int(os.getenv("QDRANT_BATCH_SIZE", "64"))
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", None)
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY") or None
 
 STATE_FILE = DATASET_DIR / "state.json"
 STATS_FILE = DATASET_DIR / "stats.json"

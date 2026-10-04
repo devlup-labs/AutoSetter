@@ -65,6 +65,15 @@ SUPPORTED_RASTER_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 SUPPORTED_PDF_EXTENSIONS = {".pdf"}
 SUPPORTED_EXTENSIONS = SUPPORTED_RASTER_EXTENSIONS | SUPPORTED_PDF_EXTENSIONS
 
+# Similar-problem search (vector_database/ + Qdrant)
+# Must match the model and collection used to build the vector database.
+SIMILARITY_ENABLED = os.environ.get("AUTOSETTER_SIMILARITY", "1") != "0"
+SIMILARITY_TOP_K = int(os.environ.get("AUTOSETTER_SIMILARITY_K", "5"))
+QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
+QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION", "competitive_programming_problems")
+QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY") or None
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
+
 # Codeforces Polygon API
 POLYGON_API_URL = os.environ.get("POLYGON_API_URL", "https://polygon.codeforces.com/api/")
 POLYGON_API_KEY = os.environ.get("POLYGON_API_KEY", "")

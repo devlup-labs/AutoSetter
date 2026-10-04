@@ -35,7 +35,7 @@ class LeetCodeSource(BaseSource):
                     source_id=source_id,
                     title=data.get('title', ''),
                     url=data.get('url'),
-                    difficulty=str(data.get('difficulty', '')),
+                    difficulty=str(data['difficulty']) if data.get('difficulty') else None,
                     rating=None,  # LC generally uses Easy/Medium/Hard instead of numerical rating
                     tags=data.get('tags', []),
                     statement=data.get('statement'),
