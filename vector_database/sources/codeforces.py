@@ -1,10 +1,14 @@
 import json
 import requests
-import time
-from typing import Iterator
+from typing import Iterator, Optional
 from pathlib import Path
 from .base import BaseSource
 from ..processing.schema import Problem
+
+
+def _as_difficulty(value) -> Optional[str]:
+    """Stringify a rating/difficulty, keeping missing values as None instead of 'None'."""
+    return str(value) if value not in (None, "") else None
 
 class CodeforcesSource(BaseSource):
     """
@@ -37,7 +41,7 @@ class CodeforcesSource(BaseSource):
                     source_id=str(data.get('id', data.get('source_id', ''))),
                     title=data.get('title', ''),
                     url=data.get('url'),
-                    difficulty=str(data.get('rating', data.get('difficulty'))),
+                    difficulty=_as_difficulty(data.get('rating', data.get('difficulty'))),
                     rating=data.get('rating'),
                     tags=data.get('tags', []),
                     statement=data.get('statement', data.get('description')),
@@ -50,7 +54,7 @@ class CodeforcesSource(BaseSource):
                 count += 1
 
     def _collect_from_api(self, limit: int = None) -> Iterator[Problem]:
-        url = "https://codeforces.com/api/problemset.problems"
+        url = "https://codeforces.com/api/problemset.problems?lang=en"
         response = requests.get(url)
         if response.status_code != 200:
             raise Exception(f"Failed to fetch from Codeforces API: {response.status_code}")
@@ -87,5 +91,3 @@ class CodeforcesSource(BaseSource):
                 examples=[]
             )
             count += 1
-            # Be polite to API
-            time.sleep(0.1)

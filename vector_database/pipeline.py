@@ -156,7 +156,7 @@ class Pipeline:
             
         print("Starting Embedding and Qdrant Upload...")
         
-        embedder = ProblemEmbedder(model_name=config.EMBEDDING_MODEL)
+        embedder = ProblemEmbedder(model_name=config.EMBEDDING_MODEL, batch_size=config.EMBEDDING_BATCH_SIZE)
         qdrant = QdrantManager(
             url=config.QDRANT_URL,
             collection_name=config.QDRANT_COLLECTION,
@@ -169,50 +169,64 @@ class Pipeline:
         
         batch_size = config.QDRANT_BATCH_SIZE
         current_batch_probs = []
-        
+        # Lines of problems.jsonl consumed by the current batch (including blank/unparseable ones),
+        # so the resume offset always points at the first line not yet uploaded.
+        current_batch_lines = 0
+
+        # Number of lines of problems.jsonl already handled
         skip_count = self.state.state["embedded_and_uploaded"]
-        
+
         failed_file = config.LOGS_DIR / "upload_failed.jsonl"
-        
+
         with open(final_file, 'r', encoding='utf-8') as f, open(failed_file, 'a', encoding='utf-8') as err_f:
             lines = f.readlines()
-            
+
             # Resume skipping
             lines_to_process = lines[skip_count:]
             if not lines_to_process:
                 print("All problems already embedded and uploaded.")
                 return
-                
+
             for line in tqdm(lines_to_process, desc="Embedding & Uploading"):
+                current_batch_lines += 1
                 if not line.strip():
                     continue
-                    
+
                 try:
-                    prob = Problem(**json.loads(line))
-                    current_batch_probs.append(prob)
-                    
-                    if len(current_batch_probs) >= batch_size:
-                        self._process_upload_batch(embedder, qdrant, current_batch_probs, err_f)
-                        current_batch_probs = []
+                    current_batch_probs.append(Problem(**json.loads(line)))
                 except Exception as e:
                     self.stats.stats["failed_records"] += 1
                     err_f.write(json.dumps({"error": str(e), "line": line}) + "\n")
-                    
-            # Process remaining
-            if current_batch_probs:
-                self._process_upload_batch(embedder, qdrant, current_batch_probs, err_f)
 
-    def _process_upload_batch(self, embedder, qdrant, batch_probs, err_f):
+                if len(current_batch_probs) >= batch_size:
+                    if not self._process_upload_batch(embedder, qdrant, current_batch_probs, current_batch_lines, err_f):
+                        return
+                    current_batch_probs = []
+                    current_batch_lines = 0
+
+            # Process remaining
+            if current_batch_lines:
+                self._process_upload_batch(embedder, qdrant, current_batch_probs, current_batch_lines, err_f)
+
+    def _process_upload_batch(self, embedder, qdrant, batch_probs, batch_lines, err_f) -> bool:
+        """
+        Embeds and uploads a batch. On success advances the resume offset by `batch_lines`.
+        On failure returns False without advancing it, so the next run retries this batch.
+        """
         try:
-            embeddings = embedder.embed_batch(batch_probs)
-            qdrant.upsert_batch(batch_probs, embeddings)
-            
+            if batch_probs:
+                embeddings = embedder.embed_batch(batch_probs)
+                qdrant.upsert_batch(batch_probs, embeddings)
+
             self.stats.stats["embedding_count"] += len(batch_probs)
-            self.state.state["embedded_and_uploaded"] += len(batch_probs)
-            
+            self.state.state["embedded_and_uploaded"] += batch_lines
+
             self.state.save()
             self.stats.save()
+            return True
         except Exception as e:
-            self.stats.stats["failed_records"] += len(batch_probs)
             for p in batch_probs:
                 err_f.write(json.dumps({"problem_id": p.id, "error": str(e)}) + "\n")
+            print(f"Batch upload failed ({e}). Stopping; re-run to retry from this batch.")
+            self.stats.save()
+            return False

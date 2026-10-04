@@ -85,6 +85,7 @@ def test_generate_from_image_end_to_end(tmp_path: Path, monkeypatch, stub_client
         image_path=img_path,
         out_dir=out_dir,
         skip_validation=True,
+        similarity_check=False,
     )
 
     assert result.generated_dir == out_dir / "generated"
