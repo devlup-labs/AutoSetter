@@ -6,10 +6,12 @@ AutoSetter entry point.
 
 Usage:
     python app.py path/to/problem.png
-    python app.py path/to/problem.pdf --vision-model qwen2.5vl:3b --text-model qwen2.5-coder:7b
+    python app.py path/to/problem.pdf --ssh user@gpu-server
+    python app.py path/to/problem.png --no-polygon --skip-validation
 
-Or via module execution:
+Or via module execution / the installed console script:
     python -m autosetter path/to/problem.png
+    autosetter path/to/problem.png
 
 Programmatic usage:
     from autosetter import generate_from_image
@@ -19,12 +21,12 @@ Programmatic usage:
 from __future__ import annotations
 
 import sys
-from autosetter.cli import (
+from autosetter.cli import main
+from autosetter.runner import (
     AutoSetterError,
     AutoSetupError,
     PipelineResult,
     generate_from_image,
-    main,
 )
 
 __all__ = [

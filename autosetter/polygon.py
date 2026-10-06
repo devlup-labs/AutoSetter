@@ -5,23 +5,35 @@ Codeforces Polygon API v2 integration client and package uploader.
 
 Automates:
 - HMAC-SHA512 authenticated API communication with Codeforces Polygon.
+- Creating the Polygon problem (or updating an existing one by ID).
 - Uploading generated problem packages (limits, checker, validator, generator,
-  reference solutions with verdicts, LaTeX/Markdown statements, test cases, and tags).
+  reference solutions with verdicts, statement, samples, test cases, and tags).
 - Committing problem revisions and requesting package builds.
+
+Run standalone on an existing package:
+
+    python -m autosetter.polygon out/package              # creates a new problem
+    python -m autosetter.polygon out/package --problem-id 123456
+
+Credentials come from --key/--secret, POLYGON_API_KEY/POLYGON_SECRET, or an
+interactive prompt (the secret is read without echo). Create them on Polygon
+under Settings -> API Keys.
 """
 
 from __future__ import annotations
 
 import argparse
+import getpass
 import hashlib
 import json
-import os
 import random
+import re
 import string
 import sys
 import time
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 try:
     import requests
@@ -31,6 +43,8 @@ except ImportError:  # pragma: no cover
 from autosetter.config import (
     POLYGON_API_KEY,
     POLYGON_API_URL,
+    POLYGON_DEFAULT_MEMORY_LIMIT_MB,
+    POLYGON_DEFAULT_TIME_LIMIT_MS,
     POLYGON_SECRET,
 )
 
@@ -117,6 +131,60 @@ class PolygonClient:
             params.update(extra_params)
         return self.call(method, params)
 
+    def verify_credentials(self) -> None:
+        """Make a cheap authenticated call; raises PolygonAPIError if the key/secret are wrong."""
+        self.call("problems.list", {"showDeleted": "false"})
+
+    def create_problem(self, name: str) -> Dict[str, Any]:
+        """Create an empty problem and return Polygon's Problem object (id, name, owner, ...)."""
+        return self.call("problem.create", {"name": name})
+
+
+# ---------------------------------------------------------------------------
+# problem.json -> Polygon fields
+# ---------------------------------------------------------------------------
+
+def polygon_problem_name(title: str) -> str:
+    """Polygon problem names may only hold lowercase letters, digits and dashes."""
+    slug = re.sub(r"[^a-z0-9]+", "-", (title or "").lower()).strip("-")
+    return slug[:40].strip("-") or "autosetter-problem"
+
+
+def parse_time_limit_ms(value: Any) -> int:
+    """'2s', '2.0 seconds', '1500 ms' -> milliseconds (default when unparsable)."""
+    match = re.search(r"(\d+(?:\.\d+)?)\s*(ms|millisecond|s|sec|second)?", str(value or "").lower())
+    if not match:
+        return POLYGON_DEFAULT_TIME_LIMIT_MS
+    amount, unit = float(match.group(1)), match.group(2) or "s"
+    ms = amount if unit.startswith("m") else amount * 1000
+    return int(min(max(ms, 250), 15000))  # Polygon accepts 0.25s .. 15s
+
+
+def parse_memory_limit_mb(value: Any) -> int:
+    """'256MB', '256 megabytes', '1 GB', '262144 KB' -> megabytes (default when unparsable)."""
+    match = re.search(r"(\d+(?:\.\d+)?)\s*(k|m|g)?", str(value or "").lower())
+    if not match:
+        return POLYGON_DEFAULT_MEMORY_LIMIT_MB
+    amount, unit = float(match.group(1)), match.group(2) or "m"
+    mb = {"k": amount / 1024, "m": amount, "g": amount * 1024}[unit]
+    return int(min(max(mb, 4), 1024))  # Polygon accepts 4MB .. 1024MB
+
+
+def _load_problem_json(pkg: Path) -> Dict[str, Any]:
+    path = pkg / "problem.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {}
+
+
+def _text(value: Any) -> str:
+    if isinstance(value, list):
+        return "\n".join(str(v) for v in value)
+    return str(value or "").strip()
+
 
 def upload_problem_package(
     package_dir: str | Path,
@@ -124,6 +192,8 @@ def upload_problem_package(
     client: Optional[PolygonClient] = None,
     cpp_type: str = "cpp.g++17",
     progress_callback: Optional[Any] = None,
+    commit: bool = True,
+    build: bool = True,
 ) -> None:
     """
     Upload an assembled problem package directory to Codeforces Polygon.
@@ -140,24 +210,31 @@ def upload_problem_package(
         Source type compiler string on Polygon.
     progress_callback : Optional[Callable[[str], None]]
         Progress logger.
+    commit : bool
+        Commit the uploaded changes as a new problem revision.
+    build : bool
+        Request a (verified) package build after committing.
     """
     _log = progress_callback or (lambda msg: print(msg, flush=True))
     pkg = Path(package_dir)
     api = client or PolygonClient()
+    problem = _load_problem_json(pkg)
 
     _log(f"Starting Polygon upload for problem ID {problem_id} from {pkg}...")
 
-    # 1. Update Limits
-    _log("▶ Setting time and memory limits...")
+    # 1. Update Limits (Polygon takes milliseconds and megabytes)
+    time_limit = parse_time_limit_ms(problem.get("time_limit"))
+    memory_limit = parse_memory_limit_mb(problem.get("memory_limit"))
+    _log(f"▶ Setting limits: {time_limit} ms, {memory_limit} MB...")
     api.problem_call(
         "problem.updateInfo",
         problem_id,
         {
-            "inputFile": "",
-            "outputFile": "",
+            "inputFile": "stdin",
+            "outputFile": "stdout",
             "interactive": "false",
-            "timeLimit": 2000,
-            "memoryLimit": 262144,
+            "timeLimit": time_limit,
+            "memoryLimit": memory_limit,
         },
     )
 
@@ -267,16 +344,23 @@ def upload_problem_package(
                 },
             )
 
-    # 7. Upload Statement
-    tex_path = pkg / "statement" / "problem.tex"
-    statement_path = pkg / "statement.md"
-    legend = ""
-    if tex_path.exists():
-        legend = tex_path.read_text(encoding="utf-8")
-    elif statement_path.exists():
-        legend = statement_path.read_text(encoding="utf-8")
+    # 7. Upload Statement: the problem.json sections map onto Polygon's
+    # statement fields; statement.md (or problem.tex) is the fallback legend.
+    statement: Dict[str, Any] = {}
+    if problem.get("story"):
+        statement = {
+            "legend": _text(problem.get("story")),
+            "input": _text(problem.get("input_format")),
+            "output": _text(problem.get("output_format")),
+            "notes": _text(problem.get("notes")),
+        }
+    else:
+        for legend_path in (pkg / "statement" / "problem.tex", pkg / "statement.md"):
+            if legend_path.exists():
+                statement = {"legend": legend_path.read_text(encoding="utf-8")}
+                break
 
-    if legend:
+    if statement:
         _log("▶ Uploading statement...")
         api.problem_call(
             "problem.saveStatement",
@@ -284,33 +368,32 @@ def upload_problem_package(
             {
                 "lang": "english",
                 "encoding": "utf-8",
-                "name": "Problem",
-                "legend": legend,
+                "name": _text(problem.get("title")) or "Problem",
+                **{k: v for k, v in statement.items() if v},
             },
         )
 
-    # 8. Upload Tests
-    tests_dir = pkg / "tests"
-    if tests_dir.exists():
-        test_inputs = sorted(tests_dir.glob("*.in"))
-        _log(f"▶ Uploading {len(test_inputs)} tests...")
-        for idx, in_path in enumerate(test_inputs, start=1):
-            ans_path = in_path.with_suffix(".ans")
-            if not ans_path.exists():
-                continue
-            is_sample = idx == 1
-            api.problem_call(
-                "problem.saveTest",
-                problem_id,
-                {
-                    "testset": "tests",
-                    "testIndex": idx,
-                    "testInput": in_path.read_text(encoding="utf-8"),
-                    "testAnswer": ans_path.read_text(encoding="utf-8"),
-                    "testUseInStatements": "true" if is_sample else "false",
-                    "checkExisting": "false",
-                },
-            )
+    # 8. Upload Tests: official samples first (shown in the statement), then
+    # the generated tests. Polygon computes answers with the main solution.
+    test_inputs = sorted((pkg / "samples").glob("*.in"))
+    sample_count = len(test_inputs)
+    test_inputs += [
+        p for p in sorted((pkg / "tests").glob("*.in")) if p.with_suffix(".ans").exists()
+    ]
+    if test_inputs:
+        _log(f"▶ Uploading {len(test_inputs)} tests ({sample_count} samples)...")
+    for idx, in_path in enumerate(test_inputs, start=1):
+        api.problem_call(
+            "problem.saveTest",
+            problem_id,
+            {
+                "testset": "tests",
+                "testIndex": idx,
+                "testInput": in_path.read_text(encoding="utf-8"),
+                "testUseInStatements": "true" if idx <= sample_count else "false",
+                "checkExisting": "false",
+            },
+        )
 
     # 8b. Upload Script
     script_path = pkg / "script"
@@ -341,7 +424,89 @@ def upload_problem_package(
                 {"tags": ",".join(tags)},
             )
 
+    # 10. Commit and build
+    if commit:
+        _log("▶ Committing changes...")
+        api.problem_call(
+            "problem.commitChanges",
+            problem_id,
+            {"minorChanges": "false", "message": "Uploaded by AutoSetter"},
+        )
+        if build:
+            _log("▶ Requesting package build (with verification)...")
+            api.problem_call(
+                "problem.buildPackage", problem_id, {"full": "false", "verify": "true"}
+            )
+
     _log("✅ Polygon upload completed successfully.")
+
+
+@dataclass
+class PublishResult:
+    """Where a package ended up on Polygon."""
+
+    problem_id: int
+    name: str
+    created: bool
+
+
+def publish_package(
+    package_dir: str | Path,
+    client: PolygonClient,
+    problem_id: Optional[int] = None,
+    name: Optional[str] = None,
+    progress_callback: Optional[Callable[[str], None]] = None,
+) -> PublishResult:
+    """
+    Push a package to Polygon, creating the problem first unless `problem_id` is given.
+
+    The new problem is named after the title in problem.json (or `name`); if
+    that name is taken, a timestamp suffix is added.
+    """
+    _log = progress_callback or (lambda msg: print(msg, flush=True))
+    pkg = Path(package_dir)
+    created = problem_id is None
+    if problem_id is None:
+        base = polygon_problem_name(name or _text(_load_problem_json(pkg).get("title")))
+        try:
+            problem = client.create_problem(base)
+        except PolygonAPIError as first_error:
+            fallback = f"{base[:27]}-{time.strftime('%Y%m%d%H%M')}"
+            _log(f"Could not create '{base}' ({first_error}); trying '{fallback}'...")
+            problem = client.create_problem(fallback)
+        problem_id = int(problem["id"])
+        name = problem.get("name") or base
+        _log(f"Created Polygon problem '{name}' (ID {problem_id}).")
+
+    upload_problem_package(pkg, problem_id, client=client, progress_callback=_log)
+    return PublishResult(problem_id=problem_id, name=name or "", created=created)
+
+
+def prompt_credentials(
+    api_key: str = "",
+    secret: str = "",
+    input_fn: Callable[[str], str] = input,
+    secret_fn: Callable[[str], str] = getpass.getpass,
+) -> Tuple[str, str]:
+    """
+    Ask for the Polygon API key and secret, offering values already known.
+
+    Pressing Enter keeps a known value. Returns ("", "") when the user leaves
+    the key blank and none is known, meaning "skip the upload".
+    """
+    key_hint = " [press Enter to use POLYGON_API_KEY]" if api_key else " (blank to skip upload)"
+    entered_key = input_fn(f"Polygon API key{key_hint}: ").strip()
+    api_key = entered_key or api_key
+    if not api_key:
+        return "", ""
+    secret_hint = " [press Enter to use POLYGON_SECRET]" if secret and not entered_key else ""
+    entered_secret = secret_fn(f"Polygon API secret{secret_hint}: ").strip()
+    if entered_key:
+        # A newly typed key must come with its own secret.
+        secret = entered_secret
+    else:
+        secret = entered_secret or secret
+    return api_key, secret
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -350,15 +515,26 @@ def main(argv: Optional[List[str]] = None) -> int:
         description="Upload an AutoSetter problem package to Codeforces Polygon."
     )
     parser.add_argument("package_dir", help="Path to package directory")
-    parser.add_argument("problem_id", type=int, help="Target Polygon problem ID")
+    parser.add_argument(
+        "problem_id", type=int, nargs="?", default=None,
+        help="Existing Polygon problem ID (omit to create a new problem)",
+    )
+    parser.add_argument("--problem-id", dest="problem_id_opt", type=int, metavar="ID", help="Same as the positional problem_id")
+    parser.add_argument("--name", help="Name for a newly created problem (default: from problem.json title)")
     parser.add_argument("--key", help="Polygon API key (optional if env var set)")
     parser.add_argument("--secret", help="Polygon secret (optional if env var set)")
 
     args = parser.parse_args(argv)
+    problem_id = args.problem_id if args.problem_id is not None else args.problem_id_opt
+
+    api_key, secret = args.key or POLYGON_API_KEY, args.secret or POLYGON_SECRET
+    if (not api_key or not secret) and sys.stdin.isatty():
+        api_key, secret = prompt_credentials(api_key, secret)
 
     try:
-        client = PolygonClient(api_key=args.key, secret=args.secret)
-        upload_problem_package(args.package_dir, args.problem_id, client=client)
+        client = PolygonClient(api_key=api_key, secret=secret)
+        result = publish_package(args.package_dir, client, problem_id=problem_id, name=args.name)
+        print(f"Polygon problem ID: {result.problem_id}")
         return 0
     except PolygonAPIError as exc:
         print(f"Error: {exc}", file=sys.stderr)

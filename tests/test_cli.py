@@ -42,15 +42,15 @@ def test_build_arg_parser_overrides():
     parser = build_arg_parser()
     args = parser.parse_args([
         "statement.pdf",
-        "--vision-model", "qwen2.5vl:7b",
-        "--text-model", "qwen2.5-coder:7b",
+        "--vision-model", "custom-vision:latest",
+        "--text-model", "custom-coder:latest",
         "--num-tests", "20",
         "--skip-validation",
         "--out-dir", "custom_out",
     ])
     assert args.image_path == "statement.pdf"
-    assert args.vision_model == "qwen2.5vl:7b"
-    assert args.text_model == "qwen2.5-coder:7b"
+    assert args.vision_model == "custom-vision:latest"
+    assert args.text_model == "custom-coder:latest"
     assert args.num_tests == 20
     assert args.skip_validation is True
     assert args.out_dir == "custom_out"
@@ -79,7 +79,7 @@ def test_generate_from_image_end_to_end(tmp_path: Path, monkeypatch, stub_client
         replies=canned_replies,
         default="```cpp\n#include <iostream>\nint main() { return 0; }\n```",
     )
-    monkeypatch.setattr("autosetter.cli.OllamaClient", lambda **kwargs: client)
+    monkeypatch.setattr("autosetter.runner.OllamaClient", lambda **kwargs: client)
 
     result = generate_from_image(
         image_path=img_path,

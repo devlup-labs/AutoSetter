@@ -119,3 +119,34 @@ def test_untrusted_checker_recorded_in_manifest(tmp_path: Path):
 
     assert manifest["validation"]["checker_trusted"] is False
     assert manifest["ready_for_release"] is False
+
+
+def test_official_samples_are_packaged(tmp_path: Path):
+    generated, tests = make_dirs(tmp_path)
+    (tmp_path / "problem.json").write_text(json.dumps({
+        "title": "Sum",
+        "samples": [{"input": "2 3", "output": "5"}, {"input": "1 1\n", "output": "2\n"}],
+    }))
+    write_report(tests)
+
+    manifest = build(tmp_path)
+
+    samples = tmp_path / "package" / "samples"
+    assert (samples / "01.in").read_text() == "2 3\n"
+    assert (samples / "01.ans").read_text() == "5\n"
+    assert (samples / "02.in").read_text() == "1 1\n"
+    assert manifest["packaged_samples"] == 2
+
+
+def test_generator_script_tests_count_as_packaged(tmp_path: Path):
+    _, tests = make_dirs(tmp_path)  # generator.cpp -> tests go into the Polygon script
+    for i in (1, 2):
+        (tests / f"{i:03d}.in").write_text("5\n")
+        (tests / f"{i:03d}.ans").write_text("10\n")
+    write_report(tests, test_cases=[{"index": 1, "seed": "1"}, {"index": 2, "seed": "2"}])
+
+    manifest = build(tmp_path)
+
+    assert manifest["packaged_tests"] == 0
+    assert manifest["script_tests"] == 2
+    assert manifest["ready_for_release"] is True

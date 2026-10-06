@@ -5,15 +5,13 @@
 # Pillow       - image loading/validation/normalization for png/jpg/jpeg
 # PyMuPDF      - offline PDF -> image rasterization (imported as `fitz`)
 # z3-solver    - SMT solver behind test generation (autosetter/testgen)
+# requests     - Codeforces Polygon API client (autosetter/polygon)
 
 ollama>=0.4.0
 Pillow>=10.0.0
 PyMuPDF>=1.24.0
 z3-solver>=4.12.0
-
+requests>=2.31.0
 
 # Development / Testing
 pytest>=8.0.0
-# AutoSetter dependencies
-#
-# ollama       - official Ollama Python client used for both vision and

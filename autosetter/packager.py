@@ -1,24 +1,32 @@
 """
 autosetter.packager
 ===================
-Release packaging and manifest generation for Codeforces Polygon-ready bundles.
+Assembles the Polygon package: every file `autosetter.polygon` uploads.
 
 Assembles:
 package/
-├── problem.json          # Structured problem specification
+├── problem.json          # Structured problem specification (title, limits, statement parts)
 ├── statement.md          # Publication-ready Markdown statement
 ├── solutions/
-│   └── solution.cpp      # Reference solution
+│   ├── solution.cpp        # Main (reference) solution
+│   ├── solution.greedy.cpp # Deliberately wrong solution (WA)
+│   ├── solution.brute.cpp  # Slow solution (TL)
+│   └── solution.heavy.cpp  # Slow solution (TL)
 ├── files/
 │   ├── validator.cpp     # Input validator (testlib.h)
 │   ├── test_spec.json    # Z3 test spec (or generator.py / generator.cpp)
 │   ├── checker.cpp       # Output checker (testlib.h)
 │   └── testlib.h         # Bundled testlib header
+├── samples/
+│   ├── 01.in             # Official samples from problem.json (shown in the statement)
+│   ├── 01.ans
+│   └── ...
 ├── tests/
 │   ├── 001.in            # Shippable test inputs
 │   ├── 001.ans           # Expected jury outputs
 │   └── ...
 ├── testlib.h             # Root testlib header
+├── script              # Polygon test script (only for a testlib generator.cpp)
 ├── validation_report.json
 └── manifest.json         # Package contents, excluded tests, and release readiness
 """
@@ -65,6 +73,7 @@ class Packager:
         self.problem_json_path = Path(problem_json_path)
         self.package_dir = Path(package_dir)
         self._excluded_tests: List[str] = []
+        self._script_tests = 0
 
     def build(
         self,
@@ -83,6 +92,9 @@ class Packager:
             shutil.copy2(self.problem_json_path, self.package_dir / "problem.json")
         else:
             _log("  ⚠️  problem.json not found, skipping")
+
+        # 1b. Official samples (Polygon shows these in the statement)
+        self._write_samples(_log)
 
         # 2. Copy statement.md
         _log("Packaging statement...")
@@ -183,9 +195,6 @@ class Packager:
         else:
             _log("  ⚠️  Tests directory not found, skipping")
 
-        if not list(tests_dest.glob("*.in")):
-            _log("  ⚠️  Package contains no tests")
-
         # 7. Generate script file for Polygon (if tests were generated)
         script_content = ""
         report_src = self.tests_dir / "validation_report.json"
@@ -201,6 +210,10 @@ class Packager:
             except json.JSONDecodeError:
                 pass
         
+        self._script_tests = script_content.count("\n")
+        if not list(tests_dest.glob("*.in")) and not self._script_tests:
+            _log("  ⚠️  Package contains no tests")
+
         if script_content:
             (self.package_dir / "script").write_text(script_content, encoding="utf-8")
         elif uses_script:
@@ -217,6 +230,29 @@ class Packager:
 
         _log(f"Package assembled at: {self.package_dir}")
         return self.package_dir
+
+    def _write_samples(self, _log: Callable[[str], None]) -> None:
+        """Write the official samples from problem.json as samples/NN.in / NN.ans."""
+        if not self.problem_json_path.exists():
+            return
+        try:
+            data = json.loads(self.problem_json_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            _log("  ⚠️  problem.json is not valid JSON, samples skipped")
+            return
+        samples = [s for s in data.get("samples") or [] if (s or {}).get("input")]
+        if not samples:
+            _log("  ⚠️  problem.json has no samples")
+            return
+        samples_dir = self.package_dir / "samples"
+        samples_dir.mkdir(exist_ok=True)
+        for index, sample in enumerate(samples, start=1):
+            for suffix, text in ((".in", sample["input"]), (".ans", sample.get("output") or "")):
+                text = str(text)
+                if text and not text.endswith("\n"):
+                    text += "\n"
+                (samples_dir / f"{index:02d}{suffix}").write_text(text, encoding="utf-8")
+        _log(f"Packaged {len(samples)} official sample(s).")
 
     def _build_manifest(self) -> Dict[str, Any]:
         """Construct the package manifest dictionary."""
@@ -251,10 +287,11 @@ class Packager:
                 pass
 
         packaged_tests = len(list((self.package_dir / "tests").glob("*.in")))
+        packaged_samples = len(list((self.package_dir / "samples").glob("*.in")))
         ready = bool(
             validation_summary
             and validation_summary.get("all_passed")
-            and packaged_tests > 0
+            and packaged_tests + self._script_tests > 0
             and not self._excluded_tests
         )
 
@@ -262,6 +299,8 @@ class Packager:
             "problem_title": title,
             "ready_for_release": ready,
             "packaged_tests": packaged_tests,
+            "packaged_samples": packaged_samples,
+            "script_tests": self._script_tests,
             "excluded_tests": self._excluded_tests,
             "files": files,
             "file_count": len(files),

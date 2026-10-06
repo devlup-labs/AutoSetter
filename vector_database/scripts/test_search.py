@@ -12,7 +12,7 @@ def main():
     parser = argparse.ArgumentParser(description="Test similarity search in Qdrant.")
     parser.add_argument("query", type=str, nargs="?", help="Problem description to search for")
     parser.add_argument("--file", type=str, help="Read the query (e.g. a full problem statement) from a file")
-    parser.add_argument("--k", type=int, default=5, help="Number of results to retrieve")
+    parser.add_argument("--k", type=int, default=1, help="Number of results to retrieve (default: 1, the nearest match)")
     args = parser.parse_args()
 
     if args.file:

@@ -33,6 +33,7 @@ TESTLIB_URL = "https://raw.githubusercontent.com/MikeMirzayanov/testlib/master/t
 # ---------------------------------------------------------------------------
 # Default Constants & Environment Variable Overrides
 # ---------------------------------------------------------------------------
+# Both models are served by Ollama on the GPU server (see README "Models & SSH").
 DEFAULT_VISION_MODEL = os.environ.get("AUTOSETTER_VISION_MODEL", "qwen3-vl:32b")
 DEFAULT_TEXT_MODEL = os.environ.get("AUTOSETTER_TEXT_MODEL", "Qwen3-Coder-Next:latest")
 DEFAULT_OLLAMA_HOST = (
@@ -40,7 +41,15 @@ DEFAULT_OLLAMA_HOST = (
     or os.environ.get("AUTOSETTER_OLLAMA_HOST", "http://localhost:11434")
 )
 
-
+# SSH tunnel to the GPU server (autosetter.remote). When SSH_HOST is set, the
+# CLI forwards localhost:SSH_LOCAL_PORT to the server's Ollama port and talks
+# to Ollama through it. SSH_HOST may be `user@host` or a ~/.ssh/config alias.
+SSH_HOST = os.environ.get("AUTOSETTER_SSH_HOST", "")
+SSH_PORT = int(os.environ.get("AUTOSETTER_SSH_PORT", "22"))
+SSH_KEY = os.environ.get("AUTOSETTER_SSH_KEY", "")
+SSH_LOCAL_PORT = int(os.environ.get("AUTOSETTER_SSH_LOCAL_PORT", "11434"))
+SSH_REMOTE_PORT = int(os.environ.get("AUTOSETTER_SSH_REMOTE_PORT", "11434"))
+SSH_CONNECT_TIMEOUT = int(os.environ.get("AUTOSETTER_SSH_TIMEOUT", "60"))
 
 # C++ Compilation
 CPP_STANDARD = os.environ.get("AUTOSETTER_CPP_STANDARD", "c++17")
@@ -68,7 +77,11 @@ SUPPORTED_EXTENSIONS = SUPPORTED_RASTER_EXTENSIONS | SUPPORTED_PDF_EXTENSIONS
 # Similar-problem search (vector_database/ + Qdrant)
 # Must match the model and collection used to build the vector database.
 SIMILARITY_ENABLED = os.environ.get("AUTOSETTER_SIMILARITY", "1") != "0"
-SIMILARITY_TOP_K = int(os.environ.get("AUTOSETTER_SIMILARITY_K", "5"))
+# Nearest-neighbour search: only the single closest stored problem matters.
+SIMILARITY_TOP_K = int(os.environ.get("AUTOSETTER_SIMILARITY_K", "1"))
+# Cosine similarity above which the extracted problem is treated as an existing
+# one: its link is printed and generation stops (unless --force).
+SIMILARITY_THRESHOLD = float(os.environ.get("AUTOSETTER_SIMILARITY_THRESHOLD", "0.80"))
 QDRANT_URL = os.environ.get("QDRANT_URL", "http://localhost:6333")
 QDRANT_COLLECTION = os.environ.get("QDRANT_COLLECTION", "competitive_programming_problems")
 QDRANT_API_KEY = os.environ.get("QDRANT_API_KEY") or None
@@ -78,13 +91,15 @@ EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
 POLYGON_API_URL = os.environ.get("POLYGON_API_URL", "https://polygon.codeforces.com/api/")
 POLYGON_API_KEY = os.environ.get("POLYGON_API_KEY", "")
 POLYGON_SECRET = os.environ.get("POLYGON_SECRET", "")
+# Used when problem.json has no parsable time/memory limit.
+POLYGON_DEFAULT_TIME_LIMIT_MS = 2000
+POLYGON_DEFAULT_MEMORY_LIMIT_MB = 256
 
 
 @dataclass
 class Config:
     """Runtime configuration container for an AutoSetter pipeline run."""
 
-    # ── Existing Ollama / pipeline configuration (UNCHANGED) ──
     vision_model: str = DEFAULT_VISION_MODEL
     text_model: str = DEFAULT_TEXT_MODEL
     ollama_host: str = DEFAULT_OLLAMA_HOST
@@ -96,8 +111,6 @@ class Config:
     out_dir: Path = DEFAULT_OUT_DIR
     debug: bool = False
     skip_validation: bool = False
-
-
 
     @classmethod
     def from_env(cls) -> Config:

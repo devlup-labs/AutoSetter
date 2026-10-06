@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autosetter"
+version = "0.3.0"
+description = "Turn competitive programming statements into verified Polygon packages and push them to Codeforces Polygon."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+    "ollama>=0.4.0",
+    "Pillow>=10.0.0",
+    "PyMuPDF>=1.24.0",
+    "z3-solver>=4.12.0",
+    "requests>=2.31.0",
+]
+
+[project.optional-dependencies]
+# Existing-problem search (vector_database/ + Qdrant)
+similarity = [
+    "qdrant-client",
+    "sentence-transformers",
+    "torch",
+    "pydantic",
+    "python-dotenv",
+    "tqdm",
+]
+dev = ["pytest>=8.0.0"]
+
+[project.scripts]
+autosetter = "autosetter.cli:main"
+autosetter-polygon = "autosetter.polygon:main"
+
+[tool.setuptools]
+packages = [
+    "autosetter",
+    "autosetter.testgen",
+    "vector_database",
+    "vector_database.embeddings",
+    "vector_database.processing",
+    "vector_database.qdrant",
+    "vector_database.sources",
+]
+
+[tool.setuptools.package-data]
+autosetter = ["prompts/*.txt", "include/testlib.h"]

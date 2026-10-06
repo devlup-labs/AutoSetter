@@ -31,19 +31,27 @@ def resolve_url(payload: Dict[str, Any]) -> Optional[str]:
 
 
 class ProblemSearcher:
-    """Semantic search over the problems stored in Qdrant."""
+    """
+    Semantic (KNN) search over the problems stored in Qdrant.
+
+    The collection uses cosine distance and the embeddings are normalized, so
+    each match's `score` is its cosine similarity to the query (1.0 = identical).
+    """
 
     def __init__(self, url: str, collection_name: str, model_name: str, api_key: Optional[str] = None):
-        self.embedder = ProblemEmbedder(model_name=model_name)
+        # Connect and check the collection before loading the embedding model,
+        # so an unreachable database fails fast instead of after a model load.
         self.client = QdrantClient(url=url, api_key=api_key)
         self.collection_name = collection_name
+        self.client.get_collection(collection_name)
+        self.embedder = ProblemEmbedder(model_name=model_name)
 
-    def search_text(self, query: str, k: int = 5) -> List[Dict[str, Any]]:
+    def search_text(self, query: str, k: int = 1) -> List[Dict[str, Any]]:
         """Search with free text (e.g. a pasted problem statement)."""
         vector = self.embedder.model.encode([query], normalize_embeddings=True).tolist()[0]
         return self._search(vector, k)
 
-    def search_problem(self, problem: Problem, k: int = 5) -> List[Dict[str, Any]]:
+    def search_problem(self, problem: Problem, k: int = 1) -> List[Dict[str, Any]]:
         """Search with a structured problem, embedded in the same format as the stored problems."""
         return self._search(self.embedder.embed_batch([problem])[0], k)
 

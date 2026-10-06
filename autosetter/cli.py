@@ -1,27 +1,31 @@
 """
 autosetter.cli
 ==============
-Command-line interface and end-to-end pipeline driver for AutoSetter.
+Command-line interface for AutoSetter.
 
-Executes:
-1. Intake: Read statement image/PDF.
-2. Extraction: Extract and validate `problem.json` via Qwen vision model (1st model — UNCHANGED).
-3. Similarity: Look up similar existing problems in the vector database (optional).
-4. Generation: Produce artifacts via Ollama (validator.cpp, generator.cpp, solution.cpp, etc.)
-5. Validation: Sandboxed compilation, sample verification, test case generation, and checker probing.
-6. Packaging: Assemble release package bundle with manifest.
+    autosetter statement.png [options]
+
+The CLI:
+1. Opens an SSH tunnel to the Ollama GPU server when `--ssh` / AUTOSETTER_SSH_HOST is set.
+2. Asks for the Polygon API key and secret (or reads POLYGON_API_KEY /
+   POLYGON_SECRET) and checks them against Polygon before the long run starts.
+3. Runs the pipeline (`autosetter.runner.generate_from_image`): extraction,
+   existing-problem check (k=1, cosine > 0.80 prints the link and stops),
+   generation, validation and packaging.
+4. Pushes the verified package to Polygon with `autosetter.polygon.publish_package`.
+
+Exit codes are listed in `main`.
 """
 
 from __future__ import annotations
 
 import argparse
-import json
+import contextlib
 import logging
 import os
 import sys
-from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from dataclasses import dataclass
+from typing import Callable, List, Optional
 
 from autosetter.config import (
     DEFAULT_NUM_TESTS,
@@ -29,293 +33,56 @@ from autosetter.config import (
     DEFAULT_OUT_DIR,
     DEFAULT_TEXT_MODEL,
     DEFAULT_VISION_MODEL,
-    PROMPTS_DIR,
+    POLYGON_API_KEY,
+    POLYGON_SECRET,
     SIMILARITY_ENABLED,
+    SIMILARITY_THRESHOLD,
     SIMILARITY_TOP_K,
+    SSH_HOST,
+    SSH_KEY,
+    SSH_LOCAL_PORT,
+    SSH_PORT,
+    SSH_REMOTE_PORT,
 )
-from autosetter.extractor import (
-    JSONExtractionError,
-    generate_problem_json,
-    save_problem_json,
+from autosetter.polygon import (
+    PolygonAPIError,
+    PolygonClient,
+    prompt_credentials,
+    publish_package,
 )
-from autosetter.generator import CodeGenerationError, generate_all_artifacts
-# ── EXISTING: Ollama client for the 1st model (vision) and Ollama-routed artifacts ──
-from autosetter.llm import OllamaCallError, OllamaClient
-from autosetter.packager import Packager, PackagerError
-from autosetter.pipeline import PipelineError, TestPipeline, TestReport
-from autosetter.sandbox import SandboxError, SandboxLocalClient, ensure_testlib
-from autosetter.similarity import (
-    SimilaritySearchError,
-    find_similar_problems,
-    save_similar_problems,
+from autosetter.remote import SSHTunnel, SSHTunnelError
+from autosetter.runner import (
+    AutoSetterError,
+    AutoSetupError,
+    PipelineResult,
+    generate_from_image,
 )
-from autosetter.vision import ImageParsingError
 
-logger = logging.getLogger(__name__)
+__all__ = [
+    "AutoSetterError",
+    "AutoSetupError",
+    "PipelineResult",
+    "build_arg_parser",
+    "generate_from_image",
+    "main",
+]
 
+EXIT_RELEASED = 0
+EXIT_FAILED = 1
+EXIT_NOT_RELEASABLE = 2
+EXIT_EXISTING_PROBLEM = 3
+EXIT_POLYGON_FAILED = 4
 
-class AutoSetterError(Exception):
-    """Top-level error class for pipeline failures in AutoSetter."""
-
-
-# Backwards compatibility alias
-AutoSetupError = AutoSetterError
+MAX_CREDENTIAL_ATTEMPTS = 3
 
 
 @dataclass
-class PipelineResult:
-    """Outcome of an AutoSetter pipeline run."""
+class PolygonTarget:
+    """Verified credentials and where to push the package."""
 
-    generated_dir: Path
-    package_dir: Path
-    report: Optional[TestReport] = None
-    validation_error: str = ""
-    similar_problems: List[Dict[str, Any]] = field(default_factory=list)
-
-    @property
-    def ready_for_release(self) -> bool:
-        """Whether the assembled package is verified and fit to release."""
-        return bool(self.report and self.report.all_passed)
-
-    @property
-    def summary(self) -> str:
-        """Human-readable status summary of the validation report."""
-        if self.validation_error:
-            return f"validation could not run: {self.validation_error}"
-        if self.report is None:
-            return "validation was skipped, so package correctness is unconfirmed"
-        if self.report.all_passed:
-            return f"all {self.report.passed_tests} tests passed"
-        return self.report.diagnosis or "validation did not pass"
-
-
-def _log(message: str) -> None:
-    """Centralized progress logger."""
-    print(message, flush=True)
-
-
-def generate_from_image(
-    image_path: str | Path,
-    vision_model: str = DEFAULT_VISION_MODEL,
-    text_model: str = DEFAULT_TEXT_MODEL,
-    ollama_host: str = DEFAULT_OLLAMA_HOST,
-    num_tests: int = DEFAULT_NUM_TESTS,
-    skip_validation: bool = False,
-    out_dir: str | Path = DEFAULT_OUT_DIR,
-    prompts_dir: str | Path = PROMPTS_DIR,
-    progress_callback: Optional[Callable[[str], None]] = None,
-    similarity_check: bool = SIMILARITY_ENABLED,
-    similar_k: int = SIMILARITY_TOP_K,
-) -> PipelineResult:
-    """
-    Execute the end-to-end AutoSetter problem packaging pipeline.
-
-    Parameters
-    ----------
-    image_path : str | Path
-        Path to input problem statement image (.png/.jpg) or document (.pdf).
-    vision_model : str
-        Ollama vision model name (e.g. 'qwen2.5vl:3b') — 1st model, UNCHANGED.
-    text_model : str
-        Ollama text model name (e.g. 'qwen2.5-coder:7b') — for text/code artifacts.
-    ollama_host : str
-        Base URL for the Ollama daemon.
-    num_tests : int
-        Number of test cases to generate and validate.
-    skip_validation : bool
-        If True, skip compilation and test execution stages.
-    out_dir : str | Path
-        Directory to write intermediate and final output packages.
-    prompts_dir : str | Path
-        Directory containing prompt templates.
-    progress_callback : Optional[Callable[[str], None]]
-        Progress reporting callback.
-    similarity_check : bool
-        If True, look up similar existing problems in the vector database (Qdrant).
-    similar_k : int
-        Number of similar problems to return.
-
-    Returns
-    -------
-    PipelineResult
-        Contains generated directories, validation report, and release readiness status.
-    """
-    logger_fn = progress_callback or _log
-    input_image_path = Path(image_path)
-    output_root = Path(out_dir)
-
-    generated_dir = output_root / "generated"
-    tests_dir = output_root / "tests"
-    package_dir = output_root / "package"
-    problem_json_path = output_root / "problem.json"
-    prompts_dir_path = Path(prompts_dir)
-
-    # ── Instantiate the Ollama client ──
-    client = OllamaClient(host=ollama_host, default_model=vision_model)
-
-    # 1. Image Intake (UNCHANGED)
-    logger_fn("Loading image...")
-    if not input_image_path.exists():
-        raise AutoSetterError(f"Input file not found: {input_image_path}")
-
-    # 2. Vision Extraction -> problem.json (UNCHANGED — uses 1st model via Ollama)
-    logger_fn("Generating JSON specification...")
-    try:
-        problem_data = generate_problem_json(
-            image_path=input_image_path,
-            client=client,
-            prompts_dir=prompts_dir_path,
-            vision_model=vision_model,
-        )
-        logger.debug("Extracted problem.json:\n%s", json.dumps(problem_data, indent=2))
-    except (JSONExtractionError, ImageParsingError, OllamaCallError) as exc:
-        raise AutoSetterError(f"Failed to generate problem.json: {exc}") from exc
-
-    # 3. Save problem.json (UNCHANGED)
-    logger_fn("Saving JSON specification...")
-    try:
-        save_problem_json(problem_data, problem_json_path)
-    except JSONExtractionError as exc:
-        raise AutoSetterError(f"Failed to save problem.json: {exc}") from exc
-
-    # 3b. Similar-problem lookup in the vector database (optional, never fatal)
-    similar_problems: List[Dict[str, Any]] = []
-    if similarity_check:
-        logger_fn("Searching vector database for similar problems...")
-        try:
-            similar_problems = find_similar_problems(problem_data, k=similar_k)
-            save_similar_problems(similar_problems, output_root / "similar_problems.json")
-            for match in similar_problems:
-                logger_fn(f"  {match['score']:.4f}  {match['title']}  {match['url'] or 'N/A'}")
-        except SimilaritySearchError as exc:
-            logger_fn(f"⚠️  Similar-problem search skipped: {exc}")
-
-    # 4. Generate Downstream Artifacts & Validation Loop
-    test_report = None
-    validation_error = ""
-
-    if skip_validation:
-        logger_fn("Skipping validation (--skip-validation flag). Generating artifacts once.")
-        try:
-            generate_all_artifacts(
-                problem_data=problem_data,
-                generated_dir=generated_dir,
-                client=client,
-                prompts_dir=prompts_dir_path,
-                text_model=text_model,
-                progress_callback=logger_fn,
-            )
-        except (CodeGenerationError, OllamaCallError) as exc:
-            raise AutoSetterError(f"Failed while generating code artifacts: {exc}") from exc
-    else:
-        targets = None
-        feedback_context = {}
-        
-        for iteration in range(3):
-            if iteration > 0:
-                logger_fn(f"\n🔄 Initiating Self-Healing Iteration {iteration}/3 for targets: {targets or 'all'}")
-            
-            try:
-                generate_all_artifacts(
-                    problem_data=problem_data,
-                    generated_dir=generated_dir,
-                    client=client,
-                    prompts_dir=prompts_dir_path,
-                    text_model=text_model,
-                    progress_callback=logger_fn,
-                    targets=targets,
-                    feedback_context=feedback_context,
-                )
-            except (CodeGenerationError, OllamaCallError) as exc:
-                raise AutoSetterError(f"Failed while generating code artifacts: {exc}") from exc
-
-            logger_fn("Starting validation pipeline...")
-            try:
-                ensure_testlib(generated_dir)
-                sandbox = SandboxLocalClient(testlib_dir=generated_dir)
-                pipeline = TestPipeline(
-                    generated_dir=generated_dir,
-                    tests_dir=tests_dir,
-                    sandbox=sandbox,
-                    num_tests=num_tests,
-                    progress_callback=logger_fn,
-                    samples=problem_data.get("samples") or [],
-                )
-                test_report = pipeline.run()
-
-                if test_report.all_passed:
-                    logger_fn(f"✅ All {test_report.passed_tests} tests passed!")
-                    break  # Success!
-                else:
-                    logger_fn(
-                        f"⚠️  Validation: {test_report.passed_tests}/{test_report.total_tests} "
-                        f"tests passed ({test_report.failed_tests} failed)"
-                    )
-                    
-                    # Analyze failure for next iteration
-                    targets = []
-                    feedback_context = {}
-
-                    # Files that failed to build (including an unusable test spec)
-                    for name, error in test_report.compilation.errors.items():
-                        if name in ("validator", "generator", "solution", "checker"):
-                            targets.append(name)
-                            feedback_context[name] = (
-                                f"Your file could not be used by the pipeline:\n{error[:2000]}"
-                            )
-
-                    if "validator rejects official samples" in test_report.diagnosis:
-                        targets.append("validator")
-                        feedback_context["validator"] = "The validator you generated rejected the official problem samples provided in the problem description."
-                    
-                    if test_report.test_cases:
-                        generator_errors = [tc.error for tc in test_report.test_cases if not tc.generator_ok or (tc.generator_ok and not tc.validator_ok)]
-                        if generator_errors:
-                            targets.append("generator")
-                            feedback_context["generator"] = f"Your generator produced output that violates the constraints or crashed. Error: {generator_errors[0]}"
-                        
-                        solution_errors = [tc.error for tc in test_report.test_cases if not tc.solution_ok]
-                        if solution_errors:
-                            targets.append("solution")
-                            feedback_context["solution"] = f"Your reference solution crashed or gave Wrong Answer. Error: {solution_errors[0]}"
-                            
-                    if not test_report.checker_trusted and not "validator rejects official samples" in test_report.diagnosis:
-                        if "checker" not in targets:
-                            targets.append("checker")
-                        feedback_context["checker"] = "The checker accepts definitely wrong outputs, meaning it is flawed and would accept wrong contestant submissions. You must write a strict checker."
-                            
-                    if not targets:
-                        # Fallback if we can't pinpoint the error
-                        targets = None
-                        feedback_context = {}
-                        
-            except (SandboxError, PipelineError) as exc:
-                validation_error = str(exc)
-                logger_fn(f"⚠️  Validation encountered a fatal error: {exc}")
-                logger_fn("Continuing to packaging stage, but package is unverified...")
-                break
-
-    # 6. Release Packaging
-    logger_fn("Packaging release bundle...")
-    try:
-        packager = Packager(
-            generated_dir=generated_dir,
-            tests_dir=tests_dir,
-            problem_json_path=problem_json_path,
-            package_dir=package_dir,
-        )
-        packager.build(progress_callback=logger_fn)
-    except PackagerError as exc:
-        raise AutoSetterError(f"Failed while packaging release bundle: {exc}") from exc
-
-    logger_fn("Done.")
-    return PipelineResult(
-        generated_dir=generated_dir,
-        package_dir=package_dir,
-        report=test_report,
-        validation_error=validation_error,
-        similar_problems=similar_problems,
-    )
+    client: PolygonClient
+    problem_id: Optional[int] = None
+    name: Optional[str] = None
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -323,8 +90,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="autosetter",
         description=(
-            "Automated Codeforces/Polygon competitive programming problem generator "
-            "powered by local Qwen models through Ollama."
+            "Turn a competitive programming statement (image or PDF) into a verified "
+            "Polygon package and push it to Codeforces Polygon."
         ),
     )
     parser.add_argument(
@@ -332,55 +99,198 @@ def build_arg_parser() -> argparse.ArgumentParser:
         type=str,
         help="Local path to problem statement image (.png/.jpg/.jpeg) or document (.pdf).",
     )
-    parser.add_argument(
+
+    models = parser.add_argument_group("models")
+    models.add_argument(
         "--vision-model",
         type=str,
         default=DEFAULT_VISION_MODEL,
         help=f"Ollama vision model name (default: {DEFAULT_VISION_MODEL}).",
     )
-    parser.add_argument(
+    models.add_argument(
         "--text-model",
         type=str,
         default=DEFAULT_TEXT_MODEL,
         help=f"Ollama text model name (default: {DEFAULT_TEXT_MODEL}).",
     )
-    parser.add_argument(
+    models.add_argument(
         "--host",
         type=str,
         default=DEFAULT_OLLAMA_HOST,
-        help=f"Ollama server URL (default: {DEFAULT_OLLAMA_HOST}).",
+        help=f"Ollama server URL (default: {DEFAULT_OLLAMA_HOST}). Ignored with --ssh.",
     )
-    parser.add_argument(
+
+    ssh = parser.add_argument_group("SSH tunnel to the Ollama GPU server")
+    ssh.add_argument(
+        "--ssh",
+        dest="ssh_host",
+        type=str,
+        default=SSH_HOST,
+        metavar="USER@HOST",
+        help="Reach Ollama through an SSH tunnel to this host (or ~/.ssh/config alias).",
+    )
+    ssh.add_argument(
+        "--ssh-port", type=int, default=SSH_PORT, help=f"SSH port (default: {SSH_PORT})."
+    )
+    ssh.add_argument(
+        "--ssh-key", type=str, default=SSH_KEY, help="Private key file for SSH (default: ssh's own)."
+    )
+    ssh.add_argument(
+        "--ssh-local-port",
+        type=int,
+        default=SSH_LOCAL_PORT,
+        help=f"Local end of the tunnel (default: {SSH_LOCAL_PORT}).",
+    )
+    ssh.add_argument(
+        "--ssh-remote-port",
+        type=int,
+        default=SSH_REMOTE_PORT,
+        help=f"Ollama port on the server (default: {SSH_REMOTE_PORT}).",
+    )
+
+    pipeline = parser.add_argument_group("pipeline")
+    pipeline.add_argument(
         "--num-tests",
         type=int,
         default=DEFAULT_NUM_TESTS,
         help=f"Number of test cases to generate (default: {DEFAULT_NUM_TESTS}).",
     )
-    parser.add_argument(
+    pipeline.add_argument(
         "--skip-validation",
         action="store_true",
         default=False,
         help="Skip sandbox compilation and validation stage.",
     )
-    parser.add_argument(
-        "--no-similarity",
-        action="store_true",
-        default=not SIMILARITY_ENABLED,
-        help="Skip the similar-problem search in the vector database.",
-    )
-    parser.add_argument(
-        "--similar-k",
-        type=int,
-        default=SIMILARITY_TOP_K,
-        help=f"Number of similar problems to retrieve (default: {SIMILARITY_TOP_K}).",
-    )
-    parser.add_argument(
+    pipeline.add_argument(
         "--out-dir",
         type=str,
         default=str(DEFAULT_OUT_DIR),
         help=f"Output directory (default: {DEFAULT_OUT_DIR}).",
     )
+
+    similarity = parser.add_argument_group("existing-problem check")
+    similarity.add_argument(
+        "--no-similarity",
+        action="store_true",
+        default=not SIMILARITY_ENABLED,
+        help="Skip the existing-problem search in the vector database.",
+    )
+    similarity.add_argument(
+        "--similar-k",
+        type=int,
+        default=SIMILARITY_TOP_K,
+        help=f"Nearest problems to retrieve (default: {SIMILARITY_TOP_K}).",
+    )
+    similarity.add_argument(
+        "--similarity-threshold",
+        type=float,
+        default=SIMILARITY_THRESHOLD,
+        help=(
+            "Cosine similarity above which the problem counts as existing "
+            f"(default: {SIMILARITY_THRESHOLD})."
+        ),
+    )
+    similarity.add_argument(
+        "--force",
+        action="store_true",
+        default=False,
+        help="Generate a package even if the problem already exists.",
+    )
+
+    polygon = parser.add_argument_group("Polygon upload")
+    polygon.add_argument(
+        "--no-polygon",
+        action="store_true",
+        default=False,
+        help="Do not ask for Polygon credentials or push the package.",
+    )
+    polygon.add_argument(
+        "--polygon-problem-id",
+        type=int,
+        default=None,
+        help="Update this existing Polygon problem instead of creating a new one.",
+    )
+    polygon.add_argument(
+        "--polygon-name",
+        type=str,
+        default=None,
+        help="Name for the new Polygon problem (default: derived from the title).",
+    )
+    polygon.add_argument(
+        "--push-unverified",
+        action="store_true",
+        default=False,
+        help="Push to Polygon even if the package did not pass validation.",
+    )
     return parser
+
+
+def setup_polygon(
+    args: argparse.Namespace,
+    interactive: bool,
+    log: Callable[[str], None] = print,
+    input_fn: Callable[[str], str] = input,
+    secret_fn: Optional[Callable[[str], str]] = None,
+) -> Optional[PolygonTarget]:
+    """
+    Collect and verify Polygon credentials before the pipeline runs.
+
+    Interactive runs always prompt (Enter keeps values from POLYGON_API_KEY /
+    POLYGON_SECRET); non-interactive runs use the environment only. Returns
+    None when the upload is skipped.
+    """
+    if args.no_polygon:
+        return None
+
+    api_key, secret = POLYGON_API_KEY, POLYGON_SECRET
+    for attempt in range(1, MAX_CREDENTIAL_ATTEMPTS + 1):
+        if interactive:
+            kwargs = {"input_fn": input_fn}
+            if secret_fn is not None:
+                kwargs["secret_fn"] = secret_fn
+            api_key, secret = prompt_credentials(api_key, secret, **kwargs)
+        if not api_key:
+            log("No Polygon API key given; the package will not be pushed to Polygon.")
+            return None
+        if not secret:
+            log("A Polygon API secret is required with the API key.")
+        else:
+            client = PolygonClient(api_key=api_key, secret=secret)
+            try:
+                client.verify_credentials()
+                log("Polygon credentials verified.")
+                return PolygonTarget(client, args.polygon_problem_id, args.polygon_name)
+            except PolygonAPIError as exc:
+                log(f"Polygon rejected the credentials: {exc}")
+        if not interactive:
+            break
+        api_key, secret = "", ""
+        if attempt < MAX_CREDENTIAL_ATTEMPTS:
+            log("Please enter them again.")
+
+    raise AutoSetterError("could not verify the Polygon API key and secret")
+
+
+def _ssh_tunnel(args: argparse.Namespace):
+    if not args.ssh_host:
+        return contextlib.nullcontext(None)
+    return SSHTunnel(
+        host=args.ssh_host,
+        port=args.ssh_port,
+        key_file=args.ssh_key,
+        local_port=args.ssh_local_port,
+        remote_port=args.ssh_remote_port,
+        progress_callback=print,
+    )
+
+
+def _print_result(result: PipelineResult) -> None:
+    print(f"\nArtifacts written to: {result.generated_dir}")
+    print(f"Package assembled at: {result.package_dir}")
+    if result.similar_problems:
+        print("Nearest existing problem(s):")
+        for match in result.similar_problems:
+            print(f"  {match['score']:.4f}  {match['title']}  {match['url'] or 'N/A'}")
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -388,9 +298,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     Main CLI entry point.
 
     Exit Codes:
-    - 0: Package generated successfully and is verified fit for release.
+    - 0: Package verified fit for release (and pushed to Polygon if credentials were given).
     - 1: Pipeline encountered a fatal error.
     - 2: Artifacts produced, but validation failed (package is not fit for release).
+    - 3: The problem already exists in the vector database; its link was printed.
+    - 4: Package verified, but the Polygon upload failed.
     """
     parser = build_arg_parser()
     args = parser.parse_args(argv)
@@ -400,44 +312,88 @@ def main(argv: Optional[List[str]] = None) -> int:
         format="%(levelname)s %(name)s: %(message)s",
     )
 
+    if not os.path.exists(args.image_path):
+        print(f"Error: Input file not found: {args.image_path}", file=sys.stderr)
+        return EXIT_FAILED
+
     try:
-        result = generate_from_image(
-            image_path=args.image_path,
-            vision_model=args.vision_model,
-            text_model=args.text_model,
-            ollama_host=args.host,
-            num_tests=args.num_tests,
-            skip_validation=args.skip_validation,
-            out_dir=args.out_dir,
-            similarity_check=not args.no_similarity,
-            similar_k=args.similar_k,
-        )
-    except AutoSetterError as exc:
+        polygon = setup_polygon(args, interactive=sys.stdin.isatty())
+        with _ssh_tunnel(args) as tunnel:
+            result = generate_from_image(
+                image_path=args.image_path,
+                vision_model=args.vision_model,
+                text_model=args.text_model,
+                ollama_host=tunnel.local_url if tunnel else args.host,
+                num_tests=args.num_tests,
+                skip_validation=args.skip_validation,
+                out_dir=args.out_dir,
+                similarity_check=not args.no_similarity,
+                similar_k=args.similar_k,
+                similarity_threshold=args.similarity_threshold,
+                force=args.force,
+            )
+    except (AutoSetterError, SSHTunnelError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
-        return 1
+        return EXIT_FAILED
+    except KeyboardInterrupt:
+        print("\nInterrupted.", file=sys.stderr)
+        return EXIT_FAILED
     except Exception as exc:
         print(f"Unexpected error: {exc}", file=sys.stderr)
-        return 1
+        return EXIT_FAILED
 
-    print(f"\nArtifacts written to: {result.generated_dir}")
-    print(f"Package assembled at: {result.package_dir}")
-    if result.similar_problems:
-        print("Similar existing problems:")
-        for match in result.similar_problems:
-            print(f"  {match['score']:.4f}  {match['title']}  {match['url'] or 'N/A'}")
+    existing = result.existing_problem
+    if existing is not None:
+        print(
+            f"\nThis problem already exists ({existing['score']:.2%} similar): "
+            f"{existing['title']}"
+        )
+        print(existing["url"] or "No link is stored for it in the vector database.")
+        print("Re-run with --force to generate a package anyway.")
+        return EXIT_EXISTING_PROBLEM
+
+    _print_result(result)
 
     if result.ready_for_release:
         print(f"Ready for release — {result.summary}")
-        return 0
+    else:
+        print(f"NOT ready for release — {result.summary}", file=sys.stderr)
+        if result.report is not None and not result.report.validator_trusted:
+            print(
+                "  The validator disagrees with the problem's own samples; fix validator "
+                "or constraints before release.",
+                file=sys.stderr,
+            )
 
-    print(f"NOT ready for release — {result.summary}", file=sys.stderr)
-    if result.report is not None and not result.report.validator_trusted:
+    if polygon is None:
+        return EXIT_RELEASED if result.ready_for_release else EXIT_NOT_RELEASABLE
+
+    if not result.ready_for_release and not args.push_unverified:
         print(
-            "  The validator disagrees with the problem's own samples; fix validator "
-            "or constraints before release.",
+            "Not pushing an unverified package to Polygon. Push it anyway with:\n"
+            f"  python -m autosetter.polygon {result.package_dir}",
             file=sys.stderr,
         )
-    return 2
+        return EXIT_NOT_RELEASABLE
+
+    print("\nPushing package to Polygon...")
+    try:
+        published = publish_package(
+            result.package_dir,
+            polygon.client,
+            problem_id=polygon.problem_id,
+            name=polygon.name,
+        )
+    except PolygonAPIError as exc:
+        print(f"Polygon upload failed: {exc}", file=sys.stderr)
+        print(
+            f"Retry with: python -m autosetter.polygon {result.package_dir}",
+            file=sys.stderr,
+        )
+        return EXIT_POLYGON_FAILED
+
+    print(f"Polygon problem: {published.name} (ID {published.problem_id})")
+    return EXIT_RELEASED if result.ready_for_release else EXIT_NOT_RELEASABLE
 
 
 if __name__ == "__main__":

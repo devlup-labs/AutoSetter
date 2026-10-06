@@ -6,14 +6,14 @@ AI-powered automated competitive programming problem packaging engine.
 
 from __future__ import annotations
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
-from autosetter.cli import (
+from autosetter.cli import main
+from autosetter.runner import (
     AutoSetterError,
     AutoSetupError,
     PipelineResult,
     generate_from_image,
-    main,
 )
 from autosetter.config import Config
 from autosetter.extractor import (
@@ -40,8 +40,11 @@ from autosetter.pipeline import (
 from autosetter.polygon import (
     PolygonAPIError,
     PolygonClient,
+    PublishResult,
+    publish_package,
     upload_problem_package,
 )
+from autosetter.remote import SSHTunnel, SSHTunnelError
 from autosetter.sandbox import (
     ExecutionResult,
     SandboxError,
@@ -87,4 +90,8 @@ __all__ = [
     "PolygonClient",
     "PolygonAPIError",
     "upload_problem_package",
+    "publish_package",
+    "PublishResult",
+    "SSHTunnel",
+    "SSHTunnelError",
 ]
