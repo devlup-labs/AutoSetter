@@ -24,6 +24,8 @@ statement image / PDF
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the full design.
 
+[![Architecture diagram of devlup-labs/autosetter](https://gitdiagram.com/devlup-labs/autosetter/diagram.png)](https://gitdiagram.com/devlup-labs/autosetter?utm_source=readme&utm_medium=picture)
+
 ---
 
 ## Quickstart
