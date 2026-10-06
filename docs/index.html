@@ -1,0 +1,804 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AutoSetter</title>
+<meta name="description" content="AutoSetter: turning competitive programming statements into verified Polygon packages. Project blog, pipeline, git history and repository digest.">
+<style>
+  :root {
+    --text: #222;
+    --muted: #888;
+    --link: #3b5998;
+    --border: #b9b9b9;
+    --panel: #f8f8f8;
+    --caption: #3b5998;
+    --code-bg: #f5f5f5;
+    --ok: #0a0;
+    --bad: #f00;
+    /* handle colours */
+    --red: #ff0000;
+    --orange: #ff8c00;
+    --violet: #a0a;
+    --blue: #0000ff;
+    --cyan: #03a89e;
+    --green: #008000;
+    --gray: #808080;
+    /* logo bars */
+    --bar-yellow: #fdcc31;
+    --bar-blue: #1a8bcb;
+    --bar-red: #b11e26;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: #fff;
+    color: var(--text);
+    font-family: verdana, arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  a { color: var(--link); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre, .mono { font-family: Consolas, "Lucida Console", "Courier New", monospace; }
+  code { background: var(--code-bg); padding: 0 3px; font-size: 12px; }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid #ddd;
+    padding: 8px 10px;
+    font-size: 12px;
+    line-height: 1.35;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+
+  /* header */
+  header .top {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    padding: 14px 0 6px; gap: 12px; flex-wrap: wrap;
+  }
+  .logo { display: flex; align-items: flex-end; gap: 10px; color: var(--text); }
+  .logo:hover { text-decoration: none; }
+  .bars { display: flex; align-items: flex-end; gap: 3px; height: 34px; }
+  .bars span { width: 9px; border-radius: 2px; display: block; }
+  .bars span:nth-child(1) { height: 60%; background: var(--bar-yellow); }
+  .bars span:nth-child(2) { height: 100%; background: var(--bar-blue); }
+  .bars span:nth-child(3) { height: 78%; background: var(--bar-red); }
+  .logo-text { font-size: 30px; line-height: 1; letter-spacing: -0.5px; font-family: "Trebuchet MS", verdana, sans-serif; }
+  .logo-text b { font-weight: bold; }
+  .logo-sub { font-size: 11px; color: var(--muted); margin-left: 2px; }
+  .top-right { font-size: 12px; color: var(--muted); }
+
+  nav.menu {
+    border: 1px solid var(--border); border-radius: 6px;
+    background: linear-gradient(#fff, #f1f1f1);
+    margin: 6px 0 16px;
+  }
+  nav.menu ul { list-style: none; margin: 0; padding: 0 6px; display: flex; flex-wrap: wrap; }
+  nav.menu li a {
+    display: block; padding: 7px 10px;
+    font-size: 11px; font-weight: bold; text-transform: uppercase; color: #000;
+  }
+  nav.menu li a:hover { text-decoration: none; color: var(--link); }
+
+  /* layout */
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+  /* blog entries */
+  .entry { margin-bottom: 30px; }
+  .entry h2 { font-size: 20px; font-weight: normal; margin: 0 0 2px; }
+  .entry h2 a { color: var(--link); }
+  .entry .info { color: var(--muted); font-size: 11px; margin-bottom: 8px; }
+  .entry .content { border-left: 4px solid #e1e1e1; padding: 2px 0 2px 14px; }
+  .entry .content p { margin: 0 0 10px; }
+  .entry h3 { font-size: 14px; margin: 14px 0 6px; }
+  .entry ul, .entry ol { margin: 0 0 10px; padding-left: 22px; }
+  .entry li { margin-bottom: 3px; }
+  .entry .bottom {
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px;
+    border: 1px solid #e1e1e1; border-radius: 4px; background: var(--panel);
+    padding: 4px 8px; margin-top: 10px; font-size: 11px; color: var(--muted);
+  }
+  .tag { display: inline-block; background: #e1e1e1; color: #555; border-radius: 3px; padding: 0 5px; margin-right: 3px; font-size: 10px; }
+
+  .handle { font-weight: bold; }
+  .h-red { color: var(--red); }
+  .h-red::first-letter { color: #000; }
+  .h-orange { color: var(--orange); }
+  .h-violet { color: var(--violet); }
+  .h-blue { color: var(--blue); }
+  .h-cyan { color: var(--cyan); }
+  .h-green { color: var(--green); }
+  .h-gray { color: var(--gray); }
+
+  /* tables */
+  table.data { border-collapse: collapse; width: 100%; margin: 6px 0 12px; font-size: 12px; }
+  table.data th, table.data td { border: 1px solid #e1e1e1; padding: 4px 7px; text-align: left; vertical-align: top; }
+  table.data th { background: var(--panel); font-weight: normal; color: #555; }
+  table.data tr:nth-child(even) td { background: #fbfbfb; }
+  .table-scroll { overflow-x: auto; }
+  .ok { color: var(--ok); font-weight: bold; }
+  .bad { color: var(--bad); font-weight: bold; }
+
+  .figure { border: 1px solid #e1e1e1; border-radius: 4px; padding: 8px; margin: 6px 0 12px; background: #fff; overflow-x: auto; }
+  .figure svg { display: block; width: 100%; height: auto; }
+  .figure .scroll-svg { min-width: 760px; }
+  .caption-small { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+  /* sidebar boxes */
+  .roundbox {
+    border: 1px solid var(--border); border-radius: 6px;
+    margin-bottom: 14px; background: #fff; overflow: hidden;
+  }
+  .roundbox .caption {
+    color: var(--caption); font-weight: bold; font-size: 13px;
+    padding: 5px 9px; border-bottom: 1px solid #e1e1e1; background: linear-gradient(#fff, #f6f6f6);
+  }
+  .roundbox .body { padding: 8px 9px; font-size: 12px; }
+  .roundbox .body p { margin: 0 0 6px; }
+  .roundbox table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .roundbox td { padding: 3px 2px; border-bottom: 1px solid #f0f0f0; }
+  .roundbox td.num { text-align: right; color: #555; }
+  .recent li { margin-bottom: 6px; }
+  .recent { list-style: none; padding: 0; margin: 0; }
+  .recent .when { color: var(--muted); font-size: 11px; display: block; }
+
+  footer { border-top: 1px solid #e1e1e1; margin-top: 20px; padding: 10px 0 24px; text-align: center; color: var(--muted); font-size: 11px; }
+</style>
+</head>
+<body>
+
+<header class="wrap">
+  <div class="top">
+    <a class="logo" href="#top" aria-label="AutoSetter home">
+      <span class="bars" aria-hidden="true"><span></span><span></span><span></span></span>
+      <span>
+        <span class="logo-text"><b>Auto</b>Setter</span><br>
+        <span class="logo-sub">statement in, Polygon package out</span>
+      </span>
+    </a>
+    <div class="top-right">
+      <a href="https://github.com/devlup-labs/AutoSetter">devlup-labs/AutoSetter</a> &nbsp;|&nbsp; MIT &nbsp;|&nbsp; DevlUp Labs
+    </div>
+  </div>
+  <nav class="menu" aria-label="Sections">
+    <ul>
+      <li><a href="#about">Home</a></li>
+      <li><a href="#pipeline">Pipeline</a></li>
+      <li><a href="#checks">Checks</a></li>
+      <li><a href="#z3">Z3 Tests</a></li>
+      <li><a href="#similar">Duplicate Check</a></li>
+      <li><a href="#polygon">Polygon</a></li>
+      <li><a href="#git">Git History</a></li>
+      <li><a href="#ingest">Gitingest</a></li>
+      <li><a href="#team">Team</a></li>
+    </ul>
+  </nav>
+</header>
+
+<main class="wrap" id="top">
+<div class="layout">
+
+<!-- ================= MAIN COLUMN ================= -->
+<div>
+
+  <!-- 1. About -->
+  <article class="entry" id="about">
+    <h2><a href="#about">AutoSetter: from a statement screenshot to a Polygon package</a></h2>
+    <div class="info">By <span class="handle h-red">IamShreshth</span>, project overview, October 2026</div>
+    <div class="content">
+      <p>Hello, Codeforces-style readers!</p>
+      <p>Anyone who has set a problem knows the statement is the easy part. After it come the
+        <b>validator</b>, the <b>checker</b>, a <b>main solution</b>, some <b>wrong solutions</b> that must fail,
+        <b>tests</b> that reach the limits, and finally uploading it all to Polygon by hand.</p>
+      <p><b>AutoSetter</b> is our attempt to automate that. You give it a picture or PDF of a problem
+        statement, and it gives back a complete Polygon package:</p>
+      <ul>
+        <li><code>problem.json</code>: the statement read into a structured spec (title, story, input/output format, constraints, samples, limits)</li>
+        <li>a statement, a C++17 main solution, plus greedy, brute-force and heavy solutions</li>
+        <li>a testlib <code>validator.cpp</code> and <code>checker.cpp</code></li>
+        <li>tests generated with <b>Z3</b> from a declarative spec, including max-size cases</li>
+        <li>a validation report and a <code>manifest.json</code> saying whether the package is fit to release</li>
+      </ul>
+      <p>Before generating anything, it checks a <b>vector database</b> of existing problems. If the problem
+        already exists, you get the link and no package. Otherwise it can <b>push the package to Polygon</b>
+        with your API key.</p>
+      <p>This page explains how the project works inside. It is not a product page.</p>
+      <div class="bottom">
+        <span><span class="tag">python</span><span class="tag">ollama</span><span class="tag">qwen</span><span class="tag">testlib</span><span class="tag">z3</span><span class="tag">qdrant</span><span class="tag">polygon</span></span>
+        <span>55 commits on main · 9 contributors</span>
+      </div>
+    </div>
+  </article>
+
+  <!-- 2. Pipeline -->
+  <article class="entry" id="pipeline">
+    <h2><a href="#pipeline">How the pipeline works</a></h2>
+    <div class="info">By <span class="handle h-red">IamShreshth</span>, architecture</div>
+    <div class="content">
+      <p>One command runs every stage in order. Each stage writes its files to <code>out/</code>, so you can inspect any step.</p>
+      <div class="figure">
+        <svg class="scroll-svg" viewBox="0 0 760 470" role="img" aria-label="Pipeline diagram: statement image to vision model to problem.json, duplicate check in Qdrant, code model generation, sandbox validation with self-healing loop, packaging, Polygon upload">
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M0,0 L10,5 L0,10 z" fill="#555"/>
+            </marker>
+          </defs>
+          <style>
+            .bx { fill: #f8f8f8; stroke: #b9b9b9; stroke-width: 1; }
+            .bx-key { fill: #eef3fb; stroke: #3b5998; }
+            .bx-stop { fill: #fdeeee; stroke: #b11e26; }
+            .bx-ok { fill: #eef8ee; stroke: #008000; }
+            .t { font: 13px verdana, arial, sans-serif; fill: #222; }
+            .ts { font: 11px verdana, arial, sans-serif; fill: #666; }
+            .tm { font: 11px Consolas, "Courier New", monospace; fill: #3b5998; }
+            .ln { stroke: #555; stroke-width: 1.3; fill: none; }
+          </style>
+
+          <!-- column 1 -->
+          <rect class="bx" x="20" y="16" width="250" height="46" rx="5"/>
+          <text class="t" x="35" y="36">Statement image / PDF</text>
+          <text class="ts" x="35" y="52">.png · .jpg · .pdf</text>
+
+          <rect class="bx bx-key" x="20" y="92" width="250" height="52" rx="5"/>
+          <text class="t" x="35" y="112">1. Vision extraction</text>
+          <text class="tm" x="35" y="130">qwen3-vl:32b → problem.json</text>
+
+          <rect class="bx bx-key" x="20" y="174" width="250" height="52" rx="5"/>
+          <text class="t" x="35" y="194">2. Duplicate check</text>
+          <text class="tm" x="35" y="212">embed → Qdrant KNN, k=1</text>
+
+          <rect class="bx bx-key" x="20" y="256" width="250" height="60" rx="5"/>
+          <text class="t" x="35" y="276">3. Generation</text>
+          <text class="tm" x="35" y="293">Qwen3-Coder-Next</text>
+          <text class="ts" x="35" y="308">statement · solutions · testlib files</text>
+
+          <rect class="bx bx-key" x="20" y="346" width="250" height="52" rx="5"/>
+          <text class="t" x="35" y="366">4. Sandboxed validation</text>
+          <text class="ts" x="35" y="384">compile · samples · tests · probe checker</text>
+
+          <rect class="bx bx-key" x="20" y="418" width="250" height="40" rx="5"/>
+          <text class="t" x="35" y="443">5. Packaging → out/package/</text>
+
+          <path class="ln" d="M145,62 V90" marker-end="url(#arr)"/>
+          <path class="ln" d="M145,144 V172" marker-end="url(#arr)"/>
+          <path class="ln" d="M145,226 V254" marker-end="url(#arr)"/>
+          <text class="ts" x="152" y="245">score ≤ 0.80</text>
+          <path class="ln" d="M145,316 V344" marker-end="url(#arr)"/>
+          <path class="ln" d="M145,398 V416" marker-end="url(#arr)"/>
+
+          <!-- duplicate stop -->
+          <rect class="bx bx-stop" x="350" y="174" width="250" height="52" rx="5"/>
+          <text class="t" x="365" y="194">Already exists</text>
+          <text class="ts" x="365" y="212">print link · exit code 3 · stop</text>
+          <path class="ln" d="M270,200 H348" marker-end="url(#arr)"/>
+          <text class="ts" x="282" y="193">&gt; 0.80</text>
+
+          <!-- self healing -->
+          <rect class="bx" x="350" y="300" width="250" height="56" rx="5"/>
+          <text class="t" x="365" y="320">Self-healing (≤ 3 rounds)</text>
+          <text class="ts" x="365" y="338">regenerate only the files at fault,</text>
+          <text class="ts" x="365" y="351">with the error as feedback</text>
+          <path class="ln" d="M270,372 H310 V328 H348" marker-end="url(#arr)"/>
+          <text class="ts" x="276" y="364">failed</text>
+          <path class="ln" d="M475,300 V282 H272" marker-end="url(#arr)"/>
+
+          <!-- polygon -->
+          <rect class="bx bx-ok" x="350" y="404" width="250" height="56" rx="5"/>
+          <text class="t" x="365" y="424">6. Polygon upload</text>
+          <text class="ts" x="365" y="442">create → upload → commit → build</text>
+          <text class="ts" x="365" y="455">(only if verified)</text>
+          <path class="ln" d="M270,438 H348" marker-end="url(#arr)"/>
+
+          <!-- side notes -->
+          <rect class="bx" x="630" y="92" width="115" height="52" rx="5"/>
+          <text class="ts" x="640" y="112">Ollama on a</text>
+          <text class="ts" x="640" y="126">GPU server</text>
+          <text class="ts" x="640" y="139">(SSH tunnel)</text>
+          <path class="ln" d="M628,118 H272" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+
+          <rect class="bx" x="630" y="404" width="115" height="56" rx="5"/>
+          <text class="ts" x="640" y="424">API key +</text>
+          <text class="ts" x="640" y="438">secret, asked</text>
+          <text class="ts" x="640" y="452">at start</text>
+          <path class="ln" d="M628,432 H602" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+        </svg>
+      </div>
+      <h3>Modules</h3>
+      <div class="table-scroll">
+      <table class="data">
+        <tr><th>Module</th><th>Job</th></tr>
+        <tr><td><code>cli.py</code></td><td>flags, Polygon credential prompt, exit codes</td></tr>
+        <tr><td><code>runner.py</code></td><td>runs stages 1–5 in order, independent of the CLI</td></tr>
+        <tr><td><code>extractor.py</code></td><td>vision model → validated <code>problem.json</code></td></tr>
+        <tr><td><code>similarity.py</code></td><td>Qdrant connection, k=1 search, 0.80 threshold</td></tr>
+        <tr><td><code>generator.py</code></td><td>one model call per file, targeted regeneration</td></tr>
+        <tr><td><code>testgen/</code></td><td>Z3 test generation from <code>test_spec.json</code></td></tr>
+        <tr><td><code>sandbox.py</code> / <code>pipeline.py</code></td><td>compile and run untrusted C++, validate, assign blame</td></tr>
+        <tr><td><code>packager.py</code></td><td>Polygon package + <code>manifest.json</code></td></tr>
+        <tr><td><code>polygon.py</code></td><td>signed Polygon API client and uploader</td></tr>
+      </table>
+      </div>
+      <div class="bottom"><span><span class="tag">architecture</span><span class="tag">ollama</span></span><span>see ARCHITECTURE.md</span></div>
+    </div>
+  </article>
+
+  <!-- 3. Checks -->
+  <article class="entry" id="checks">
+    <h2><a href="#checks">Three checks against "the model agrees with itself"</a></h2>
+    <div class="info">By <span class="handle h-violet">Aeshvarya Awasthi</span>, validation design</div>
+    <div class="content">
+      <p>When one model writes the validator, the solution and the checker from the same JSON, all three can share
+        the same mistake and still pass each other. So the pipeline never trusts a file because another generated file agrees with it:</p>
+      <ol>
+        <li><b>Official samples check the validator.</b> The samples in the statement are known-good input, so a
+          correct validator must accept all of them. If it rejects one, the validator (or the extracted constraints) is wrong.</li>
+        <li><b>The validator checks the generator.</b> If the validator accepts the samples but rejects a generated
+          test, the <b>generator</b> is the file at fault.</li>
+        <li><b>Wrong outputs probe the checker.</b> Running the checker on the solution's own output only shows that
+          <code>x == x</code>. So we also feed it outputs we know are wrong:</li>
+      </ol>
+      <pre>  ✅ checker rejected: an empty output file
+  ✅ checker rejected: a correct answer with its last token missing
+  ✅ checker rejected: a correct answer with an extra token appended
+  ✅ checker rejected: a correct answer with every number increased by one</pre>
+      <p>When a check fails, only the files at fault are regenerated, with the exact error as feedback, for up to three rounds.</p>
+      <div class="bottom"><span><span class="tag">testlib</span><span class="tag">validation</span></span><span>autosetter/pipeline.py</span></div>
+    </div>
+  </article>
+
+  <!-- 4. Z3 -->
+  <article class="entry" id="z3">
+    <h2><a href="#z3">Z3 instead of a hand-written generator</a></h2>
+    <div class="info">By <span class="handle h-violet">Aeshvarya Awasthi</span> &amp; <span class="handle h-cyan">YajatGupta07</span>, test generation</div>
+    <div class="content">
+      <p>Models write random generators that often break the constraints, for example <code>k &gt; n</code> or a
+        <code>sum(n)</code> over the limit. So instead the model writes a <b>declarative spec</b> of the input:</p>
+      <pre>{ "vars": { "n": [1, 200000], "k": [1, "n"] },
+  "arrays": { "a": { "len": "n", "range": [1, 1000000000] } },
+  "file_constraints": ["sum(n) &lt;= 200000"], ... }</pre>
+      <ul>
+        <li><b>Z3 solves the integers.</b> Each integer is a variable with its bounds and constraints, fixed one at a time inside the range Z3 says is still feasible.</li>
+        <li><b>Builders fill the bulk.</b> Arrays, strings, trees and graphs are built directly, so an n = 2·10<sup>5</sup> test takes about a second.</li>
+        <li><b>Each seed has a strategy:</b> 1 = all minimum, 2 = all maximum, then random, small, near-max, log-scaled, with matching shapes (sorted arrays, path/star trees).</li>
+        <li><b>The spec must parse the official samples.</b> If it can't, it goes back to the model like a compile error.</li>
+      </ul>
+      <div class="bottom"><span><span class="tag">z3</span><span class="tag">smt</span><span class="tag">tests</span></span><span>autosetter/testgen/</span></div>
+    </div>
+  </article>
+
+  <!-- 5. Similar -->
+  <article class="entry" id="similar">
+    <h2><a href="#similar">Is this problem already on Codeforces?</a></h2>
+    <div class="info">By <span class="handle h-orange">swasti_singhal</span> &amp; <span class="handle h-red">IamShreshth</span>, vector database</div>
+    <div class="content">
+      <p><code>vector_database/</code> collects Codeforces and LeetCode problems, normalizes and deduplicates them, embeds
+        them with <code>BAAI/bge-small-en-v1.5</code> (384 dimensions), and stores them in <b>Qdrant</b> with cosine distance.</p>
+      <p>At run time, the extracted <code>problem.json</code> is embedded the same way, and we take only its
+        <b>single nearest neighbour (k = 1)</b>. If the cosine similarity is <b>above 0.80</b>, we print the link and stop.</p>
+      <p>Results from a real run against our 12-problem test collection:</p>
+      <div class="table-scroll">
+      <table class="data">
+        <tr><th>Query</th><th>Nearest stored problem</th><th>Cosine</th><th>Verdict</th></tr>
+        <tr><td>Theatre Square, reworded</td><td><a href="https://codeforces.com/problemset/problem/1/A">1A Theatre Square</a></td><td>0.9517</td><td class="ok">Exists</td></tr>
+        <tr><td>Watermelon, reworded</td><td><a href="https://codeforces.com/problemset/problem/4/A">4A Watermelon</a></td><td>0.9485</td><td class="ok">Exists</td></tr>
+        <tr><td>Two Sum (not stored)</td><td>489C Given Length and Sum of Digits</td><td>0.8017</td><td class="bad">False positive</td></tr>
+      </table>
+      </div>
+      <p>The last row is a known issue. This embedding model rates even unrelated problems around 0.75–0.80, while real
+        copies score about 0.95, so a 0.80 threshold sits in the noise. It is configurable
+        (<code>--similarity-threshold</code>), and around 0.90 looks safer.</p>
+      <div class="bottom"><span><span class="tag">qdrant</span><span class="tag">embeddings</span><span class="tag">knn</span></span><span>autosetter/similarity.py</span></div>
+    </div>
+  </article>
+
+  <!-- 6. Polygon -->
+  <article class="entry" id="polygon">
+    <h2><a href="#polygon">One command, straight to Polygon</a></h2>
+    <div class="info">By <span class="handle h-red">IamShreshth</span>, CLI &amp; Polygon API</div>
+    <div class="content">
+      <p>The CLI asks for your Polygon API key and secret first and verifies them, so a long run never stops at the end
+        to wait for input. Once the package passes validation, it creates the problem and uploads everything.</p>
+      <pre>$ autosetter statement.png
+Polygon API key (blank to skip upload): ••••••••
+Polygon API secret:
+Polygon credentials verified.
+Generating JSON specification...
+Searching vector database for an existing copy of this problem...
+  0.8062  Given Length and Sum of Digits...
+Generating statement... validator... generator... solution... checker...
+  ✅ Validator accepts all 1 official sample(s)
+  Test 1/10: ✅  ...  Test 10/10: ✅
+✅ All 10 tests passed!
+Ready for release — all 10 tests passed
+
+Pushing package to Polygon...
+Created Polygon problem 'two-sum' (ID 412345).
+▶ Setting limits: 2000 ms, 256 MB...
+▶ Uploading checker.cpp / validator.cpp / testlib.h / generator.cpp...
+▶ Uploading solutions...  solution.cpp [MA] greedy [WA] brute [TL] heavy [TL]
+▶ Uploading statement...
+▶ Uploading tests...
+▶ Committing changes...
+▶ Requesting package build (with verification)...
+Polygon problem: two-sum (ID 412345)</pre>
+      <p class="caption-small">Transcript from a demo run with the models and Polygon replaced by fakes. The CLI, Qdrant search, compile and validation were real.</p>
+      <h3>Exit codes</h3>
+      <div class="table-scroll">
+      <table class="data">
+        <tr><th>Code</th><th>Meaning</th></tr>
+        <tr><td>0</td><td>verified package (uploaded if credentials were given)</td></tr>
+        <tr><td>1</td><td>fatal error</td></tr>
+        <tr><td>2</td><td>package built but not fit to release</td></tr>
+        <tr><td>3</td><td>problem already exists, link printed</td></tr>
+        <tr><td>4</td><td>verified, but the Polygon upload failed</td></tr>
+      </table>
+      </div>
+      <div class="bottom"><span><span class="tag">cli</span><span class="tag">polygon-api</span></span><span>autosetter/cli.py · autosetter/polygon.py</span></div>
+    </div>
+  </article>
+
+  <!-- 7. Git -->
+  <article class="entry" id="git">
+    <h2><a href="#git">Git history</a></h2>
+    <div class="info">55 commits on <code>main</code>, 31 May → 7 Oct 2026</div>
+    <div class="content">
+      <p>The project's main branch with its feature branches and pull requests. Each numbered dot is a milestone, listed below.</p>
+      <div class="figure">
+        <svg class="scroll-svg" viewBox="0 0 960 250" role="img" aria-label="Git branch diagram of main with feature branches websocket, fix/pipeline-review, shreshth, qwen-transformers, vector-database, z3 pull request, images pull request and similar-problem-search">
+          <style>
+            .main { stroke: #3b5998; stroke-width: 4; fill: none; }
+            .br { stroke-width: 3; fill: none; }
+            .dot { stroke: #fff; stroke-width: 2; }
+            .num { font: bold 10px verdana, sans-serif; fill: #fff; text-anchor: middle; }
+            .bl { font: 11px Consolas, "Courier New", monospace; text-anchor: middle; }
+            .ba { font: 10px verdana, sans-serif; fill: #888; text-anchor: middle; }
+            .lane { font: 10px verdana, sans-serif; fill: #aaa; }
+          </style>
+          <text class="lane" x="6" y="64">main</text>
+          <line class="main" x1="44" y1="60" x2="900" y2="60"/>
+
+          <!-- branches: fork x1 -> merge x2 ; lane1 y=115, lane2 y=185 -->
+          <path class="br" stroke="#008000" d="M50,60 C70,60 60,115 82,115 L82,115 C104,115 94,60 114,60"/>
+          <text class="bl" x="82" y="134" fill="#008000">websocket</text><text class="ba" x="82" y="147">PR #1</text>
+
+          <path class="br" stroke="#a0a" d="M242,60 C262,60 252,115 272,115 L276,115 C296,115 286,60 306,60"/>
+          <text class="bl" x="274" y="134" fill="#a0a">fix/pipeline-review</text><text class="ba" x="274" y="147">tests · CI · sandbox</text>
+
+          <path class="br" stroke="#ff0000" d="M306,60 C326,60 316,185 336,185 L340,185 C360,185 350,60 370,60"/>
+          <text class="bl" x="338" y="204" fill="#ff0000">shreshth</text><text class="ba" x="338" y="217">restructure</text>
+
+          <path class="br" stroke="#ff8c00" d="M370,60 C390,60 380,115 400,115 L404,115 C424,115 414,60 434,60"/>
+          <text class="bl" x="402" y="134" fill="#ff8c00">qwen-transformers</text><text class="ba" x="402" y="147">HF Qwen (reverted)</text>
+
+          <path class="br" stroke="#03a89e" d="M562,60 C582,60 572,185 592,185 L596,185 C616,185 606,60 626,60"/>
+          <text class="bl" x="594" y="204" fill="#03a89e">vector-database</text><text class="ba" x="594" y="217">Qdrant pipeline</text>
+
+          <path class="br" stroke="#0000ff" d="M626,60 C646,60 636,115 656,115 L660,115 C680,115 670,60 690,60"/>
+          <text class="bl" x="658" y="134" fill="#0000ff">z3</text><text class="ba" x="658" y="147">PR #4</text>
+
+          <path class="br" stroke="#808080" d="M690,60 C710,60 700,185 720,185 L724,185 C744,185 734,60 754,60"/>
+          <text class="bl" x="722" y="204" fill="#808080">images</text><text class="ba" x="722" y="217">PR #5</text>
+
+          <path class="br" stroke="#ff0000" d="M754,60 C774,60 764,115 784,115 L788,115 C808,115 798,60 818,60"/>
+          <text class="bl" x="786" y="134" fill="#ff0000">similar-problem-search</text><text class="ba" x="786" y="147">k-NN lookup</text>
+
+          <!-- milestones -->
+          <g>
+            <circle class="dot" cx="50" cy="60" r="9" fill="#3b5998"/><text class="num" x="50" y="64">1</text>
+            <circle class="dot" cx="114" cy="60" r="9" fill="#3b5998"/><text class="num" x="114" y="64">2</text>
+            <circle class="dot" cx="178" cy="60" r="9" fill="#3b5998"/><text class="num" x="178" y="64">3</text>
+            <circle class="dot" cx="242" cy="60" r="9" fill="#3b5998"/><text class="num" x="242" y="64">4</text>
+            <circle class="dot" cx="306" cy="60" r="9" fill="#3b5998"/><text class="num" x="306" y="64">5</text>
+            <circle class="dot" cx="370" cy="60" r="9" fill="#3b5998"/><text class="num" x="370" y="64">6</text>
+            <circle class="dot" cx="434" cy="60" r="9" fill="#3b5998"/><text class="num" x="434" y="64">7</text>
+            <circle class="dot" cx="498" cy="60" r="9" fill="#3b5998"/><text class="num" x="498" y="64">8</text>
+            <circle class="dot" cx="562" cy="60" r="9" fill="#3b5998"/><text class="num" x="562" y="64">9</text>
+            <circle class="dot" cx="626" cy="60" r="9" fill="#3b5998"/><text class="num" x="626" y="64">10</text>
+            <circle class="dot" cx="690" cy="60" r="9" fill="#3b5998"/><text class="num" x="690" y="64">11</text>
+            <circle class="dot" cx="754" cy="60" r="9" fill="#3b5998"/><text class="num" x="754" y="64">12</text>
+            <circle class="dot" cx="818" cy="60" r="9" fill="#3b5998"/><text class="num" x="818" y="64">13</text>
+            <circle class="dot" cx="882" cy="60" r="10" fill="#b11e26"/><text class="num" x="882" y="64">14</text>
+          </g>
+          <text class="ba" x="50" y="40">31 May</text>
+          <text class="ba" x="242" y="40">9 Aug</text>
+          <text class="ba" x="434" y="40">22 Aug</text>
+          <text class="ba" x="690" y="40">28 Sep</text>
+          <text class="ba" x="882" y="40">7 Oct</text>
+        </svg>
+      </div>
+      <div class="table-scroll">
+      <table class="data">
+        <tr><th>#</th><th>Date</th><th>Milestone</th><th>By</th></tr>
+        <tr><td>1</td><td>31 May</td><td>Initial commit</td><td><span class="handle h-gray">Bhavishy Agrawal</span></td></tr>
+        <tr><td>2</td><td>22 Jun</td><td><code>websocket</code> merged (PR #1)</td><td><span class="handle h-blue">smayanroy</span></td></tr>
+        <tr><td>3</td><td>8 Aug</td><td>Statement parser</td><td><span class="handle h-orange">swasti_singhal</span></td></tr>
+        <tr><td>4</td><td>9 Aug</td><td>Sandbox and first end-to-end pipeline</td><td><span class="handle h-red">IamShreshth</span></td></tr>
+        <tr><td>5</td><td>9 Aug</td><td><code>fix/pipeline-review</code> merged: test suite, CI, hardened sandbox, vendored testlib</td><td><span class="handle h-violet">Aeshvarya Awasthi</span></td></tr>
+        <tr><td>6</td><td>15 Aug</td><td><code>shreshth</code> merged: repository restructured, prompts and examples</td><td><span class="handle h-red">IamShreshth</span></td></tr>
+        <tr><td>7</td><td>22 Aug</td><td><code>qwen-transformers</code> merged: Hugging Face Qwen as the second model</td><td><span class="handle h-orange">swasti_singhal</span>, <span class="handle h-red">IamShreshth</span></td></tr>
+        <tr><td>8</td><td>23 Aug</td><td>Reverted to a pure Ollama pipeline</td><td><span class="handle h-red">IamShreshth</span></td></tr>
+        <tr><td>9</td><td>2 Sep</td><td>Algorithmic prompts</td><td><span class="handle h-blue">smayanroy</span></td></tr>
+        <tr><td>10</td><td>24 Sep</td><td>Vector database pipeline reaches main; Qwen3 models configured</td><td><span class="handle h-orange">swasti_singhal</span>, <span class="handle h-blue">smayanroy</span></td></tr>
+        <tr><td>11</td><td>28 Sep</td><td>Z3 test generation merged (PR #4)</td><td><span class="handle h-cyan">YajatGupta07</span></td></tr>
+        <tr><td>12</td><td>30 Sep</td><td>Test images merged (PR #5)</td><td><span class="handle h-green">Jenmi07</span></td></tr>
+        <tr><td>13</td><td>4 Oct</td><td>Similar-problem search</td><td><span class="handle h-red">IamShreshth</span></td></tr>
+        <tr><td>14</td><td>7 Oct</td><td>Polygon connected, vector DB integrated, README updated</td><td><span class="handle h-red">IamShreshth</span></td></tr>
+      </table>
+      </div>
+      <h3>git log --graph (latest on main)</h3>
+<pre>* fd25a5d polygon connected and vector db integrated readme updated
+* dfc917f Add similar-problem search and fix vector database pipeline
+*   14bee90 Merge pull request #5 from Jenmi07/main
+|\
+| * f0c5a5b image added
+|/
+* 7f3aaf8 Modified model name
+* 005f53f Added test images
+* 520784f Changed example images
+* 2bcf73a Modified link to connect to server
+*   1a24825 Merge pull request #4 from YajatGupta07/main
+|\
+| * bfd530d z3
+|/
+* 5321a8c coordinating commits
+*   2a21004 Merge branch 'main' of github.com:devlup-labs/AutoSetter
+|\
+| * cda7ab3 pytest failure reset
+| * c3a8b0a Rewrite generator.txt: full 15-phase algorithmic prompting
+| * 4201eeb Add vector database pipeline by swasti_singhal
+| *   c748008 Merge remote-tracking branch 'origin/main' into main
+| |\
+| * | 2a3cfb0 Z3 files update
+* | | f5a3873 Changed ollama models and ollama host on config.py
+| |/
+|/|
+* | 20245ee Merge branch 'main' of github.com:devlup-labs/AutoSetter
+|\|
+| * 231d43a colab script added
+* | 23cafb2 modified prompts to algorithmic prompts
+|/
+* 8689148 sanitycheckdefined</pre>
+      <div class="bottom"><span><span class="tag">git</span><span class="tag">history</span></span><span>git log main --graph --oneline</span></div>
+    </div>
+  </article>
+
+  <!-- 8. Gitingest -->
+  <article class="entry" id="ingest">
+    <h2><a href="#ingest">Repository digest (gitingest)</a></h2>
+    <div class="info">The whole repository summarized in one place, in the style of <a href="https://gitingest.com">gitingest</a>. Handy to paste into an LLM.</div>
+    <div class="content">
+<pre>Repository: devlup-labs/autosetter
+Commit: fd25a5d
+Files analyzed: 163
+Estimated tokens: 149.5k   (vendored testlib.h and images excluded)</pre>
+      <div class="table-scroll">
+      <table class="data">
+        <tr><th>Type</th><th>Files</th><th>Lines</th><th>What</th></tr>
+        <tr><td>.py</td><td>59</td><td>8,853</td><td>pipeline, Z3 engine, vector DB, tests</td></tr>
+        <tr><td>.txt</td><td>12</td><td>4,846</td><td>prompt templates, requirements</td></tr>
+        <tr><td>.md</td><td>6</td><td>917</td><td>README, ARCHITECTURE, examples</td></tr>
+        <tr><td>.cpp</td><td>13</td><td>684</td><td>recorded example artifacts</td></tr>
+        <tr><td>.js</td><td>4</td><td>758</td><td>Docker + NsJail sandbox pool</td></tr>
+        <tr><td>.in / .ans</td><td>40</td><td>60</td><td>example tests</td></tr>
+      </table>
+      </div>
+<pre>Directory structure:
+└── devlup-labs-autosetter/
+    ├── .github/workflows/tests.yml
+    ├── autosetter/
+    │   ├── include/testlib.h
+    │   ├── prompts/
+    │   │   ├── checker.txt
+    │   │   ├── generator.txt
+    │   │   ├── json_extraction.txt
+    │   │   ├── solution.txt
+    │   │   ├── solution_brute.txt
+    │   │   ├── solution_greedy.txt
+    │   │   ├── solution_heavy.txt
+    │   │   ├── statement.txt
+    │   │   ├── test_spec.txt
+    │   │   └── validator.txt
+    │   ├── testgen/
+    │   │   ├── __init__.py
+    │   │   ├── __main__.py
+    │   │   ├── builders.py
+    │   │   ├── engine.py
+    │   │   ├── expr.py
+    │   │   ├── layout.py
+    │   │   └── spec.py
+    │   ├── __init__.py
+    │   ├── __main__.py
+    │   ├── cli.py
+    │   ├── config.py
+    │   ├── extractor.py
+    │   ├── generator.py
+    │   ├── llm.py
+    │   ├── packager.py
+    │   ├── pipeline.py
+    │   ├── polygon.py
+    │   ├── prompts.py
+    │   ├── remote.py
+    │   ├── runner.py
+    │   ├── sandbox.py
+    │   ├── similarity.py
+    │   └── vision.py
+    ├── example/
+    │   ├── 01_intake … 04_package/
+    │   ├── README.md
+    │   └── run_mock_pipeline.py
+    ├── sandbox/
+    │   ├── docker/Dockerfile
+    │   ├── scripts/
+    │   │   ├── build.sh
+    │   │   ├── start.sh
+    │   │   └── stop.sh
+    │   └── server/
+    │       ├── src/
+    │       │   ├── config.js
+    │       │   ├── executor.js
+    │       │   ├── pool.js
+    │       │   └── server.js
+    │       └── package.json
+    ├── tests/
+    │   ├── conftest.py
+    │   ├── fixtures.py
+    │   ├── test_cli.py
+    │   ├── test_extractor.py
+    │   ├── test_generator.py
+    │   ├── test_packager.py
+    │   ├── test_pipeline.py
+    │   ├── test_polygon.py
+    │   ├── test_remote.py
+    │   ├── test_sandbox.py
+    │   ├── test_similarity.py
+    │   ├── test_testgen.py
+    │   └── test_vision.py
+    ├── vector_database/
+    │   ├── embeddings/
+    │   │   ├── __init__.py
+    │   │   └── embedder.py
+    │   ├── processing/
+    │   │   ├── __init__.py
+    │   │   ├── deduplicate.py
+    │   │   ├── normalize.py
+    │   │   └── schema.py
+    │   ├── qdrant/
+    │   │   ├── __init__.py
+    │   │   └── client.py
+    │   ├── scripts/
+    │   │   ├── collect.py
+    │   │   ├── embed.py
+    │   │   ├── normalize.py
+    │   │   ├── run_pipeline.py
+    │   │   ├── test_search.py
+    │   │   └── upload_qdrant.py
+    │   ├── sources/
+    │   │   ├── __init__.py
+    │   │   ├── base.py
+    │   │   ├── codeforces.py
+    │   │   └── leetcode.py
+    │   ├── config.py
+    │   ├── pipeline.py
+    │   ├── README.md
+    │   ├── requirements.txt
+    │   └── search.py
+    ├── app.py
+    ├── ARCHITECTURE.md
+    ├── LICENSE
+    ├── pyproject.toml
+    ├── pytest.ini
+    ├── README.md
+    └── requirements.txt</pre>
+      <p>For the full text digest, paste the repo URL into <a href="https://gitingest.com/devlup-labs/AutoSetter">gitingest.com</a>,
+        or run <code>pip install gitingest &amp;&amp; gitingest https://github.com/devlup-labs/AutoSetter</code>.</p>
+      <div class="bottom"><span><span class="tag">gitingest</span><span class="tag">repo-map</span></span><span>as of fd25a5d</span></div>
+    </div>
+  </article>
+
+  <!-- 9. Team -->
+  <article class="entry" id="team">
+    <h2><a href="#team">Team</a></h2>
+    <div class="info">Commits on <code>main</code>. Handle colours are just for fun.</div>
+    <div class="content">
+      <div class="table-scroll">
+      <table class="data">
+        <tr><th>#</th><th>Who</th><th>Commits</th><th>Worked on</th></tr>
+        <tr><td>1</td><td><span class="handle h-red">IamShreshth</span></td><td>22</td><td>pipeline, sandbox, restructure, similarity search, Polygon CLI</td></tr>
+        <tr><td>2</td><td><span class="handle h-blue">smayanroy</span></td><td>14</td><td>models &amp; server config, prompts, TeX statements</td></tr>
+        <tr><td>3</td><td><span class="handle h-violet">Aeshvarya Awasthi</span></td><td>10</td><td>test suite, CI, sandbox hardening, validation design, Z3 / IR extraction</td></tr>
+        <tr><td>4</td><td><span class="handle h-orange">swasti_singhal</span></td><td>5</td><td>statement parser, brute solutions, vector database</td></tr>
+        <tr><td>5</td><td><span class="handle h-cyan">YajatGupta07</span></td><td>1</td><td>Z3 (PR #4)</td></tr>
+        <tr><td>6</td><td><span class="handle h-green">Jenmi07</span></td><td>1</td><td>test images (PR #5)</td></tr>
+        <tr><td>7</td><td><span class="handle h-gray">Janmey Parmar</span></td><td>1</td><td>merged PR #5</td></tr>
+        <tr><td>8</td><td><span class="handle h-gray">Bhavishy Agrawal</span></td><td>1</td><td>initial commit</td></tr>
+      </table>
+      </div>
+      <div class="bottom"><span><span class="tag">devlup-labs</span></span><span>git shortlog -sn main</span></div>
+    </div>
+  </article>
+
+</div>
+
+<!-- ================= SIDEBAR ================= -->
+<aside>
+  <div class="roundbox">
+    <div class="caption">→ About</div>
+    <div class="body">
+      <p><b>AutoSetter</b> turns a problem statement image or PDF into a verified Polygon package.</p>
+      <table>
+        <tr><td>Repository</td><td class="num"><a href="https://github.com/devlup-labs/AutoSetter">GitHub</a></td></tr>
+        <tr><td>License</td><td class="num">MIT</td></tr>
+        <tr><td>Language</td><td class="num">Python 3.10+</td></tr>
+        <tr><td>Commits (main)</td><td class="num">55</td></tr>
+        <tr><td>Started</td><td class="num">31 May 2026</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="roundbox">
+    <div class="caption">→ Stack</div>
+    <div class="body">
+      <table>
+        <tr><td>Vision</td><td class="num mono">qwen3-vl:32b</td></tr>
+        <tr><td>Code</td><td class="num mono">Qwen3-Coder-Next</td></tr>
+        <tr><td>Serving</td><td class="num">Ollama</td></tr>
+        <tr><td>Embeddings</td><td class="num mono">bge-small-en</td></tr>
+        <tr><td>Vector DB</td><td class="num">Qdrant</td></tr>
+        <tr><td>Tests</td><td class="num">Z3 + testlib</td></tr>
+        <tr><td>Sandbox</td><td class="num">g++ / NsJail</td></tr>
+        <tr><td>Publish</td><td class="num">Polygon API</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="roundbox">
+    <div class="caption">→ Top contributors</div>
+    <div class="body">
+      <table>
+        <tr><td><span class="handle h-red">IamShreshth</span></td><td class="num">22</td></tr>
+        <tr><td><span class="handle h-blue">smayanroy</span></td><td class="num">14</td></tr>
+        <tr><td><span class="handle h-violet">Aeshvarya Awasthi</span></td><td class="num">10</td></tr>
+        <tr><td><span class="handle h-orange">swasti_singhal</span></td><td class="num">5</td></tr>
+        <tr><td><span class="handle h-cyan">YajatGupta07</span></td><td class="num">1</td></tr>
+      </table>
+      <p style="margin:6px 0 0"><a href="#team">View all →</a></p>
+    </div>
+  </div>
+
+  <div class="roundbox">
+    <div class="caption">→ Recent actions</div>
+    <div class="body">
+      <ul class="recent">
+        <li><span class="handle h-red">IamShreshth</span> → <a href="#polygon">Polygon connected, vector DB integrated</a><span class="when">7 Oct 2026</span></li>
+        <li><span class="handle h-red">IamShreshth</span> → <a href="#similar">Similar-problem search</a><span class="when">4 Oct 2026</span></li>
+        <li><span class="handle h-green">Jenmi07</span> → <a href="#git">Test images (PR #5)</a><span class="when">30 Sep 2026</span></li>
+        <li><span class="handle h-blue">smayanroy</span> → <a href="#git">Qwen3 model names</a><span class="when">29 Sep 2026</span></li>
+        <li><span class="handle h-cyan">YajatGupta07</span> → <a href="#z3">Z3 (PR #4)</a><span class="when">28 Sep 2026</span></li>
+        <li><span class="handle h-orange">swasti_singhal</span> → <a href="#similar">Vector database pipeline</a><span class="when">5 Sep 2026</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="roundbox">
+    <div class="caption">→ Try it</div>
+    <div class="body">
+<pre style="margin:0;white-space:pre-wrap">pip install -e ".[similarity]"
+autosetter statement.png</pre>
+    </div>
+  </div>
+</aside>
+
+</div>
+</main>
+
+<footer class="wrap">
+  AutoSetter · DevlUp Labs · MIT License · page generated from the repository at commit fd25a5d
+</footer>
+
+</body>
+</html>
