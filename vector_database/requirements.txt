@@ -5,3 +5,4 @@ qdrant-client
 sentence-transformers
 pydantic
 torch
+datasets

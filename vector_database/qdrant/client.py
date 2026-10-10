@@ -1,4 +1,5 @@
 import uuid
+import time
 from typing import List, Dict, Any
 from qdrant_client import QdrantClient
 from qdrant_client.http import models
@@ -7,7 +8,7 @@ from ..processing.schema import Problem
 
 class QdrantManager:
     def __init__(self, url: str, collection_name: str, api_key: str = None):
-        self.client = QdrantClient(url=url, api_key=api_key)
+        self.client = QdrantClient(url=url, api_key=api_key, timeout=90)
         self.collection_name = collection_name
         
     def ensure_collection(self, dimension: int):
@@ -59,8 +60,8 @@ class QdrantManager:
             "url": problem.url
         }
 
-    def upsert_batch(self, problems: List[Problem], embeddings: List[List[float]]):
-        """Batch upsert problems and their embeddings to Qdrant."""
+    def upsert_batch(self, problems: List[Problem], embeddings: List[List[float]], max_retries: int = 3):
+        """Batch upsert problems and their embeddings to Qdrant with retry logic."""
         if not problems or not embeddings:
             return
             
@@ -76,8 +77,17 @@ class QdrantManager:
                     payload=self._prepare_payload(prob)
                 )
             )
-            
-        self.client.upsert(
-            collection_name=self.collection_name,
-            points=points
-        )
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                self.client.upsert(
+                    collection_name=self.collection_name,
+                    points=points
+                )
+                return  # success
+            except Exception as e:
+                if attempt == max_retries:
+                    raise  # re-raise on final attempt
+                wait = 2 ** attempt  # 2s, 4s, 8s ...
+                print(f"  Upsert attempt {attempt} failed ({e}). Retrying in {wait}s...")
+                time.sleep(wait)
